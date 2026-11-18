@@ -25,7 +25,19 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: install
+        run: |
+          set +e
+          npm ci --no-audit --no-fund --prefer-offline > /tmp/ci.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            grep -Ei "npm error|ERR!" /tmp/ci.log | head -30 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            echo "--- tail ---"
+            tail -40 /tmp/ci.log
+          fi
+          exit $code
 
       - name: test
         run: |
