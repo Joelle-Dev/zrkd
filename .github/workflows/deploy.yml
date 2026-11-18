@@ -62,9 +62,9 @@ jobs:
 
       - run: npm run build
 
+      # GITHUB_TOKEN 没有创建 Pages 站点的权限，这里只读取配置。
+      # 仓库第一次部署前，需要在 Settings → Pages → Source 选一次 GitHub Actions。
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
