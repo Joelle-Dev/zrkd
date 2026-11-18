@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import 'fake-indexeddb/auto';
 import { clearStores, getSetting, setSetting, getAll } from '../src/lib/db.js';
-import { listEvents, getEvent, saveEvent, removeEvent, restoreEvent, duplicateEvent, validateEvent } from '../src/lib/events.js';
+import { listEvents, getEvent, saveEvent, removeEvent, validateEvent } from '../src/lib/events.js';
 
 test.beforeEach(async () => {
   await clearStores();
@@ -59,22 +59,10 @@ test('更新时保留 id 与 createdAt', async () => {
   assert.equal((await listEvents()).length, 1);
 });
 
-test('删除与恢复', async () => {
+test('删除', async () => {
   const record = await saveEvent({ title: '要删的', targetDate: '2026-03-03' });
   await removeEvent(record.id);
   assert.equal(await getEvent(record.id), undefined);
-
-  await restoreEvent(record);
-  const back = await getEvent(record.id);
-  assert.equal(back.title, '要删的');
-});
-
-test('duplicateEvent 复制标题', async () => {
-  const record = await saveEvent({ title: '原件', targetDate: '2026-04-04' });
-  const copy = await duplicateEvent(record.id);
-  assert.notEqual(copy.id, record.id);
-  assert.equal(copy.title, '原件 副本');
-  assert.equal(copy.targetDate, '2026-04-04');
 });
 
 test('标题与备注长度被截断', async () => {

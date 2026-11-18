@@ -1,7 +1,5 @@
 import { ref } from 'vue';
 
-export const DANGER_COLOR = '#b5473c';
-
 export const THEME_OPTIONS = [
   { key: 'system', label: '跟随系统' },
   { key: 'light', label: '浅色' },
@@ -260,10 +258,6 @@ export function setAccentColor(value) {
     // 同上
   }
   apply();
-}
-
-export function resetAccentColor() {
-  setAccentColor(DEFAULT_ACCENT);
 }
 
 export function initTheme() {

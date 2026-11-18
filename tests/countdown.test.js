@@ -7,7 +7,6 @@ import {
   dateKeyFromParts,
   diffDays,
   describeEvent,
-  subLabelFor,
   formatDateCN,
   formatDateDot,
   weekdayCN,
@@ -57,14 +56,12 @@ test('describeEvent 三种状态', () => {
   const same = describeEvent({ targetDate: today, mode: 'auto' }, today);
   assert.equal(same.kind, 'today');
   assert.equal(same.days, 0);
-  assert.equal(subLabelFor(same), '今天');
 
   const past = describeEvent({ targetDate: '2026-11-01', mode: 'auto' }, today);
   assert.equal(past.kind, 'anniversary');
   assert.equal(past.days, 17);
   assert.equal(past.signed, -17);
   assert.equal(past.label, '已经');
-  assert.equal(subLabelFor(past), '天');
 });
 
 test('describeEvent 对非法日期给 invalid', () => {

@@ -4,7 +4,6 @@
 // 后者只依赖浏览器 API。所有尺寸都按图片短边等比推导，竖图横图都不会崩。
 
 const MAX_EDGE = 2200;
-const MIN_EDGE = 480;
 
 const SERIF = '"Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "Times New Roman", serif';
 const SANS = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif';
@@ -367,4 +366,3 @@ export async function renderWatermark({
   return { blob, width: size.width, height: size.height };
 }
 
-export { MAX_EDGE, MIN_EDGE };

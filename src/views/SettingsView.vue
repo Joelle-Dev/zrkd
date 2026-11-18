@@ -179,8 +179,9 @@ import {
   readableOn
 } from '../utils/theme';
 import { getSetting, setSetting } from '../lib/db';
+import { HISTORY_ONLINE_KEY } from '../lib/constants';
 import { clearHistoryCache } from '../lib/history';
-import { getStorageState, formatBytes } from '../lib/storage';
+import { getStorageUsage, formatBytes } from '../lib/storage';
 import { useEvents } from '../composables/useEvents';
 import { usePwaInstall } from '../composables/usePwaInstall';
 
@@ -190,7 +191,7 @@ const { standalone, isIos, promptInstall } = usePwaInstall();
 const themeOptions = THEME_OPTIONS;
 const accentPresets = ACCENT_PRESETS;
 const historyOnline = ref(true);
-const storage = ref({ usage: 0, quota: 0 });
+const storageUsage = ref(0);
 
 const isPresetActive = (preset) => accentColor.value.toLowerCase() === preset.value.toLowerCase();
 
@@ -214,10 +215,7 @@ function onCustomAccent(event) {
 
 const eventCount = computed(() => events.value.length);
 
-const storageLabel = computed(() => {
-  if (!storage.value.usage) return '';
-  return formatBytes(storage.value.usage);
-});
+const storageLabel = computed(() => (storageUsage.value ? formatBytes(storageUsage.value) : ''));
 
 const buildLabel = computed(() => {
   try {
@@ -237,7 +235,7 @@ async function toggleHistory(value) {
   const next = typeof value === 'boolean' ? value : !historyOnline.value;
   historyOnline.value = next;
   try {
-    await setSetting('history-online', next);
+    await setSetting(HISTORY_ONLINE_KEY, next);
     showToast(next ? '下次打开历史页会去取历史事件' : '已关闭，不再联网');
   } catch (err) {
     showToast('保存失败，再试一次');
@@ -272,15 +270,11 @@ async function install() {
 
 onMounted(async () => {
   try {
-    const value = await getSetting('history-online', true);
+    const value = await getSetting(HISTORY_ONLINE_KEY, true);
     historyOnline.value = Boolean(value);
   } catch (err) {
     historyOnline.value = true;
   }
-  try {
-    storage.value = await getStorageState();
-  } catch (err) {
-    storage.value = { usage: 0, quota: 0 };
-  }
+  storageUsage.value = await getStorageUsage().catch(() => 0);
 });
 </script>

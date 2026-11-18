@@ -26,7 +26,7 @@ function requestToPromise(request) {
   });
 }
 
-export function transactionDone(tx) {
+function transactionDone(tx) {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -34,7 +34,7 @@ export function transactionDone(tx) {
   });
 }
 
-export function openDB() {
+function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -127,4 +127,3 @@ export async function setSetting(key, value) {
   return value;
 }
 
-export { STORES, SETTINGS_STORE, ALL_STORES };

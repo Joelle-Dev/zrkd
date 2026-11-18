@@ -68,10 +68,3 @@ export function photoFilename(date = new Date()) {
   const pad = (value) => String(value).padStart(2, '0');
   return `zhirikede-${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.jpg`;
 }
-
-export async function saveBlob(blob, filename, meta = {}) {
-  const file = toFile(blob, filename);
-  const result = await shareFile(file, meta);
-  if (result !== 'unsupported') return result;
-  return fallbackSave(blob, filename);
-}

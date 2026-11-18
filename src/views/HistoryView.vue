@@ -66,6 +66,7 @@ import LoadingState from '../components/LoadingState.vue';
 import { useEvents } from '../composables/useEvents';
 import { loadHistory } from '../lib/history';
 import { getSetting } from '../lib/db';
+import { HISTORY_ONLINE_KEY } from '../lib/constants';
 import { formatDateCN, parseDateKey, weekdayCN } from '../lib/countdown';
 
 const router = useRouter();
@@ -100,7 +101,7 @@ const stateLabel = computed(() => {
 
 async function readSetting() {
   try {
-    enabled.value = Boolean(await getSetting('history-online', true));
+    enabled.value = Boolean(await getSetting(HISTORY_ONLINE_KEY, true));
   } catch (err) {
     enabled.value = true;
   }

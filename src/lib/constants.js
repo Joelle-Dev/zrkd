@@ -1,10 +1,7 @@
 export const DB_NAME = 'zhirikede-db';
 export const DB_VERSION = 1;
 
-export const THEME_STORAGE_KEY = 'zrkd:theme';
 export const HISTORY_ONLINE_KEY = 'history-online';
-
-export const EVENT_MODES = Object.freeze(['auto', 'countdown', 'anniversary']);
 
 export const EVENT_MODE_LABELS = Object.freeze({
   auto: '自动',

@@ -88,12 +88,6 @@ export function describeEvent(event, todayKey = dateKeyOf()) {
   return { signed, days: -signed, kind: 'anniversary', label: '已经', mode, targetKey };
 }
 
-/** 主数字下面的辅助文案 */
-export function subLabelFor(desc) {
-  if (desc.kind === 'today') return '今天';
-  return desc.kind === 'countdown' || desc.kind === 'anniversary' ? '天' : '';
-}
-
 export function formatDateCN(key) {
   const parts = parseDateKey(key);
   if (!parts) return '';
@@ -112,10 +106,6 @@ export function weekdayCN(key) {
   const names = ['日', '一', '二', '三', '四', '五', '六'];
   const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   return `周${names[date.getUTCDay()]}`;
-}
-
-export function targetYear(event) {
-  return parseDateKey(event?.targetDate)?.year ?? null;
 }
 
 /** 排序：今天最靠前，未来的按由近到远，过去的按由近到远排在后面 */

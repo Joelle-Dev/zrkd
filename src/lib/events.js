@@ -2,12 +2,12 @@ import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
 import { ACCENTS, DEFAULT_EVENT } from './constants.js';
 import { isValidDateKey, parseDateKey } from './countdown.js';
 
-export function uid(prefix = 'ev') {
+function uid(prefix = 'ev') {
   const random = Math.random().toString(36).slice(2, 9);
   return `${prefix}_${Date.now().toString(36)}_${random}`;
 }
 
-export function normalizeEventInput(input = {}) {
+function normalizeEventInput(input = {}) {
   const targetDate = String(input.targetDate || '').trim();
   const accent = ACCENTS.some((item) => item.value === input.accent)
     ? input.accent
@@ -21,8 +21,7 @@ export function normalizeEventInput(input = {}) {
     targetDate,
     mode,
     accent,
-    note: String(input.note || '').trim().slice(0, 120),
-    showYear: input.showYear !== false
+    note: String(input.note || '').trim().slice(0, 120)
   };
 }
 
@@ -63,18 +62,3 @@ export async function removeEvent(id) {
   await deleteRecord('events', id);
 }
 
-export async function restoreEvent(record) {
-  if (!record?.id) return null;
-  await putRecord('events', record);
-  return record;
-}
-
-export async function duplicateEvent(id) {
-  const source = await getEvent(id);
-  if (!source) throw new Error('找不到这个日子');
-  const { id: _omitId, createdAt: _omitCreated, updatedAt: _omitUpdated, ...rest } = source;
-  return saveEvent({
-    ...rest,
-    title: `${source.title} 副本`
-  });
-}
