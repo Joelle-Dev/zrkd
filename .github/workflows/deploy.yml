@@ -22,22 +22,22 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
+      # GitHub 的临时 runner 上 npm 偶尔报 "Exit handler never called!"，
+      # 这是 npm 自身的已知问题，重试一次即可，不掩盖真实安装错误。
       - name: install
         run: |
-          set +e
-          npm ci --no-audit --no-fund --prefer-offline > /tmp/ci.log 2>&1
-          code=$?
-          if [ $code -ne 0 ]; then
-            grep -Ei "npm error|ERR!" /tmp/ci.log | head -30 | while IFS= read -r line; do
-              echo "::error::$line"
-            done
-            echo "--- tail ---"
-            tail -40 /tmp/ci.log
-          fi
-          exit $code
+          for attempt in 1 2 3; do
+            if npm ci --no-audit --no-fund; then
+              exit 0
+            fi
+            echo "::warning::npm ci 第 ${attempt} 次失败，重试中"
+            sleep 5
+          done
+          echo "::error::npm ci 连续三次失败"
+          exit 1
 
       - name: test
         run: |
@@ -45,7 +45,7 @@ jobs:
           npm test > /tmp/test.log 2>&1
           code=$?
           if [ $code -ne 0 ]; then
-            grep -E "^not ok|AssertionError|expected|actual|Error:" /tmp/test.log | head -40 | while IFS= read -r line; do
+            grep -E "^not ok|AssertionError|expected|actual" /tmp/test.log | head -40 | while IFS= read -r line; do
               echo "::error::$line"
             done
             echo "--- tail ---"
