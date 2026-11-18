@@ -1,0 +1,233 @@
+<template>
+  <div class="page">
+    <header class="masthead">
+      <div class="masthead-row">
+        <span class="brand">
+          <span class="brand-mark" aria-hidden="true">日</span>
+          <span class="brand-name">指日可待</span>
+        </span>
+        <button class="icon-btn" type="button" aria-label="设置" @click="router.push('/settings')">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.1"></circle>
+            <path d="M19.4 14.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.84 2.84l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56v.17a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.84-2.84l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H2.8a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.84-2.84l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1.03-1.56V2.8a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.84 2.84l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.56 1.03h.17a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"></path>
+          </svg>
+        </button>
+      </div>
+      <h1 class="masthead-title">{{ greeting }}<small>{{ weekdayText }}</small></h1>
+      <p class="masthead-date">{{ todayLabel }}</p>
+    </header>
+
+    <!-- 今天是什么日子 -->
+    <section class="today-panel">
+      <div class="today-panel-main">
+        <span class="today-kicker">今天是什么日子</span>
+        <span class="today-lunar">{{ lunarLine }}</span>
+        <span class="today-sub">{{ jieqiText || '日子平平，也挺好' }}</span>
+        <div v-if="info?.festivals?.length" class="today-festivals">
+          <span v-for="item in info.festivals" :key="item" class="festival-pill">{{ item }}</span>
+        </div>
+      </div>
+      <div class="today-seal" aria-hidden="true">
+        <b>{{ todayParts.day }}</b>
+        <small>{{ todayParts.month }}月</small>
+      </div>
+    </section>
+
+    <!-- 倒数日列表 -->
+    <section>
+      <div class="section-head">
+        <h2 class="section-title">你的日子</h2>
+        <button class="text-btn" type="button" @click="router.push('/event/new')">加一个</button>
+      </div>
+
+      <LoadingState v-if="loading && !ready" text="正在翻日历…" />
+
+      <div v-else-if="hasEvents" class="event-grid">
+        <article
+          v-for="event in visibleEvents"
+          :key="event.id"
+          class="event-card"
+          :class="{ 'is-past': describeCache[event.id].kind === 'anniversary' }"
+          :style="{ '--accent': event.accent }"
+        >
+          <button
+            class="event-hit"
+            type="button"
+            :aria-label="`${event.title}，${describeCache[event.id].label}${describeCache[event.id].days}天，查看或修改`"
+            @click="openEvent(event)"
+          ></button>
+          <div class="event-card-top">
+            <span class="event-title">{{ event.title }}</span>
+            <span v-if="modeLabel(event)" class="section-meta">{{ modeLabel(event) }}</span>
+          </div>
+          <p v-if="event.note" class="event-note">{{ event.note }}</p>
+
+          <div class="event-figure">
+            <span
+              class="event-number"
+              :class="{ 'is-word': describeCache[event.id].kind === 'today' }"
+            >{{ figureOf(describeCache[event.id]) }}</span>
+            <span v-if="describeCache[event.id].kind !== 'today'" class="event-unit">{{ describeCache[event.id].label }}</span>
+          </div>
+
+          <div class="event-foot">
+            <span>{{ formatDateCN(event.targetDate) }}</span>
+            <span class="event-date">{{ weekdayCN(event.targetDate) }}</span>
+          </div>
+
+          <button
+            class="event-shoot"
+            type="button"
+            @click.stop="shoot(event)"
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4.5 8.6A1.6 1.6 0 0 1 6.1 7h1.9l1.2-1.8h5.6L16 7h1.9a1.6 1.6 0 0 1 1.6 1.6v8.3a1.6 1.6 0 0 1-1.6 1.6H6.1a1.6 1.6 0 0 1-1.6-1.6z"></path>
+              <circle cx="12" cy="12.8" r="3.1"></circle>
+            </svg>
+            拍照
+          </button>
+        </article>
+
+        <button
+          v-if="hiddenCount > 0"
+          class="secondary-btn"
+          type="button"
+          @click="showAll = !showAll"
+        >
+          {{ showAll ? '收起一些' : `还有 ${hiddenCount} 个日子` }}
+        </button>
+      </div>
+
+      <div v-else-if="ready" class="empty-hint">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="5.4" width="16" height="15" rx="2.4"></rect>
+          <path d="M8 3.6v3.4M16 3.6v3.4M4 10.2h16"></path>
+        </svg>
+        <strong>还没有要数的日子</strong>
+        <span>生日、纪念日、考试、假期<br>加起来，就能看着它一天天靠近</span>
+        <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="router.push('/event/new')">
+          加第一个日子
+        </button>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <span>指日可待</span>
+      <span>·</span>
+      <span>日子都在你自己的设备上</span>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import LoadingState from '../components/LoadingState.vue';
+import { useEvents } from '../composables/useEvents';
+import { dayInfo, jieqiLine } from '../lib/almanac';
+import {
+  describeEvent,
+  formatDateCN,
+  parseDateKey,
+  weekdayCN
+} from '../lib/countdown';
+import { greeting as pickGreeting } from '../utils/greeting';
+
+const router = useRouter();
+const { sorted, ready, loading, todayKey, reload, refreshToday } = useEvents();
+
+const showAll = ref(false);
+const info = computed(() => dayInfo(todayKey.value));
+
+const greetingText = ref(pickGreeting());
+const greeting = computed(() => greetingText.value);
+
+const todayParts = computed(() => parseDateKey(todayKey.value) || { year: 1970, month: 1, day: 1 });
+
+const todayLabel = computed(() => formatDateCN(todayKey.value));
+const weekdayText = computed(() => (info.value?.weekday || weekdayCN(todayKey.value)));
+
+const lunarLine = computed(() => {
+  const current = info.value;
+  if (!current) return '';
+  const parts = [current.lunarText];
+  if (current.ganZhiYear) parts.push(current.ganZhiYear);
+  if (current.zodiac) parts.push(`${current.zodiac}年`);
+  return parts.filter(Boolean).join(' · ');
+});
+
+const jieqiText = computed(() => jieqiLine(info.value));
+
+const describeCache = computed(() => {
+  const map = {};
+  for (const event of sorted.value) {
+    map[event.id] = describeEvent(event, todayKey.value);
+  }
+  return map;
+});
+
+const validEvents = computed(() => sorted.value.filter((event) => {
+  const desc = describeCache.value[event.id];
+  return desc && desc.signed !== null;
+}));
+
+const PAGE_SIZE = 12;
+
+const visibleEvents = computed(() => (
+  showAll.value ? validEvents.value : validEvents.value.slice(0, PAGE_SIZE)
+));
+
+const hiddenCount = computed(() => Math.max(0, validEvents.value.length - visibleEvents.value.length));
+
+const hasEvents = computed(() => visibleEvents.value.length > 0);
+
+const modeLabelMap = { countdown: '倒数', anniversary: '纪念' };
+function modeLabel(event) {
+  return modeLabelMap[event.mode] || '';
+}
+
+function figureOf(desc) {
+  if (!desc || desc.signed === null) return '—';
+  return desc.kind === 'today' ? '今天' : String(desc.days);
+}
+
+function openEvent(event) {
+  router.push(`/event/${event.id}`);
+}
+
+function shoot(event) {
+  router.push({ path: '/photo', query: { event: event.id } });
+}
+
+/* ---------- 跨零点刷新 ---------- */
+
+let dayTimer = null;
+
+function scheduleDayRefresh() {
+  clearInterval(dayTimer);
+  dayTimer = setInterval(() => {
+    if (refreshToday()) {
+      greetingText.value = pickGreeting();
+      reload().catch(() => {});
+    }
+  }, 60_000);
+}
+
+onMounted(() => {
+  scheduleDayRefresh();
+});
+
+onUnmounted(() => {
+  clearInterval(dayTimer);
+});
+</script>
+
+<style scoped>
+.event-card.is-past {
+  opacity: 0.82;
+}
+
+.event-card.is-past .event-number {
+  font-size: 44px;
+}
+</style>

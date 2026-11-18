@@ -1,0 +1,80 @@
+import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
+import { ACCENTS, DEFAULT_EVENT } from './constants.js';
+import { isValidDateKey, parseDateKey } from './countdown.js';
+
+export function uid(prefix = 'ev') {
+  const random = Math.random().toString(36).slice(2, 9);
+  return `${prefix}_${Date.now().toString(36)}_${random}`;
+}
+
+export function normalizeEventInput(input = {}) {
+  const targetDate = String(input.targetDate || '').trim();
+  const accent = ACCENTS.some((item) => item.value === input.accent)
+    ? input.accent
+    : DEFAULT_EVENT.accent;
+  const mode = ['auto', 'countdown', 'anniversary'].includes(input.mode)
+    ? input.mode
+    : DEFAULT_EVENT.mode;
+
+  return {
+    title: String(input.title || '').trim().slice(0, 40),
+    targetDate,
+    mode,
+    accent,
+    note: String(input.note || '').trim().slice(0, 120),
+    showYear: input.showYear !== false
+  };
+}
+
+export function validateEvent(input) {
+  const normalized = normalizeEventInput(input);
+  if (!normalized.title) return { ok: false, error: '给它起个名字吧' };
+  if (!isValidDateKey(normalized.targetDate)) return { ok: false, error: '日期不对，检查一下' };
+  const parts = parseDateKey(normalized.targetDate);
+  if (parts.year < 1900 || parts.year > 2999) return { ok: false, error: '年份超出范围了' };
+  return { ok: true, value: normalized };
+}
+
+export async function listEvents() {
+  return getAll('events');
+}
+
+export async function getEvent(id) {
+  return getRecord('events', id);
+}
+
+export async function saveEvent(input, existing = null) {
+  const { ok, error, value } = validateEvent(input);
+  if (!ok) throw new Error(error);
+
+  const now = Date.now();
+  const record = {
+    ...(existing || {}),
+    ...value,
+    id: existing?.id || input.id || uid('ev'),
+    createdAt: existing?.createdAt || now,
+    updatedAt: now
+  };
+  await putRecord('events', record);
+  return record;
+}
+
+export async function removeEvent(id) {
+  await deleteRecord('events', id);
+}
+
+export async function restoreEvent(record) {
+  if (!record?.id) return null;
+  await putRecord('events', record);
+  return record;
+}
+
+export async function duplicateEvent(id) {
+  const source = await getEvent(id);
+  if (!source) throw new Error('找不到这个日子');
+  const { id: _omitId, createdAt: _omitCreated, updatedAt: _omitUpdated, ...rest } = source;
+  return saveEvent({
+    ...rest,
+    title: `${source.title} 副本`
+  });
+}

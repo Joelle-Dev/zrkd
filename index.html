@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>指日可待</title>
+  <meta name="description" content="一天一天，等到那天。本地优先的倒数日。">
+  <link rel="canonical" href="__APP_PUBLIC_URL__">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="指日可待">
+  <meta property="og:title" content="指日可待">
+  <meta property="og:description" content="一天一天，等到那天。本地优先的倒数日。">
+  <meta property="og:url" content="__APP_PUBLIC_URL__">
+  <meta name="theme-color" content="#f4efe4">
+  <meta name="color-scheme" content="light">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="指日可待">
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem('zrkd:theme') || 'system';
+        var dark = mode === 'dark' ||
+          (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#14110e' : '#f4efe4');
+        var stored = JSON.parse(localStorage.getItem('zrkd:accent-vars') || 'null');
+        var vars = stored && (dark ? stored.dark : stored.light);
+        if (vars) {
+          for (var name in vars) document.documentElement.style.setProperty(name, vars[name]);
+        }
+      } catch (err) { /* 隐私模式下 localStorage 不可用，保持默认浅色 */ }
+    })();
+  </script>
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

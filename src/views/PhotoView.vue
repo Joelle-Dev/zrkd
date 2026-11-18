@@ -1,0 +1,413 @@
+<template>
+  <div class="photo-page">
+    <header class="photo-head">
+      <button class="icon-btn" type="button" aria-label="返回" @click="goBack">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 5-7 7 7 7"></path>
+        </svg>
+      </button>
+      <div class="photo-head-copy">
+        <span class="photo-head-title">{{ activeEvent?.title || '拍照记日子' }}</span>
+        <span class="photo-head-sub">{{ headSub }}</span>
+      </div>
+      <span class="render-status" :class="`is-${renderState}`">
+        <span class="dot"></span>
+        {{ renderLabel }}
+      </span>
+    </header>
+
+    <div v-if="!events.length" class="history-off">
+      <span>还没有日子，先加一个再来拍照</span>
+      <button class="text-btn" type="button" @click="router.push('/event/new')">加一个</button>
+    </div>
+
+    <div v-if="events.length > 1" class="event-picker">
+      <button
+        v-for="event in events"
+        :key="event.id"
+        class="chip"
+        type="button"
+        :class="{ 'is-active': event.id === activeEventId }"
+        @click="selectEvent(event.id)"
+      >
+        {{ event.title }}
+      </button>
+    </div>
+
+    <!-- 还没有照片：选图或拍照 -->
+    <div v-if="events.length && !sourceUrl" class="dropzone">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4.4 8.6A1.7 1.7 0 0 1 6.1 6.9h1.8l1.2-1.9h5.8l1.2 1.9h1.8a1.7 1.7 0 0 1 1.7 1.7v8.2a1.7 1.7 0 0 1-1.7 1.7H6.1a1.7 1.7 0 0 1-1.7-1.7z"></path>
+        <circle cx="12" cy="12.7" r="3.2"></circle>
+      </svg>
+      <strong>拍一张，水印当场就带上</strong>
+      <small>相机取景时就能看到标题、天数和日期，按快门直接出成品</small>
+      <div class="dropzone-actions">
+        <button class="primary-btn" type="button" @click="openCamera">
+          {{ cameraSupported ? '打开相机' : '拍一张' }}
+        </button>
+        <button class="secondary-btn" type="button" @click="openLibrary">
+          从相册选
+        </button>
+      </div>
+    </div>
+
+    <template v-else-if="events.length">
+      <div class="photo-preview">
+        <img :src="sourceUrl" alt="照片预览">
+        <span class="photo-badge">{{ activeEvent?.title || '今天' }}</span>
+      </div>
+
+      <div class="photo-options">
+        <div class="segmented">
+          <button
+            type="button"
+            :class="{ 'is-active': position === 'bottom' }"
+            @click="position = 'bottom'"
+          >
+            底部居中
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': position === 'center' }"
+            @click="position = 'center'"
+          >
+            画面正中
+          </button>
+        </div>
+
+        <div class="btn-row">
+          <button class="secondary-btn" type="button" @click="openCamera">重拍</button>
+          <button class="secondary-btn" type="button" @click="openLibrary">换一张</button>
+        </div>
+      </div>
+
+      <div class="photo-actions">
+        <button
+          class="primary-btn"
+          type="button"
+          :disabled="renderState !== 'ready'"
+          @click="saveToAlbum"
+        >
+          {{ saveButtonLabel }}
+        </button>
+        <p class="photo-hint">
+          <template v-if="canShare">点上面按钮会打开系统面板，选<b>存储图像</b>才会进相册。</template>
+          <template v-else-if="isSecure">这个浏览器不支持直接分享，点上面按钮会显示大图，<b>长按保存</b>。</template>
+          <template v-else>当前是 <b>HTTP</b> 本地测试环境，浏览器不允许直接存相册；部署到 GitHub Pages 的 HTTPS 站点后就没有这一步了。</template>
+        </p>
+      </div>
+    </template>
+
+    <CameraCapture
+      v-if="cameraOpen"
+      :title="activeEvent?.title || ''"
+      :number="cameraNumber"
+      :prefix="cameraPrefix"
+      :unit="cameraUnit"
+      :date-text="cameraDate"
+      :position="position"
+      @capture="onCaptured"
+      @close="cameraOpen = false"
+      @error="onCameraError"
+    />
+
+    <input
+      ref="cameraInput"
+      class="sr-only"
+      type="file"
+      accept="image/*"
+      capture="environment"
+      @change="onPick"
+    >
+    <input
+      ref="libraryInput"
+      class="sr-only"
+      type="file"
+      accept="image/*"
+      @change="onPick"
+    >
+
+    <p v-if="errorText" class="photo-hint" style="color: var(--danger);">{{ errorText }}</p>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { showToast } from 'vant';
+import CameraCapture from '../components/CameraCapture.vue';
+import { useEvents } from '../composables/useEvents';
+import { getEvent } from '../lib/events';
+import { describeEvent, formatDateDot } from '../lib/countdown';
+import { renderWatermark } from '../lib/watermark';
+import {
+  canShareFile,
+  fallbackSave,
+  photoFilename,
+  shareFile,
+  toFile
+} from '../utils/album';
+import { haptic } from '../utils/haptics';
+
+const route = useRoute();
+const router = useRouter();
+const { sorted, todayKey } = useEvents();
+
+const cameraInput = ref(null);
+const libraryInput = ref(null);
+
+const sourceFile = ref(null);
+const sourceUrl = ref('');
+const activeEventId = ref('');
+const position = ref('bottom');
+
+const cameraOpen = ref(false);
+const renderState = ref('idle'); // idle | generating | ready | error
+const renderedBlob = ref(null);
+const renderedSize = ref(null);
+const errorText = ref('');
+const shareSupported = ref(false);
+
+let renderToken = 0;
+let objectUrls = [];
+
+const events = computed(() => sorted.value.filter((event) => event.targetDate));
+
+const activeEvent = computed(() => {
+  if (!events.value.length) return null;
+  return events.value.find((event) => event.id === activeEventId.value) || events.value[0];
+});
+
+const desc = computed(() => (activeEvent.value
+  ? describeEvent(activeEvent.value, todayKey.value)
+  : null));
+
+const canShare = computed(() => shareSupported.value);
+const isSecure = typeof window !== 'undefined' ? Boolean(window.isSecureContext) : false;
+const cameraSupported = typeof navigator !== 'undefined' &&
+  Boolean(navigator.mediaDevices?.getUserMedia) && isSecure;
+
+const cameraNumber = computed(() => {
+  const value = desc.value;
+  if (!value) return '';
+  return value.kind === 'today' ? '今天' : String(value.days);
+});
+
+const cameraPrefix = computed(() => {
+  const value = desc.value;
+  return value && value.kind !== 'today' ? value.label : '';
+});
+
+const cameraUnit = computed(() => {
+  const value = desc.value;
+  return value && value.kind !== 'today' ? '天' : '';
+});
+
+const cameraDate = computed(() => (activeEvent.value
+  ? formatDateDot(activeEvent.value.targetDate)
+  : ''));
+
+const headSub = computed(() => {
+  if (!activeEvent.value) return '先建一个日子';
+  const value = desc.value;
+  if (!value || value.signed === null) return formatDateDot(activeEvent.value.targetDate);
+  const label = value.kind === 'today' ? '就是今天' : `${value.label} ${value.days} 天`;
+  return `${label} · ${formatDateDot(activeEvent.value.targetDate)}`;
+});
+
+const renderLabel = computed(() => {
+  if (!sourceUrl.value) return '还没选照片';
+  if (renderState.value === 'generating') return '正在生成';
+  if (renderState.value === 'ready') return `就绪 ${renderedSize.value?.width || ''}×${renderedSize.value?.height || ''}`;
+  if (renderState.value === 'error') return '生成失败';
+  return '待处理';
+});
+
+const saveButtonLabel = computed(() => {
+  if (renderState.value === 'generating') return '正在生成…';
+  if (renderState.value === 'error') return '换张照片试试';
+  return shareSupported.value ? '保存到相册' : '显示大图，长按保存';
+});
+
+function releaseUrls() {
+  for (const url of objectUrls) URL.revokeObjectURL(url);
+  objectUrls = [];
+}
+
+function selectEvent(id) {
+  activeEventId.value = id;
+  haptic('light');
+}
+
+function openCamera() {
+  if (cameraSupported) {
+    cameraOpen.value = true;
+    return;
+  }
+  cameraInput.value?.click();
+}
+
+function onCaptured(blob) {
+  if (!blob) return;
+  const file = toFile(blob, `capture-${Date.now()}.jpg`);
+  releaseUrls();
+  sourceFile.value = file;
+  const url = URL.createObjectURL(file);
+  objectUrls.push(url);
+  sourceUrl.value = url;
+  errorText.value = '';
+  cameraOpen.value = false;
+  haptic('light');
+}
+
+function onCameraError(err) {
+  if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+    showToast('没拿到相机权限，可以改用相册');
+  }
+}
+
+function openLibrary() {
+  libraryInput.value?.click();
+}
+
+function onPick(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type)) {
+    showToast('这不是图片');
+    return;
+  }
+  if (file.size > 30 * 1024 * 1024) {
+    showToast('图片太大了，换一张');
+    return;
+  }
+  releaseUrls();
+  sourceFile.value = file;
+  const url = URL.createObjectURL(file);
+  objectUrls.push(url);
+  sourceUrl.value = url;
+  errorText.value = '';
+  haptic('light');
+}
+
+function watermarkPayload() {
+  const event = activeEvent.value;
+  const value = desc.value;
+  if (!event || !value) return null;
+
+  const isToday = value.kind === 'today';
+  return {
+    title: event.title,
+    number: isToday ? '今天' : String(value.days),
+    prefix: isToday ? '' : value.label,
+    unit: isToday ? '' : '天',
+    dateText: formatDateDot(event.targetDate),
+    position: position.value,
+    maxEdge: 2200
+  };
+}
+
+async function generate() {
+  if (!sourceFile.value) return;
+  const payload = watermarkPayload();
+  if (!payload) return;
+
+  const token = ++renderToken;
+  renderState.value = 'generating';
+  renderedBlob.value = null;
+  renderedSize.value = null;
+  errorText.value = '';
+
+  try {
+    const result = await renderWatermark({ source: sourceFile.value, ...payload });
+    if (token !== renderToken) return;
+    renderedBlob.value = result.blob;
+    renderedSize.value = { width: result.width, height: result.height };
+    const file = toFile(result.blob, photoFilename());
+    shareSupported.value = canShareFile(file);
+    renderState.value = 'ready';
+  } catch (err) {
+    if (token !== renderToken) return;
+    renderState.value = 'error';
+    errorText.value = err?.message || '图片处理失败';
+  }
+}
+
+/**
+ * 保存到相册。
+ * 注意：navigator.share() 必须在点击的同步调用栈里，所以这里
+ * 不做任何 await，直接用事先生成好的 blob 调 shareFile。
+ */
+function saveToAlbum() {
+  const blob = renderedBlob.value;
+  if (!blob) {
+    showToast('图片还没准备好');
+    return;
+  }
+  const filename = photoFilename();
+  const meta = {
+    title: activeEvent.value?.title || '指日可待',
+    text: activeEvent.value
+      ? `${activeEvent.value.title} · ${formatDateDot(activeEvent.value.targetDate)}`
+      : '指日可待'
+  };
+
+  if (canShareFile(toFile(blob, filename))) {
+    shareFile(toFile(blob, filename), meta).then((result) => {
+      if (result === 'share') {
+        haptic('success');
+        showToast('已交给系统，选「存储图像」就进相册了');
+      } else if (result === 'cancelled') {
+        // 用户取消，什么都不做
+      } else {
+        fallbackSave(blob, filename).catch(() => {
+          showToast('保存失败，长按图片试试');
+        });
+      }
+    }).catch(() => {
+      showToast('保存失败，长按图片试试');
+    });
+    return;
+  }
+
+  fallbackSave(blob, filename).then((mode) => {
+    haptic('light');
+    if (mode === 'download') showToast('已下载到「下载」文件夹');
+  }).catch(() => {
+    showToast('保存失败，长按图片试试');
+  });
+}
+
+function goBack() {
+  if (window.history.length > 1) router.back();
+  else router.replace('/');
+}
+
+async function pickInitialEvent() {
+  const queryId = route.query.event;
+  if (queryId) {
+    const record = await getEvent(String(queryId)).catch(() => null);
+    if (record) {
+      activeEventId.value = record.id;
+      return;
+    }
+  }
+  activeEventId.value = events.value[0]?.id || '';
+}
+
+watch([sourceFile, position, activeEventId], () => {
+  if (sourceFile.value) generate();
+});
+
+onMounted(async () => {
+  await pickInitialEvent();
+});
+
+onUnmounted(() => {
+  renderToken += 1;
+  cameraOpen.value = false;
+  releaseUrls();
+});
+</script>
