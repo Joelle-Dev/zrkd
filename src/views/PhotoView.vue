@@ -92,7 +92,8 @@
           {{ saveButtonLabel }}
         </button>
         <p class="photo-hint">
-          <template v-if="canShare">点上面按钮会打开系统面板，选<b>存储图像</b>才会进相册。</template>
+          <template v-if="nativeApp">点一下就直接存进系统相册，不用再经过分享面板。</template>
+          <template v-else-if="canShare">点上面按钮会打开系统面板，选<b>存储图像</b>才会进相册。</template>
           <template v-else-if="isSecure">这个浏览器不支持直接分享，点上面按钮会显示大图，<b>长按保存</b>。</template>
           <template v-else>当前是 <b>HTTP</b> 本地测试环境，浏览器不允许直接存相册；部署到 GitHub Pages 的 HTTPS 站点后就没有这一步了。</template>
         </p>
@@ -148,6 +149,7 @@ import {
   shareFile,
   toFile
 } from '../utils/album';
+import { isNativeApp, savePhotoToAlbum } from '../utils/native';
 import { haptic } from '../utils/haptics';
 
 const route = useRoute();
@@ -183,6 +185,7 @@ const desc = computed(() => (activeEvent.value
   ? describeEvent(activeEvent.value, todayKey.value)
   : null));
 
+const nativeApp = isNativeApp();
 const canShare = computed(() => shareSupported.value);
 const isSecure = typeof window !== 'undefined' ? Boolean(window.isSecureContext) : false;
 const cameraSupported = typeof navigator !== 'undefined' &&
@@ -227,6 +230,7 @@ const renderLabel = computed(() => {
 const saveButtonLabel = computed(() => {
   if (renderState.value === 'generating') return '正在生成…';
   if (renderState.value === 'error') return '换张照片试试';
+  if (nativeApp) return '存进相册';
   return shareSupported.value ? '保存到相册' : '显示大图，长按保存';
 });
 
@@ -347,6 +351,17 @@ function saveToAlbum() {
     return;
   }
   const filename = photoFilename();
+
+  if (nativeApp) {
+    showToast({ message: '正在存进相册…', duration: 1200 });
+    savePhotoToAlbum(blob, filename).then(() => {
+      haptic('success');
+      showToast('已存进相册');
+    }).catch((err) => {
+      showToast(err?.message === '图片还没准备好' ? err.message : '保存失败，检查一下相册权限');
+    });
+    return;
+  }
   const meta = {
     title: activeEvent.value?.title || '指日可待',
     text: activeEvent.value

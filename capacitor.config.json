@@ -1,0 +1,11 @@
+{
+  "appId": "com.joelledev.zrkd",
+  "appName": "指日可待",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

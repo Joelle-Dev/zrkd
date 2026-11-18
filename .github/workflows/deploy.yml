@@ -32,7 +32,7 @@ jobs:
           set +e
           for attempt in 1 2 3; do
             echo "::group::npm ci attempt ${attempt}"
-            npm ci --no-audit --no-fund 2>&1 | tee /tmp/npm-ci.log
+            npm ci --no-audit --no-fund --legacy-peer-deps 2>&1 | tee /tmp/npm-ci.log
             code=${PIPESTATUS[0]}
             echo "::endgroup::"
             if [ "$code" -eq 0 ]; then exit 0; fi

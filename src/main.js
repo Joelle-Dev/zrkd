@@ -49,7 +49,12 @@ const buildLabel = Number.isNaN(buildDate.getTime())
   });
 let refreshPrompting = false;
 
-const updateSW = registerSW({
+// 原生壳里没有 Service Worker，注册会失败并弹全局错误提示，直接跳过。
+const isNativeApp = Boolean(
+  typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()
+);
+
+const updateSW = isNativeApp ? null : registerSW({
   onNeedRefresh() {
     if (refreshPrompting) return;
     refreshPrompting = true;

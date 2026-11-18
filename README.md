@@ -44,15 +44,47 @@
 
 ## 相册是怎么写进去的
 
-浏览器不能直接写系统相册。唯一可靠的路径是 **Web Share API → 用户选「存储图像」**：
+分两种形态，代码见 `src/views/PhotoView.vue` 的 `saveToAlbum()`。
+
+**网页版：Web Share API → 用户选「存储图像」**
+
+浏览器不能直接写系统相册，唯一可靠的路径是分享面板：
 
 1. 选好照片后立刻在后台合成水印，生成 JPEG
 2. 点「保存到相册」时，把这个已生成的 JPEG 交给 `navigator.share()`
 3. 系统面板里选「存储图像」，照片进相册
 
-关键细节：iOS 要求 `navigator.share()` 必须在用户点击的同步调用栈里，所以合成必须在点击**之前**完成，不能等点击后再 `await toBlob()`。代码见 `src/views/PhotoView.vue` 的 `saveToAlbum()`。
+关键细节：iOS 要求 `navigator.share()` 必须在用户点击的同步调用栈里，所以合成必须在点击**之前**完成，不能等点击后再 `await toBlob()`。
 
 不支持分享的浏览器会退回「显示大图 → 长按保存」（移动端）或「下载文件」（桌面端）。
+
+**原生壳：直接写进相册（自用，一键完成）**
+
+装进原生 App 后走 `@capacitor-community/media` 的 `Media.savePhoto()`，点一下就进相册，不再经过分享面板：
+
+- iOS：只请求 add-only 权限（`NSPhotoLibraryAddUsageDescription`），照片进系统相册
+- Android：自动建一个「指日可待」相册，照片存进去；非 gallery 模式，不需要读写存储权限
+- 判断依据是 `Capacitor.isNativePlatform()`，网页里这段代码不会执行
+
+## 原生 App（自用）
+
+网页版保留为免安装入口，原生壳用于「一键存相册」。用的是 Capacitor 8，iOS 走 **SPM**，不需要 CocoaPods。
+
+```bash
+nvm use            # 需要 Node >= 22
+npm install
+npm run ios        # 构建 + 同步 + 打开 Xcode
+npm run android    # 构建 + 同步 + 打开 Android Studio
+```
+
+首次运行前：
+
+- iOS：Xcode 里选好 Team（Settings → Signing），真机打开开发者模式
+- Android：装好 Android Studio + SDK，`android/local.properties` 里指向自己的 SDK 路径
+
+改了网页代码后重新 `npm run ios` / `npm run android` 即可（脚本内含 `cap sync`）。
+
+不想装 App 时，网页版 `https://joelle-dev.github.io/zrkd/` 完全可用，只是存相册要多点一次「存储图像」。
 
 ## 技术栈
 
