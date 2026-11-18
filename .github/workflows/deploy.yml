@@ -29,14 +29,21 @@ jobs:
       # 这是 npm 自身的已知问题，重试一次即可，不掩盖真实安装错误。
       - name: install
         run: |
+          set +e
           for attempt in 1 2 3; do
-            if npm ci --no-audit --no-fund; then
-              exit 0
-            fi
-            echo "::warning::npm ci 第 ${attempt} 次失败，重试中"
+            echo "::group::npm ci attempt ${attempt}"
+            npm ci --no-audit --no-fund 2>&1 | tee /tmp/npm-ci.log
+            code=${PIPESTATUS[0]}
+            echo "::endgroup::"
+            if [ "$code" -eq 0 ]; then exit 0; fi
             sleep 5
           done
-          echo "::error::npm ci 连续三次失败"
+          echo "--- 最后的错误 ---"
+          grep -Ei "npm error|ERR!|EACCES|ENOENT|ERESOLVE|network" /tmp/npm-ci.log | head -30 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          echo "--- tail ---"
+          tail -30 /tmp/npm-ci.log
           exit 1
 
       - name: test
