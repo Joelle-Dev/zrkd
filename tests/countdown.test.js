@@ -47,18 +47,18 @@ test('跨闰日与跨年', () => {
 test('describeEvent 三种状态', () => {
   const today = '2026-11-18';
 
-  const future = describeEvent({ targetDate: '2026-12-01', mode: 'auto' }, today);
+  const future = describeEvent({ targetDate: '2026-12-01' }, today);
   assert.equal(future.kind, 'countdown');
   assert.equal(future.days, 13);
   assert.equal(future.signed, 13);
   assert.equal(future.label, '还有');
 
-  const same = describeEvent({ targetDate: today, mode: 'auto' }, today);
+  const same = describeEvent({ targetDate: today }, today);
   assert.equal(same.kind, 'today');
   assert.equal(same.days, 0);
 
-  const past = describeEvent({ targetDate: '2026-11-01', mode: 'auto' }, today);
-  assert.equal(past.kind, 'anniversary');
+  const past = describeEvent({ targetDate: '2026-11-01' }, today);
+  assert.equal(past.kind, 'past');
   assert.equal(past.days, 17);
   assert.equal(past.signed, -17);
   assert.equal(past.label, '已经');
@@ -71,11 +71,13 @@ test('describeEvent 对非法日期给 invalid', () => {
   assert.equal(desc.days, 0);
 });
 
-test('describeEvent 尊重强制模式', () => {
+test('describeEvent 不再看 mode，只看日期方向', () => {
   const future = describeEvent({ targetDate: '2026-12-01', mode: 'anniversary' }, '2026-11-18');
-  assert.equal(future.label, '距离');
+  assert.equal(future.kind, 'countdown');
+  assert.equal(future.label, '还有');
   const past = describeEvent({ targetDate: '2026-11-01', mode: 'countdown' }, '2026-11-18');
-  assert.equal(past.kind, 'anniversary');
+  assert.equal(past.kind, 'past');
+  assert.equal(past.label, '已经');
 });
 
 test('格式化', () => {

@@ -5,6 +5,16 @@
         <h1 class="page-title">我的</h1>
         <p class="page-subtitle">所有日子都在这台设备上</p>
       </div>
+      <button v-if="drawer" class="icon-btn" type="button" aria-label="关闭" @click="emit('close')">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m6 6 12 12M18 6 6 18"></path>
+        </svg>
+      </button>
+      <button v-else class="icon-btn" type="button" aria-label="返回" @click="goBack">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 5-7 7 7 7"></path>
+        </svg>
+      </button>
     </header>
 
     <div class="about-card">
@@ -168,6 +178,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { showConfirmDialog, showToast } from 'vant';
 import {
   THEME_OPTIONS,
@@ -184,6 +195,17 @@ import { clearHistoryCache } from '../lib/history';
 import { getStorageUsage, formatBytes } from '../lib/storage';
 import { useEvents } from '../composables/useEvents';
 import { usePwaInstall } from '../composables/usePwaInstall';
+
+defineProps({
+  drawer: { type: Boolean, default: false }
+});
+const emit = defineEmits(['close']);
+const router = useRouter();
+
+function goBack() {
+  if (window.history.length > 1) router.back();
+  else router.replace('/');
+}
 
 const { events } = useEvents();
 const { standalone, isIos, promptInstall } = usePwaInstall();

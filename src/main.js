@@ -5,6 +5,7 @@ import App from './App.vue';
 import router from './router';
 import 'vant/es/dialog/style';
 import 'vant/es/image-preview/style';
+import 'vant/es/popup/style';
 import 'vant/es/switch/style';
 import 'vant/es/toast/style';
 import './styles/global.css';

@@ -18,7 +18,6 @@ test('saveEvent 写入并返回完整记录', async () => {
   const record = await saveEvent({
     title: '在一起',
     targetDate: '2024-05-20',
-    mode: 'auto',
     accent: '#c2564a',
     note: '第一次见面'
   });
@@ -45,8 +44,7 @@ test('validateEvent 规范化输入', () => {
   assert.equal(badAccent.value.title, 'x');
   assert.equal(badAccent.value.accent, '#c2564a');
 
-  const badMode = validateEvent({ title: 'y', targetDate: '2026-01-01', mode: 'weird' });
-  assert.equal(badMode.value.mode, 'auto');
+  assert.equal(validateEvent({ title: 'y', targetDate: '2026-01-01' }).value.mode, undefined);
 });
 
 test('更新时保留 id 与 createdAt', async () => {

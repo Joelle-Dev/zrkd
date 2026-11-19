@@ -51,20 +51,6 @@ const TABS = [
     path: '/history',
     match: ['history'],
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.4 5.2A2.2 2.2 0 0 1 7.6 3h10.2a1.4 1.4 0 0 1 1.4 1.4v14.2a1.4 1.4 0 0 1-1.4 1.4H7.4a2 2 0 0 1-2-2z"/><path d="M8.4 3v18"/><path d="M12 8h4M12 11.6h4"/></svg>'
-  },
-  {
-    name: 'photo',
-    label: '拍照',
-    path: '/photo',
-    match: ['photo'],
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 8.2A1.7 1.7 0 0 1 5.9 6.5h2.2l1.3-2h5.2l1.3 2h2.2a1.7 1.7 0 0 1 1.7 1.7v9.1a1.7 1.7 0 0 1-1.7 1.7H5.9a1.7 1.7 0 0 1-1.7-1.7z"/><circle cx="12" cy="12.6" r="3.4"/></svg>'
-  },
-  {
-    name: 'settings',
-    label: '我的',
-    path: '/settings',
-    match: ['settings', 'event'],
-    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.3"/><path d="M5 19.4c0-3.4 3.1-5.6 7-5.6s7 2.2 7 5.6"/></svg>'
   }
 ];
 

@@ -16,6 +16,7 @@
 
     <template v-else>
       <div class="edit-preview" :style="{ '--accent': form.accent }">
+        <span v-if="previewPrefix" class="edit-preview-verb">{{ previewPrefix }}</span>
         <b>{{ previewFigure }}</b>
         <span v-if="previewUnit">{{ previewUnit }}</span>
         <small>{{ previewDate }}</small>
@@ -45,6 +46,7 @@
             min="1900-01-01"
             max="2999-12-31"
           >
+          <p class="field-note">{{ directionHint }}</p>
           <div class="chip-row" style="margin-top: 2px;">
             <button
               v-for="preset in presets"
@@ -56,22 +58,6 @@
               {{ preset.label }}
             </button>
           </div>
-        </div>
-
-        <div class="field field-gap">
-          <span class="field-label">怎么算</span>
-          <div class="segmented">
-            <button
-              v-for="option in modeOptions"
-              :key="option.key"
-              type="button"
-              :class="{ 'is-active': form.mode === option.key }"
-              @click="form.mode = option.key"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-          <p class="field-note">{{ modeHint }}</p>
         </div>
 
         <div class="field field-gap">
@@ -115,7 +101,6 @@
       </div>
 
       <div v-if="isEditing" class="btn-row">
-        <button class="secondary-btn" type="button" @click="shoot">拍张照</button>
         <button class="secondary-btn" type="button" style="color: var(--danger);" @click="confirmDelete">删除</button>
       </div>
 
@@ -129,7 +114,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog, showToast } from 'vant';
 import LoadingState from '../components/LoadingState.vue';
-import { ACCENTS, EVENT_MODE_LABELS } from '../lib/constants';
+import { ACCENTS } from '../lib/constants';
 import { getEvent, removeEvent, saveEvent } from '../lib/events';
 import { useEvents } from '../composables/useEvents';
 import {
@@ -152,25 +137,13 @@ const original = ref(null);
 const form = reactive({
   title: '',
   targetDate: dateKeyFromParts(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
-  mode: 'auto',
   accent: ACCENTS[0].value,
   note: ''
 });
 
 const isEditing = computed(() => Boolean(route.params.id));
 
-const modeOptions = [
-  { key: 'auto', label: EVENT_MODE_LABELS.auto },
-  { key: 'countdown', label: EVENT_MODE_LABELS.countdown },
-  { key: 'anniversary', label: EVENT_MODE_LABELS.anniversary }
-];
-
 const accents = ACCENTS;
-
-const modeHint = computed(() => {
-  if (form.mode === 'auto') return '未来的日子倒数，过去的日子变成纪念日。';
-  return '不管什么时候打开，都按一种方式数。';
-});
 
 const desc = computed(() => describeEvent(form, events.todayKey.value));
 
@@ -180,14 +153,26 @@ const previewFigure = computed(() => {
   return value.kind === 'today' ? '今天' : String(value.days);
 });
 
-const previewUnit = computed(() => (desc.value.kind === 'today' ? '' : desc.value.label));
+const previewUnit = computed(() => (desc.value.kind === 'today' ? '' : '天'));
+
+const previewPrefix = computed(() => (
+  desc.value.signed === null || desc.value.kind === 'today' ? '' : desc.value.label
+));
 
 const previewDate = computed(() => {
   if (!form.targetDate) return '';
   return `${formatDateCN(form.targetDate)}\n${weekdayCN(form.targetDate)}`;
 });
 
-const previewSubtitle = computed(() => (isEditing.value ? '改完记得保存' : '给它起个名字，选个日子'));
+const previewSubtitle = computed(() => (isEditing.value ? '改完记得保存' : '选一个未来的日子倒数，或过去的日子正着数'));
+
+const directionHint = computed(() => {
+  const value = desc.value;
+  if (value.signed === null) return '';
+  if (value.kind === 'today') return '就是今天';
+  if (value.kind === 'countdown') return `还有 ${value.days} 天`;
+  return `已经过去 ${value.days} 天`;
+});
 
 function shiftDate(days) {
   const now = new Date();
@@ -224,11 +209,6 @@ function goBack() {
   else router.replace('/');
 }
 
-function shoot() {
-  if (!original.value) return;
-  router.push({ path: '/photo', query: { event: original.value.id } });
-}
-
 async function load() {
   if (!isEditing.value) return;
   loading.value = true;
@@ -242,7 +222,6 @@ async function load() {
     original.value = record;
     form.title = record.title;
     form.targetDate = record.targetDate;
-    form.mode = record.mode;
     form.accent = record.accent;
     form.note = record.note || '';
   } catch (err) {
@@ -304,7 +283,6 @@ watch(() => route.params.id, () => {
   if (!isEditing.value) {
     form.title = '';
     form.note = '';
-    form.mode = 'auto';
     form.accent = ACCENTS[0].value;
   }
   load();

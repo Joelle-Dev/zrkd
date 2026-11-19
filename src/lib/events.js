@@ -12,14 +12,9 @@ function normalizeEventInput(input = {}) {
   const accent = ACCENTS.some((item) => item.value === input.accent)
     ? input.accent
     : DEFAULT_EVENT.accent;
-  const mode = ['auto', 'countdown', 'anniversary'].includes(input.mode)
-    ? input.mode
-    : DEFAULT_EVENT.mode;
-
   return {
     title: String(input.title || '').trim().slice(0, 40),
     targetDate,
-    mode,
     accent,
     note: String(input.note || '').trim().slice(0, 120)
   };

@@ -58,34 +58,30 @@ export function diffDays(fromKey, toKey) {
 }
 
 /**
- * 把一个事件解释成可展示的状态。
- * 返回 { signed, days, kind, label, mode }：
+ * 把一个日子解释成可展示的状态。
+ * 目标日在未来就倒数，在过去就正着数已经过了多少天。
+ * 返回 { signed, days, kind, label, targetKey }：
  *   signed > 0  未来（还有 N 天）
  *   signed = 0  就是今天
- *   signed < 0  过去（已过 N 天）
+ *   signed < 0  过去（已经 N 天）
  * days 永远是绝对值。
  */
 export function describeEvent(event, todayKey = dateKeyOf()) {
   const targetKey = event?.targetDate;
   const signed = diffDays(todayKey, targetKey);
   if (signed === null) {
-    return { signed: null, days: 0, kind: 'invalid', label: '日期无效', mode: event?.mode || 'auto', targetKey };
+    return { signed: null, days: 0, kind: 'invalid', label: '日期无效', targetKey };
   }
 
-  const mode = event?.mode === 'countdown' || event?.mode === 'anniversary'
-    ? event.mode
-    : 'auto';
-
   if (signed === 0) {
-    return { signed, days: 0, kind: 'today', label: '就是今天', mode, targetKey };
+    return { signed, days: 0, kind: 'today', label: '就是今天', targetKey };
   }
 
   if (signed > 0) {
-    const label = mode === 'anniversary' ? '距离' : '还有';
-    return { signed, days: signed, kind: 'countdown', label, mode, targetKey };
+    return { signed, days: signed, kind: 'countdown', label: '还有', targetKey };
   }
 
-  return { signed, days: -signed, kind: 'anniversary', label: '已经', mode, targetKey };
+  return { signed, days: -signed, kind: 'past', label: '已经', targetKey };
 }
 
 export function formatDateCN(key) {

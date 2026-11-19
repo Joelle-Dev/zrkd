@@ -2,14 +2,14 @@
   <div class="page">
     <header class="masthead">
       <div class="masthead-row">
-        <span class="brand">
+        <button class="brand brand-btn" type="button" aria-label="打开我的" @click="openSettings">
           <span class="brand-mark" aria-hidden="true">日</span>
           <span class="brand-name">指日可待</span>
-        </span>
-        <button class="icon-btn" type="button" aria-label="设置" @click="router.push('/settings')">
+        </button>
+        <button class="icon-btn" type="button" aria-label="拍照" @click="router.push('/photo')">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.1"></circle>
-            <path d="M19.4 14.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.84 2.84l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56v.17a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.84-2.84l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H2.8a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.84-2.84l.06.06a1.7 1.7 0 0 0 1.87.34h.09a1.7 1.7 0 0 0 1.03-1.56V2.8a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.84 2.84l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09a1.7 1.7 0 0 0 1.56 1.03h.17a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"></path>
+            <path d="M4.2 8.2A1.7 1.7 0 0 1 5.9 6.5h2.2l1.3-2h5.2l1.3 2h2.2a1.7 1.7 0 0 1 1.7 1.7v9.1a1.7 1.7 0 0 1-1.7 1.7H5.9a1.7 1.7 0 0 1-1.7-1.7z"></path>
+            <circle cx="12" cy="12.6" r="3.4"></circle>
           </svg>
         </button>
       </div>
@@ -33,6 +33,18 @@
       </div>
     </section>
 
+    <!-- 内置倒数：新年、周末 -->
+    <section class="builtin-grid">
+      <article v-for="item in builtins" :key="item.key" class="builtin-card">
+        <span class="builtin-label">{{ item.label }}</span>
+        <span class="builtin-figure">
+          <b :class="{ 'is-word': item.days === 0 }">{{ item.days === 0 ? '就是今天' : item.days }}</b>
+          <small v-if="item.days !== 0">天</small>
+        </span>
+        <span class="builtin-date">{{ formatDateCN(item.targetDate) }}</span>
+      </article>
+    </section>
+
     <!-- 倒数日列表 -->
     <section>
       <div class="section-head">
@@ -47,27 +59,30 @@
           v-for="event in visibleEvents"
           :key="event.id"
           class="event-card"
-          :class="{ 'is-past': describeCache[event.id].kind === 'anniversary' }"
+          :class="{ 'is-past': describeCache[event.id].kind === 'past' }"
           :style="{ '--accent': event.accent }"
         >
           <button
             class="event-hit"
             type="button"
-            :aria-label="`${event.title}，${describeCache[event.id].label}${describeCache[event.id].days}天，查看或修改`"
+            :aria-label="`${event.title}，${describeCache[event.id].label} ${describeCache[event.id].days} 天，查看或修改`"
             @click="openEvent(event)"
           ></button>
           <div class="event-card-top">
             <span class="event-title">{{ event.title }}</span>
-            <span v-if="modeLabel(event)" class="section-meta">{{ modeLabel(event) }}</span>
           </div>
           <p v-if="event.note" class="event-note">{{ event.note }}</p>
 
           <div class="event-figure">
             <span
+              v-if="describeCache[event.id].kind !== 'today'"
+              class="event-verb"
+            >{{ describeCache[event.id].label }}</span>
+            <span
               class="event-number"
               :class="{ 'is-word': describeCache[event.id].kind === 'today' }"
             >{{ figureOf(describeCache[event.id]) }}</span>
-            <span v-if="describeCache[event.id].kind !== 'today'" class="event-unit">{{ describeCache[event.id].label }}</span>
+            <span v-if="describeCache[event.id].kind !== 'today'" class="event-unit">天</span>
           </div>
 
           <div class="event-foot">
@@ -75,17 +90,6 @@
             <span class="event-date">{{ weekdayCN(event.targetDate) }}</span>
           </div>
 
-          <button
-            class="event-shoot"
-            type="button"
-            @click.stop="shoot(event)"
-          >
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M4.5 8.6A1.6 1.6 0 0 1 6.1 7h1.9l1.2-1.8h5.6L16 7h1.9a1.6 1.6 0 0 1 1.6 1.6v8.3a1.6 1.6 0 0 1-1.6 1.6H6.1a1.6 1.6 0 0 1-1.6-1.6z"></path>
-              <circle cx="12" cy="12.8" r="3.1"></circle>
-            </svg>
-            拍照
-          </button>
         </article>
 
         <button
@@ -104,7 +108,7 @@
           <path d="M8 3.6v3.4M16 3.6v3.4M4 10.2h16"></path>
         </svg>
         <strong>还没有要数的日子</strong>
-        <span>生日、纪念日、考试、假期<br>加起来，就能看着它一天天靠近</span>
+        <span>生日、纪念日、考试、假期<br>选个未来的日子倒数，选个过去的日子正着数</span>
         <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="router.push('/event/new')">
           加第一个日子
         </button>
@@ -116,15 +120,25 @@
       <span>·</span>
       <span>日子都在你自己的设备上</span>
     </footer>
+
+    <van-popup
+      v-model:show="settingsOpen"
+      position="left"
+      teleport="body"
+      class="settings-drawer"
+    >
+      <SettingsView v-if="settingsOpen" drawer @close="settingsOpen = false" />
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useEvents } from '../composables/useEvents';
 import { dayInfo, jieqiLine } from '../lib/almanac';
+import { builtInCountdowns } from '../lib/samples';
 import {
   describeEvent,
   formatDateCN,
@@ -136,6 +150,9 @@ import { greeting as pickGreeting } from '../utils/greeting';
 const router = useRouter();
 const { sorted, ready, loading, todayKey, reload, refreshToday } = useEvents();
 
+const SettingsView = defineAsyncComponent(() => import('./SettingsView.vue'));
+
+const settingsOpen = ref(false);
 const showAll = ref(false);
 const info = computed(() => dayInfo(todayKey.value));
 
@@ -157,6 +174,8 @@ const lunarLine = computed(() => {
 });
 
 const jieqiText = computed(() => jieqiLine(info.value));
+
+const builtins = computed(() => builtInCountdowns(todayKey.value));
 
 const describeCache = computed(() => {
   const map = {};
@@ -181,11 +200,6 @@ const hiddenCount = computed(() => Math.max(0, validEvents.value.length - visibl
 
 const hasEvents = computed(() => visibleEvents.value.length > 0);
 
-const modeLabelMap = { countdown: '倒数', anniversary: '纪念' };
-function modeLabel(event) {
-  return modeLabelMap[event.mode] || '';
-}
-
 function figureOf(desc) {
   if (!desc || desc.signed === null) return '—';
   return desc.kind === 'today' ? '今天' : String(desc.days);
@@ -195,8 +209,8 @@ function openEvent(event) {
   router.push(`/event/${event.id}`);
 }
 
-function shoot(event) {
-  router.push({ path: '/photo', query: { event: event.id } });
+function openSettings() {
+  settingsOpen.value = true;
 }
 
 /* ---------- 跨零点刷新 ---------- */
