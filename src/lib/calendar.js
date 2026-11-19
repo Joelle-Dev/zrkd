@@ -90,3 +90,26 @@ export function shiftDateKey(baseKey, days) {
     date.getUTCDate()
   );
 }
+
+/** 某一年的 12 个月，用于年月快速定位 */
+export function yearMonths(year) {
+  return Array.from({ length: 12 }, (_, index) => ({
+    year,
+    month: index + 1,
+    key: `${year}-${String(index + 1).padStart(2, '0')}`
+  }));
+}
+
+/**
+ * 年份面板：以 decade 为一段，返回 12 个年份（含首尾各留余量）。
+ * 传入 centerYear，会返回包含它的那一屏。
+ */
+export function yearWindow(centerYear, size = 12) {
+  const start = Math.floor(centerYear / size) * size;
+  return Array.from({ length: size }, (_, index) => start + index);
+}
+
+/** 下一个有意义的年份：今年、明年、去年、十周年 */
+export function quickYears(baseYear) {
+  return [baseYear - 1, baseYear, baseYear + 1, baseYear + 10];
+}

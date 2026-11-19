@@ -16,39 +16,48 @@
 
         <LoadingState v-if="loading" text="正在翻发黄的旧报纸…" inline />
 
-        <div v-else-if="events.length" class="history-list">
-          <article
-            v-for="item in events"
-            :key="historyKey(item)"
-            class="history-item"
-            :class="`is-${item.type}`"
-          >
-            <div class="history-rail">
-              <span class="history-dot" aria-hidden="true"></span>
-              <span class="history-year">{{ item.year }}</span>
+        <div v-else-if="events.length" class="history-paper">
+          <!-- 头版：推荐/最重要的那条当头条 -->
+          <article class="history-piece history-lead" :class="`is-${lead.type}`">
+            <div class="history-lead-top">
+              <span class="history-lead-kicker">头版头条</span>
+              <span v-if="lead.year" class="history-lead-year">{{ lead.year }}</span>
             </div>
 
-            <div class="history-body">
-              <div class="history-title-row">
-                <span class="history-title">{{ item.title }}</span>
-                <span v-if="item.typeLabel" class="history-tag">{{ item.typeLabel }}</span>
-              </div>
+            <span v-if="yearsAgo(lead.year) || lead.festival || lead.typeLabel" class="history-mini-meta">
+              <span v-if="lead.typeLabel" class="history-tag">{{ lead.typeLabel }}</span>
+              <span v-if="yearsAgo(lead.year)" class="history-ago">{{ yearsAgo(lead.year) }}</span>
+              <span v-if="lead.festival">{{ lead.festival }}</span>
+            </span>
 
-              <span v-if="yearsAgo(item.year) || item.festival" class="history-meta">
-                <span v-if="yearsAgo(item.year)" class="history-ago">{{ yearsAgo(item.year) }}</span>
-                <span v-if="item.festival" class="history-festival">{{ item.festival }}</span>
-              </span>
+            <h2 class="history-lead-title">{{ lead.title }}</h2>
 
-              <p v-if="item.desc" class="history-desc" :class="{ 'is-open': isExpanded(item) }">{{ item.desc }}</p>
-              <button
-                v-if="canExpand(item)"
-                class="history-more"
-                type="button"
-                :aria-expanded="isExpanded(item)"
-                @click="toggleExpanded(item)"
-              >{{ isExpanded(item) ? '收起' : '展开' }}</button>
-            </div>
+            <p v-if="lead.desc" class="history-lead-desc">{{ lead.desc }}</p>
           </article>
+
+          <template v-if="briefs.length">
+            <div class="history-briefs-head"><span>简讯</span></div>
+
+            <article
+              v-for="item in briefs"
+              :key="historyKey(item)"
+              class="history-piece history-brief"
+              :class="`is-${item.type}`"
+            >
+              <span class="history-brief-year">{{ item.year }}</span>
+              <div class="history-brief-body">
+                <h3 class="history-brief-title">{{ item.title }}</h3>
+
+                <span v-if="yearsAgo(item.year) || item.festival || item.typeLabel" class="history-mini-meta">
+                  <span v-if="item.typeLabel" class="history-tag">{{ item.typeLabel }}</span>
+                  <span v-if="yearsAgo(item.year)" class="history-ago">{{ yearsAgo(item.year) }}</span>
+                  <span v-if="item.festival">{{ item.festival }}</span>
+                </span>
+
+                <p v-if="item.desc" class="history-brief-desc">{{ item.desc }}</p>
+              </div>
+            </article>
+          </template>
         </div>
 
         <div v-else class="history-off">
@@ -100,28 +109,13 @@ const loading = ref(false);
 const offline = ref(false);
 const source = ref('none');
 
-// 长描述默认收成两行，想看全文再点开
-const expandedKeys = ref({});
-
 function historyKey(item) {
   return `${item.year}-${item.title}`;
 }
 
-function isExpanded(item) {
-  return Boolean(expandedKeys.value[historyKey(item)]);
-}
-
-function canExpand(item) {
-  return Array.from(String(item.desc || '')).length > 40;
-}
-
-function toggleExpanded(item) {
-  const key = historyKey(item);
-  expandedKeys.value = {
-    ...expandedKeys.value,
-    [key]: !expandedKeys.value[key]
-  };
-}
+// 排在最前面的那条当头条，剩下的压成简讯
+const lead = computed(() => events.value[0] || {});
+const briefs = computed(() => events.value.slice(1));
 
 const todayLabel = computed(() => formatDateCN(todayKey.value));
 const weekdayText = computed(() => weekdayCN(todayKey.value));

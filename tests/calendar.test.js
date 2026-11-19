@@ -6,7 +6,9 @@ import {
   daysInMonth,
   firstWeekdayOf,
   shiftDateKey,
-  shiftMonthRef
+  shiftMonthRef,
+  yearMonths,
+  yearWindow
 } from '../src/lib/calendar.js';
 
 test('daysInMonth 处理大小月与闰年', () => {
@@ -102,4 +104,19 @@ test('shiftDateKey 跨月与跨年', () => {
   assert.equal(shiftDateKey('2026-01-01', -1), '2025-12-31');
   assert.equal(shiftDateKey('2024-02-28', 1), '2024-02-29');
   assert.equal(shiftDateKey('nope', 1), null);
+});
+
+test('yearMonths 返回 12 个月且补零', () => {
+  const list = yearMonths(2026);
+  assert.equal(list.length, 12);
+  assert.deepEqual(list[0], { year: 2026, month: 1, key: '2026-01' });
+  assert.deepEqual(list[11], { year: 2026, month: 12, key: '2026-12' });
+});
+
+test('yearWindow 以 12 年为一段包住目标年', () => {
+  assert.deepEqual(yearWindow(2026), [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]);
+  const list = yearWindow(1999);
+  assert.equal(list[0], 1992);
+  assert.ok(list.includes(1999));
+  assert.equal(list.length, 12);
 });
