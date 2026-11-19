@@ -42,7 +42,9 @@
             <span class="diary-time">{{ timeOf(item.createdAt) }}</span>
           </div>
 
-          <p v-if="item.text" class="diary-body">{{ item.text }}</p>
+          <h2 v-if="item.title" class="diary-title">{{ item.title }}</h2>
+
+          <div v-if="item.html || item.text" class="diary-body" v-html="previewHtml(item)"></div>
 
           <img v-if="item.photo" class="diary-thumb" :src="item.photo" alt="配图">
         </article>
@@ -77,6 +79,7 @@ import LoadingState from '../components/LoadingState.vue';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { groupDiariesByDate, moodOf } from '../lib/diary';
+import { sanitizeHtml, textToHtml } from '../lib/richtext';
 import { dateKeyOf, formatDateCN, parseDateKey, weekdayCN } from '../lib/countdown';
 
 const router = useRouter();
@@ -106,6 +109,11 @@ function groupLabel(date) {
   const parts = parseDateKey(date);
   if (!parts) return date;
   return `${formatDateCN(date)} ${weekdayCN(date)}`;
+}
+
+// 列表里的正文同样要过滤，避免老数据里混进不该有的标签
+function previewHtml(item) {
+  return sanitizeHtml(item.html || textToHtml(item.text));
 }
 
 function timeOf(ts) {

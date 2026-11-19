@@ -40,9 +40,9 @@ test('normalizeDiaryInput 保留 data URL 配图', () => {
   assert.equal(normalizeDiaryInput({ text: 'x', photo }).photo, photo);
 });
 
-test('normalizeDiaryInput 超长文本截断到 2000', () => {
-  const value = normalizeDiaryInput({ text: '字'.repeat(3000) });
-  assert.equal(value.text.length, 2000);
+test('normalizeDiaryInput 超长正文截断到 4000', () => {
+  const value = normalizeDiaryInput({ text: '字'.repeat(6000) });
+  assert.equal(value.text.length, 4000);
 });
 
 test('validateDiary 要求有文字或图片', () => {

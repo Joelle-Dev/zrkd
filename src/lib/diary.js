@@ -5,6 +5,7 @@
 
 import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
 import { dateKeyOf, isValidDateKey } from './countdown.js';
+import { htmlToText, sanitizeHtml, textToHtml } from './richtext.js';
 
 export const MOODS = Object.freeze([
   { key: 'happy', emoji: '😊', label: '开心' },
@@ -16,7 +17,8 @@ export const MOODS = Object.freeze([
 
 const MOOD_KEYS = new Set(MOODS.map((mood) => mood.key));
 
-const TEXT_MAX = 2000;
+const TITLE_MAX = 60;
+const TEXT_MAX = 4000;
 const PHOTO_MAX_CHARS = 900_000; // 约 660KB 二进制，压缩后够用
 
 function uid(prefix = 'dy') {
@@ -35,9 +37,20 @@ export function normalizeDiaryInput(input = {}) {
     ? input.photo.slice(0, PHOTO_MAX_CHARS)
     : '';
 
+  // 兼容旧数据：没有 html 字段时，把纯文本按换行转成 HTML
+  const rawHtml = typeof input.html === 'string' && input.html
+    ? input.html
+    : textToHtml(input.text);
+  const html = sanitizeHtml(rawHtml).slice(0, TEXT_MAX * 8);
+  const text = htmlToText(html).slice(0, TEXT_MAX);
+  // 正文被截断时，html 也要跟着收敛，避免存下看不到的内容
+  const safeHtml = text.length >= TEXT_MAX ? textToHtml(text) : html;
+
   return {
     date,
-    text: String(input.text || '').trim().slice(0, TEXT_MAX),
+    title: String(input.title || '').trim().slice(0, TITLE_MAX),
+    text,
+    html: safeHtml,
     mood,
     photo,
     eventId: String(input.eventId || '').trim().slice(0, 60)
@@ -46,7 +59,9 @@ export function normalizeDiaryInput(input = {}) {
 
 export function validateDiary(input) {
   const value = normalizeDiaryInput(input);
-  if (!value.text && !value.photo) return { ok: false, error: '写点什么，或者放张照片' };
+  if (!value.text && !value.title && !value.photo) {
+    return { ok: false, error: '写点什么，或者放张照片' };
+  }
   if (!isValidDateKey(value.date)) return { ok: false, error: '日期不对，检查一下' };
   return { ok: true, value };
 }
