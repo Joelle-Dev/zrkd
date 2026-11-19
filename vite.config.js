@@ -107,6 +107,11 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,json,webmanifest}'],
+          // iOS 主屏幕启动图由系统在「添加到主屏幕」时取走，
+          // 运行时用不到，不进 precache，省 344KB 安装体积。
+          globIgnores: ['splash/**'],
+          // iOS 启动图只在「添加到主屏幕」开屏时由系统读，不必进 SW 缓存
+          globIgnores: ['**/splash/**'],
           cleanupOutdatedCaches: true,
           navigateFallbackDenylist: [/^\/api\//]
         }

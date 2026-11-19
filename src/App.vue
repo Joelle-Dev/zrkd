@@ -1,7 +1,13 @@
 <template>
   <div class="app-shell" :class="{ 'is-immersive': isImmersive }">
     <RouterView v-slot="{ Component }">
-      <Transition :name="pageTransition" mode="out-in">
+      <!--
+        切 page-none（进出沉浸页）时不能用 out-in：
+        out-in 要等旧页卸载完才插入新页，中间会有一两帧只剩背景和 Tab 栏，
+        DOM 越重空得越久 —— 首页返回时那一下「刷新感」就是这么来的。
+        改成同时进出，再让旧页立刻 display:none，新页同帧就在位，没有空档。
+      -->
+      <Transition :name="pageTransition" :mode="noTransition ? 'default' : 'out-in'">
         <KeepAlive :include="keepAliveNames">
           <component :is="Component" />
         </KeepAlive>

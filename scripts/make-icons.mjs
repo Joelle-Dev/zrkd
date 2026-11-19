@@ -232,6 +232,30 @@ write('ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png', iosSpl
 write('ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png', iosSplash);
 write('ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png', iosSplash);
 
+/* ---------- iOS 主屏幕启动图（apple-touch-startup-image） ----------
+   「添加到主屏幕」后，Web App 每次打开都会先显示 iOS 自己生成的原生启动图。
+   不提供这张图，iOS 就铺纯白；提供纸色版本，开屏第一帧就与 App 一致。 */
+const IOS_STARTUP = [
+  // [文件名, 宽, 高, DPR, 角标（竖屏/横屏）]
+  ['apple-splash-1320-2868.png', 1320, 2868, 3], // iPhone 16 Pro Max
+  ['apple-splash-1206-2622.png', 1206, 2622, 3], // iPhone 16 Pro
+  ['apple-splash-1290-2796.png', 1290, 2796, 3], // iPhone 15 Pro Max / 14 Pro Max
+  ['apple-splash-1179-2556.png', 1179, 2556, 3], // iPhone 15 Pro / 14 Pro
+  ['apple-splash-1284-2778.png', 1284, 2778, 3], // iPhone 14 Plus / 13 Pro Max
+  ['apple-splash-1170-2532.png', 1170, 2532, 3], // iPhone 14 / 13
+  ['apple-splash-1125-2436.png', 1125, 2436, 3], // iPhone 11 Pro / XS / X
+  ['apple-splash-1242-2688.png', 1242, 2688, 3], // iPhone 11 Pro Max / XS Max
+  ['apple-splash-828-1792.png', 828, 1792, 2],   // iPhone 11 / XR
+  ['apple-splash-750-1334.png', 750, 1334, 2],   // iPhone SE / 8 / 7 / 6s
+  ['apple-splash-640-1136.png', 640, 1136, 2],   // iPhone SE 1st / 5s
+  ['apple-splash-1668-2388.png', 1668, 2388, 2], // iPad Pro 11"
+  ['apple-splash-2048-2732.png', 2048, 2732, 2]  // iPad Pro 12.9"
+];
+
+for (const [name, width, height] of IOS_STARTUP) {
+  write(`public/splash/${name}`, smooth(width, height, splash, 6));
+}
+
 /* ---------- Android ---------- */
 const DENSITIES = {
   mdpi: { icon: 48, foreground: 108 },

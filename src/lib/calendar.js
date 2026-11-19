@@ -108,8 +108,3 @@ export function yearWindow(centerYear, size = 12) {
   const start = Math.floor(centerYear / size) * size;
   return Array.from({ length: size }, (_, index) => start + index);
 }
-
-/** 下一个有意义的年份：今年、明年、去年、十周年 */
-export function quickYears(baseYear) {
-  return [baseYear - 1, baseYear, baseYear + 1, baseYear + 10];
-}

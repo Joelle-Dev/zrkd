@@ -206,6 +206,8 @@ npm run icons
 - iOS：`AppIcon.appiconset` 的 1024 图标、`Splash.imageset` 的 2732 启动图
 - Android：各密度 `ic_launcher` / `ic_launcher_foreground`，以及横竖屏各尺寸的 `splash.png`
 
+- iOS 主屏幕启动图：`public/splash/apple-splash-*.png`（iPhone / iPad 各尺寸），在 `index.html` 里以 `apple-touch-startup-image` 按屏幕尺寸挂上。不提供这张图，iOS 每次从主屏幕打开都会先铺纯白；提供了纸色版，第一帧就和 App 一致。这些图不进 Service Worker 预缓存（系统从本地直接读）。
+
 网页端还有一层 `index.html` 里的启动页（`#boot-splash`），首屏挂载后由 `src/main.js` 淡出。改配色只需改脚本顶部的 `PAPER` / `CINNABAR` / `CREAM`。
 
 ## 设计边界

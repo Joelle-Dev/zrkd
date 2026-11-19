@@ -504,46 +504,47 @@ function onSelectionChange() {
 }
 
 /**
- * 键盘遮挡高度 → --kb-inset。
- * iOS Safari 弹键盘时不会缩小布局视口，100dvh 仍是一整屏，
- * 于是正文的滚动区有一截被键盘盖住。用 visualViewport 算出被盖住的
- * 高度，让 .write-page 减掉它，滚动区正好停在键盘上沿，顶栏也不会动。
+ * 让写作页贴住「视觉视口」。
+ *
+ * iOS 弹键盘时缩的是 visualViewport，布局视口（100dvh）不动，
+ * 于是 fixed / sticky 的顶栏会被视觉视口的滚动顶出可见区——这就是
+ * 「光标一点进正文，头部就跑了」的原因。
+ *
+ * 解法：把 visualViewport 的 offsetTop / height 写进 CSS 变量，
+ * 页面用 position: fixed + top/height 跟着视觉视口走。
+ * 键盘弹起、收起、转屏、捏合缩放都会触发 resize/scroll，实时同步。
  */
-let cleanupKeyboardInset = null;
+let cleanupViewport = null;
 
-function bindKeyboardInset() {
+function bindViewport() {
   const vv = window.visualViewport;
   if (!vv) return () => {};
   const root = document.documentElement;
+  let frame = 0;
 
-  const update = () => {
-    const gap = window.innerHeight - vv.height - vv.offsetTop;
-    const active = document.activeElement;
-    const editing = Boolean(active) && (
-      active.tagName === 'INPUT' ||
-      active.tagName === 'TEXTAREA' ||
-      active.isContentEditable
-    );
-    const inset = editing && gap > 120 ? Math.round(gap) : 0;
-    root.style.setProperty('--kb-inset', `${inset}px`);
+  const apply = () => {
+    frame = 0;
+    root.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
+    root.style.setProperty('--vv-height', `${Math.round(vv.height)}px`);
   };
 
-  const delayed = () => setTimeout(update, 60);
+  const update = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(apply);
+  };
 
   vv.addEventListener('resize', update);
   vv.addEventListener('scroll', update);
   window.addEventListener('orientationchange', update);
-  document.addEventListener('focusin', delayed);
-  document.addEventListener('focusout', delayed);
-  update();
+  apply();
 
   return () => {
+    cancelAnimationFrame(frame);
     vv.removeEventListener('resize', update);
     vv.removeEventListener('scroll', update);
     window.removeEventListener('orientationchange', update);
-    document.removeEventListener('focusin', delayed);
-    document.removeEventListener('focusout', delayed);
-    root.style.removeProperty('--kb-inset');
+    root.style.removeProperty('--vv-top');
+    root.style.removeProperty('--vv-height');
   };
 }
 
@@ -561,7 +562,7 @@ onMounted(async () => {
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
-  cleanupKeyboardInset = bindKeyboardInset();
+  cleanupViewport = bindViewport();
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
@@ -580,7 +581,7 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
-  cleanupKeyboardInset?.();
+  cleanupViewport?.();
   showAccessoryBar();
 });
 </script>
