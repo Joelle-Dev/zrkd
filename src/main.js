@@ -76,13 +76,33 @@ const updateSW = isNativeApp ? null : registerSW({
   }
 });
 
-createApp(App).use(router).mount('#app');
+const app = createApp(App).use(router);
 
-// 首屏挂载完成再收掉启动页，避免中间闪一下白屏
-const bootSplash = document.getElementById('boot-splash');
-if (bootSplash) {
+/**
+ * 收掉启动页。
+ * 必须等「首屏真的画出来」再淡出：
+ * 首页路由是懒加载的，如果 mount 完就撤掉启动页，
+ * 中间会先露出一个空白页（实测有 700ms 左右），看起来像页面晃了一下。
+ */
+function hideBootSplash() {
+  const splash = document.getElementById('boot-splash');
+  if (!splash) return;
+  // 两帧：一帧让 Vue 完成 DOM 插入，一帧让浏览器完成布局与首次绘制
   requestAnimationFrame(() => {
-    bootSplash.classList.add('is-hiding');
-    setTimeout(() => bootSplash.remove(), 400);
+    requestAnimationFrame(() => {
+      splash.classList.add('is-hiding');
+      setTimeout(() => splash.remove(), 360);
+    });
   });
 }
+
+// 等路由把首屏组件（含懒加载分块）准备好再挂载
+router
+  .isReady()
+  .catch(() => {
+    // 分块加载失败也要把界面挂起来，交给页面里的错误提示
+  })
+  .finally(() => {
+    app.mount('#app');
+    hideBootSplash();
+  });

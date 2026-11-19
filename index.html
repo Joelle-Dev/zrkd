@@ -20,6 +20,15 @@
   <meta name="apple-mobile-web-app-title" content="指日可待">
   <script>
     (function () {
+      // 刷新后别让浏览器把页面滚回上次的位置：会和启动页收起的动作叠在一起，
+      // 看起来像整页晃了一下。我们自己的路由本来就会把页面放回顶部。
+      try {
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      } catch (err) { /* 隐私模式等场景忽略 */ }
+      window.addEventListener('load', function () {
+        window.scrollTo(0, 0);
+      }, { once: true });
+
       try {
         var mode = localStorage.getItem('zrkd:theme') || 'system';
         var dark = mode === 'dark' ||

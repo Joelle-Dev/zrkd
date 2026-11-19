@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeLayout, outputSize, planTextFits } from '../src/lib/watermark.js';
+import { computeLayout, outputSize, planTextFits, sealCharacter } from '../src/lib/watermark.js';
 
 test('computeLayout 底部模式：文字块在下方且不超出画面', () => {
   const layout = computeLayout(2000, 1500, { position: 'bottom' });
@@ -16,9 +16,30 @@ test('computeLayout 底部模式：文字块在下方且不超出画面', () => 
 test('computeLayout 居中模式：块的中心就是画面中心', () => {
   const layout = computeLayout(1200, 1600, { position: 'center' });
   assert.equal(layout.centerY, 800);
-  const top = layout.titleY - layout.titleSize / 2;
-  const bottom = layout.dateY + layout.dateSize / 2;
-  assert.ok(Math.abs((top + bottom) / 2 - 800) < 0.6);
+  assert.ok(Math.abs((layout.blockTop + layout.blockBottom) / 2 - 800) < 0.6);
+  assert.ok(layout.sealY < layout.titleY);
+  assert.ok(layout.titleY < layout.numberY);
+  assert.ok(layout.numberY < layout.dateY);
+});
+
+test('computeLayout 带引首章与细线，尺寸都在画面内', () => {
+  for (const [w, h] of [[1200, 1600], [2400, 1200]]) {
+    const layout = computeLayout(w, h);
+    assert.ok(layout.sealSize > 0);
+    assert.ok(layout.sealY - layout.sealSize / 2 >= 0);
+    assert.ok(layout.sealY + layout.sealSize / 2 < h);
+    assert.ok(layout.ruleY > layout.sealY);
+    assert.ok(layout.ruleY < layout.titleY);
+    assert.ok(layout.ruleWidth > 0 && layout.ruleWidth <= w);
+    assert.ok(layout.ruleThickness >= 1);
+  }
+});
+
+test('sealCharacter 取标题第一个汉字，没有就用「日」', () => {
+  assert.equal(sealCharacter('发工资'), '发');
+  assert.equal(sealCharacter('2027 考研'), '考');
+  assert.equal(sealCharacter('New Year'), '日');
+  assert.equal(sealCharacter(''), '日');
 });
 
 test('computeLayout 竖图横图都不溢出', () => {

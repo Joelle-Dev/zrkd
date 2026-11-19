@@ -503,6 +503,50 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
+/**
+ * 键盘遮挡高度 → --kb-inset。
+ * iOS Safari 弹键盘时不会缩小布局视口，100dvh 仍是一整屏，
+ * 于是正文的滚动区有一截被键盘盖住。用 visualViewport 算出被盖住的
+ * 高度，让 .write-page 减掉它，滚动区正好停在键盘上沿，顶栏也不会动。
+ */
+let cleanupKeyboardInset = null;
+
+function bindKeyboardInset() {
+  const vv = window.visualViewport;
+  if (!vv) return () => {};
+  const root = document.documentElement;
+
+  const update = () => {
+    const gap = window.innerHeight - vv.height - vv.offsetTop;
+    const active = document.activeElement;
+    const editing = Boolean(active) && (
+      active.tagName === 'INPUT' ||
+      active.tagName === 'TEXTAREA' ||
+      active.isContentEditable
+    );
+    const inset = editing && gap > 120 ? Math.round(gap) : 0;
+    root.style.setProperty('--kb-inset', `${inset}px`);
+  };
+
+  const delayed = () => setTimeout(update, 60);
+
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  window.addEventListener('orientationchange', update);
+  document.addEventListener('focusin', delayed);
+  document.addEventListener('focusout', delayed);
+  update();
+
+  return () => {
+    vv.removeEventListener('resize', update);
+    vv.removeEventListener('scroll', update);
+    window.removeEventListener('orientationchange', update);
+    document.removeEventListener('focusin', delayed);
+    document.removeEventListener('focusout', delayed);
+    root.style.removeProperty('--kb-inset');
+  };
+}
+
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
   if (locked.value) return;
@@ -517,6 +561,7 @@ onMounted(async () => {
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
+  cleanupKeyboardInset = bindKeyboardInset();
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
@@ -535,6 +580,7 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
+  cleanupKeyboardInset?.();
   showAccessoryBar();
 });
 </script>

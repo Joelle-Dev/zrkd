@@ -9,9 +9,9 @@
 
     <template v-if="enabled">
       <section>
-        <div class="section-head">
+        <div class="section-head history-head">
           <h2 class="section-title">旧报纸</h2>
-          <span class="section-meta">{{ stateLabel }}</span>
+          <span v-if="stateLabel" class="history-state" :class="`is-${source}`">{{ stateLabel }}</span>
         </div>
 
         <LoadingState v-if="loading" text="正在翻发黄的旧报纸…" inline />
@@ -19,36 +19,56 @@
         <div v-else-if="events.length" class="history-list">
           <article
             v-for="item in events"
-            :key="`${item.year}-${item.title}`"
+            :key="historyKey(item)"
             class="history-item"
+            :class="`is-${item.type}`"
           >
-            <span class="history-year">{{ item.year }}</span>
+            <div class="history-rail">
+              <span class="history-dot" aria-hidden="true"></span>
+              <span class="history-year">{{ item.year }}</span>
+            </div>
+
             <div class="history-body">
               <div class="history-title-row">
                 <span class="history-title">{{ item.title }}</span>
                 <span v-if="item.typeLabel" class="history-tag">{{ item.typeLabel }}</span>
               </div>
-              <span class="history-meta">
+
+              <span v-if="yearsAgo(item.year) || item.festival" class="history-meta">
                 <span v-if="yearsAgo(item.year)" class="history-ago">{{ yearsAgo(item.year) }}</span>
-                <span v-if="item.festival">{{ yearsAgo(item.year) ? ' · ' : '' }}{{ item.festival }}</span>
+                <span v-if="item.festival" class="history-festival">{{ item.festival }}</span>
               </span>
-              <p v-if="item.desc" class="history-desc">{{ item.desc }}</p>
+
+              <p v-if="item.desc" class="history-desc" :class="{ 'is-open': isExpanded(item) }">{{ item.desc }}</p>
+              <button
+                v-if="canExpand(item)"
+                class="history-more"
+                type="button"
+                :aria-expanded="isExpanded(item)"
+                @click="toggleExpanded(item)"
+              >{{ isExpanded(item) ? '收起' : '展开' }}</button>
             </div>
           </article>
         </div>
 
         <div v-else class="history-off">
-          <span>{{ offline ? '没网，旧报纸翻不动，连上再来' : '今天旧报纸上没什么热闹' }}</span>
-          <button class="text-btn" type="button" @click="load(true)">重试</button>
+          <span class="history-off-mark" aria-hidden="true">史</span>
+          <div class="history-off-copy">
+            <span>{{ offline ? '没网，旧报纸翻不动，连上再来' : '今天旧报纸上没什么热闹' }}</span>
+            <button class="text-btn" type="button" @click="load(true)">重试</button>
+          </div>
         </div>
 
-        <p class="photo-hint" style="margin-top: 10px;">资料来源：百度百科 · 只把日期递出去，按月存在本机</p>
+        <p class="history-source">资料来源：百度百科 · 只把日期递出去，按月存在本机</p>
       </section>
     </template>
 
     <div v-else class="history-off">
-      <span>这功能还没开，开了才去搬史料</span>
-      <button class="text-btn" type="button" @click="router.push('/settings')">去开</button>
+      <span class="history-off-mark" aria-hidden="true">史</span>
+      <div class="history-off-copy">
+        <span>这功能还没开，开了才去搬史料</span>
+        <button class="text-btn" type="button" @click="router.push('/settings')">去开</button>
+      </div>
     </div>
 
     <footer class="page-footer">
@@ -79,6 +99,29 @@ const events = ref([]);
 const loading = ref(false);
 const offline = ref(false);
 const source = ref('none');
+
+// 长描述默认收成两行，想看全文再点开
+const expandedKeys = ref({});
+
+function historyKey(item) {
+  return `${item.year}-${item.title}`;
+}
+
+function isExpanded(item) {
+  return Boolean(expandedKeys.value[historyKey(item)]);
+}
+
+function canExpand(item) {
+  return Array.from(String(item.desc || '')).length > 40;
+}
+
+function toggleExpanded(item) {
+  const key = historyKey(item);
+  expandedKeys.value = {
+    ...expandedKeys.value,
+    [key]: !expandedKeys.value[key]
+  };
+}
 
 const todayLabel = computed(() => formatDateCN(todayKey.value));
 const weekdayText = computed(() => weekdayCN(todayKey.value));

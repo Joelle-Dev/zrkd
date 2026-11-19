@@ -5,6 +5,10 @@
 
 const MAX_EDGE = 2200;
 
+// 印章的朱砂色。照片是用户的内容，这里用固定品牌色，不跟随 App 主题。
+const SEAL_FILL = 'rgba(186, 74, 62, 0.94)';
+const SEAL_INK = 'rgba(255, 249, 242, 0.96)';
+
 const SERIF = '"Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "Times New Roman", serif';
 const SANS = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif';
 
@@ -19,18 +23,24 @@ export function computeLayout(width, height, { position = 'bottom' } = {}) {
   const numberSize = clamp(base * 0.15, 40, 380);
   const unitSize = clamp(numberSize * 0.26, 14, 100);
   const dateSize = clamp(base * 0.028, 11, 46);
+  // 题头小印：压一行细线，像书画上的引首章
+  const sealSize = clamp(base * 0.058, 16, 104);
 
+  const gapSeal = sealSize * 0.62;
   const gapTitle = titleSize * 0.52;
   const gapDate = dateSize * 1.7;
 
-  const blockHeight = titleSize + gapTitle + numberSize + gapDate + dateSize;
+  const blockHeight = sealSize + gapSeal + titleSize + gapTitle + numberSize + gapDate + dateSize;
 
   const bottomMargin = height * 0.1;
   const centerY = position === 'center'
     ? height / 2
     : height - bottomMargin - blockHeight / 2;
 
-  const top = centerY - blockHeight / 2;
+  const blockTop = centerY - blockHeight / 2;
+  const sealY = blockTop + sealSize / 2;
+  const ruleY = blockTop + sealSize + gapSeal * 0.52;
+  const top = blockTop + sealSize + gapSeal;
   const titleY = top + titleSize / 2;
   const numberY = top + titleSize + gapTitle + numberSize / 2;
   const dateY = top + titleSize + gapTitle + numberSize + gapDate + dateSize / 2;
@@ -41,10 +51,18 @@ export function computeLayout(width, height, { position = 'bottom' } = {}) {
     numberSize,
     unitSize,
     dateSize,
+    sealSize,
     gapTitle,
     gapDate,
+    gapSeal,
     blockHeight,
+    blockTop,
+    blockBottom: blockTop + blockHeight,
     centerY,
+    sealY,
+    ruleY,
+    ruleWidth: width * 0.3,
+    ruleThickness: Math.max(1, base * 0.0035),
     titleY,
     numberY,
     dateY,
@@ -53,7 +71,7 @@ export function computeLayout(width, height, { position = 'bottom' } = {}) {
     position,
     scrim: position === 'center'
       ? { type: 'radial', radius: Math.max(width, height) * 0.62 }
-      : { type: 'linear', from: Math.max(0, top - blockHeight * 0.9), to: height }
+      : { type: 'linear', from: Math.max(0, blockTop - blockHeight * 0.9), to: height }
   };
 }
 
@@ -72,6 +90,59 @@ export function planTextFits({ text, width, size, weight = 600, family = SERIF, 
 
 function setFont(ctx, size, weight, family) {
   ctx.font = `${weight} ${Math.round(size)}px ${family}`;
+}
+
+/** 水印印章里的字：取标题里的第一个汉字，没有就用「日」 */
+export function sealCharacter(title) {
+  const chars = Array.from(String(title || '').trim());
+  const cjk = chars.find((char) => /[\u3400-\u9fff]/.test(char));
+  return cjk || '日';
+}
+
+function roundRectPath(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
+}
+
+/** 朱砂小印：一枚方章 + 内圈，稍微歪一点，像刚盖上去的 */
+function drawSeal(ctx, x, y, size, character) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-4 * (Math.PI / 180));
+
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.38)';
+  ctx.shadowBlur = size * 0.2;
+  ctx.shadowOffsetY = size * 0.05;
+  ctx.fillStyle = SEAL_FILL;
+  roundRectPath(ctx, -size / 2, -size / 2, size, size, size * 0.16);
+  ctx.fill();
+
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth = Math.max(1, size * 0.03);
+  ctx.strokeStyle = 'rgba(255, 244, 233, 0.55)';
+  const inset = size * 0.11;
+  roundRectPath(ctx, -size / 2 + inset, -size / 2 + inset, size - inset * 2, size - inset * 2, size * 0.1);
+  ctx.stroke();
+
+  ctx.fillStyle = SEAL_INK;
+  setFont(ctx, size * 0.5, 600, SERIF);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(character, 0, size * 0.03);
+  ctx.restore();
+}
+
+function drawRule(ctx, x, y, width, thickness) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 247, 238, 0.4)';
+  ctx.fillRect(x - width / 2, y - thickness / 2, width, thickness);
+  ctx.restore();
 }
 
 function measureText(text, { font }) {
@@ -253,6 +324,8 @@ export async function renderWatermark({
   drawScrim(ctx, size.width, size.height, layout);
 
   const cx = size.width / 2;
+  drawSeal(ctx, cx, layout.sealY, layout.sealSize, sealCharacter(title));
+  drawRule(ctx, cx, layout.ruleY, layout.ruleWidth, layout.ruleThickness);
 
   if (title) {
     const fit = planTextFits({
@@ -337,12 +410,13 @@ export async function renderWatermark({
     }
   }
 
-  if (dateText) {
-    paintText(ctx, dateText, cx, layout.dateY, {
+  const footer = [dateText, '指日可待'].filter(Boolean).join(' · ');
+  if (footer) {
+    paintText(ctx, footer, cx, layout.dateY, {
       size: layout.dateSize,
       weight: 500,
       family: SANS,
-      letterSpacing: layout.dateSize * 0.16,
+      letterSpacing: layout.dateSize * 0.12,
       color: 'rgba(255, 255, 255, 0.92)'
     });
   }

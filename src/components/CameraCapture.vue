@@ -15,13 +15,17 @@
 
           <div v-if="layout" class="camera-overlay">
             <div class="camera-scrim" :style="scrimStyle"></div>
+            <div class="camera-seal" :style="sealStyle" aria-hidden="true">{{ sealChar }}</div>
+            <div class="camera-rule" :style="ruleStyle"></div>
             <div class="camera-title" :style="titleStyle">{{ title }}</div>
             <div v-if="number" class="camera-number" :style="numberStyle">
               <span v-if="prefix" class="camera-side-text" :style="sideTextStyle">{{ prefix }}</span>
               <span class="camera-big" :style="numberTextStyle">{{ number }}</span>
               <span v-if="unit" class="camera-side-text" :style="sideTextStyle">{{ unit }}</span>
             </div>
-            <div v-if="dateText" class="camera-date" :style="dateStyle">{{ dateText }}</div>
+            <div v-if="dateText" class="camera-date" :style="dateStyle">
+              {{ dateText }}<span class="camera-brand"> · 指日可待</span>
+            </div>
           </div>
         </div>
 
@@ -96,7 +100,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { showToast } from 'vant';
-import { computeLayout, renderWatermark } from '../lib/watermark';
+import { computeLayout, renderWatermark, sealCharacter } from '../lib/watermark';
 import { photoFilename } from '../utils/album';
 import { saveImageToAlbum } from '../utils/saveImage';
 import { haptic } from '../utils/haptics';
@@ -152,6 +156,32 @@ const scale = computed(() => {
 });
 
 const px = (value) => `${Math.round((value / scale.value) * 100) / 100}px`;
+
+const sealChar = computed(() => sealCharacter(props.title));
+
+const sealStyle = computed(() => {
+  const current = layout.value;
+  if (!current) return {};
+  return {
+    top: px(current.sealY),
+    width: px(current.sealSize),
+    height: px(current.sealSize),
+    fontSize: px(current.sealSize * 0.5),
+    '--seal-inset': px(current.sealSize * 0.11),
+    '--seal-ring': px(Math.max(1, current.sealSize * 0.03)),
+    boxShadow: `0 ${px(current.sealSize * 0.05)} ${px(current.sealSize * 0.2)} rgba(0, 0, 0, 0.38)`
+  };
+});
+
+const ruleStyle = computed(() => {
+  const current = layout.value;
+  if (!current) return {};
+  return {
+    top: px(current.ruleY),
+    width: px(current.ruleWidth),
+    height: px(current.ruleThickness)
+  };
+});
 
 const scrimStyle = computed(() => {
   const current = layout.value;
@@ -225,7 +255,7 @@ const saveBtnStyle = computed(() => {
     const below = current.centerY + current.blockHeight / 2 + current.dateSize * 1.6;
     return { top: `${below / scale.value}px` };
   }
-  const blockTop = current.titleY - current.titleSize * 0.8;
+  const blockTop = current.blockTop ?? (current.titleY - current.titleSize * 0.8);
   return { bottom: `${(height - blockTop) / scale.value + 10}px` };
 });
 
