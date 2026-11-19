@@ -221,13 +221,14 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: calc(var(--safe-top) + 16px) var(--shell-pad) 30px;
+  padding: 0 var(--shell-pad) 30px;
 }
 
 /* ==========================================================================
    03. 页头与底部导航
    ========================================================================== */
 
+/* 页头：左边一组标题，右边一个动作 */
 .page-head {
   display: flex;
   align-items: flex-start;
@@ -266,6 +267,57 @@ h1, h2, h3, h4, p {
   font-size: 12px;
   color: var(--muted);
   line-height: 1.5;
+}
+
+/* 滚动时头部吸顶：半透明纸面 + 磨砂，内容从下面穿过去。
+   必须是「整页高」容器的直接子元素，否则 sticky 会被父盒子裁掉。
+   容器有 gap，所以用负 margin 抵消 gap，再由头部自己的
+   padding-bottom 提供视觉留白——这样内容不会从缝里露出来。 */
+.home-nav,
+.page-head,
+.edit-head,
+.detail-head,
+.photo-head,
+.write-head {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.35);
+  -webkit-backdrop-filter: blur(12px) saturate(1.35);
+}
+
+/* .page 的 gap 是 20px（设置页 12px） */
+.page > .home-nav,
+.page > .page-head,
+.page > .edit-head {
+  margin-bottom: -20px;
+  padding-top: calc(var(--safe-top) + 12px);
+  padding-bottom: 14px;
+}
+
+.settings-page > .page-head {
+  margin-bottom: -12px;
+  padding-bottom: 10px;
+}
+
+.detail-page > .detail-head {
+  margin-bottom: -16px;
+  padding-top: calc(var(--safe-top) + 10px);
+  padding-bottom: 12px;
+}
+
+.photo-page > .photo-head {
+  margin-bottom: -13px;
+  padding-top: calc(var(--safe-top) + 10px);
+  padding-bottom: 10px;
+}
+
+/* 写作页铺的是纸白底，吸顶条跟着用纸白 */
+.write-page > .write-head {
+  padding-top: calc(var(--safe-top) + 8px);
+  padding-bottom: 10px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
 }
 
 .masthead {
@@ -321,7 +373,7 @@ h1, h2, h3, h4, p {
 }
 
 .masthead-title {
-  margin-top: 18px;
+  margin-top: 10px;
   font-family: var(--font-display);
   font-size: 27px;
   font-weight: 600;
@@ -586,44 +638,6 @@ h1, h2, h3, h4, p {
   transform: scale(0.94);
   background: var(--surface-tint);
   border-color: var(--line-strong);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.input,
-.textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--surface-soft);
-  color: var(--ink);
-  font-size: var(--text-md);
-  line-height: 1.45;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
-}
-
-.input:focus,
-.textarea:focus {
-  outline: none;
-  border-color: rgba(var(--accent-rgb), 0.5);
-  background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
-}
-
-.input[type='date'] {
-  min-height: 48px;
-  font-variant-numeric: tabular-nums;
-}
-
-.textarea {
-  min-height: 88px;
-  resize: vertical;
-  line-height: 1.65;
 }
 
 .field-note {
@@ -1542,7 +1556,7 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: calc(var(--safe-top) + 10px) var(--shell-pad) calc(24px + var(--safe-bottom));
+  padding: 0 var(--shell-pad) calc(24px + var(--safe-bottom));
   background: var(--surface);
 }
 
@@ -1610,23 +1624,6 @@ h1, h2, h3, h4, p {
 .write-mood.is-active {
   opacity: 1;
   background: var(--surface-soft);
-}
-
-.write-save {
-  flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--accent-strong);
-  color: var(--accent-on);
-  font-size: 13px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-}
-
-.write-save:disabled {
-  opacity: 0.5;
 }
 
 .write-body {
@@ -1963,7 +1960,7 @@ h1, h2, h3, h4, p {
   max-width: var(--shell-max);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: calc(var(--safe-top) + 10px) var(--shell-pad) calc(var(--safe-bottom) + 20px);
+  padding: 0 var(--shell-pad) calc(var(--safe-bottom) + 20px);
 }
 
 .detail-head {
@@ -2390,7 +2387,7 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: calc(var(--safe-top) + 12px) var(--shell-pad) calc(var(--safe-bottom) + 18px);
+  padding: 0 var(--shell-pad) calc(var(--safe-bottom) + 18px);
 }
 
 .photo-head {
@@ -3005,11 +3002,6 @@ h1, h2, h3, h4, p {
   font-weight: 450;
 }
 
-.line-input.line-date {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
-
 .line-textarea {
   min-height: 46px;
   margin-top: 4px;
@@ -3060,7 +3052,6 @@ h1, h2, h3, h4, p {
 /* 「我的」页：整体收紧，尽量一屏放下 */
 .settings-page {
   gap: 12px;
-  padding-top: calc(var(--safe-top) + 12px);
 }
 
 .settings-foot {

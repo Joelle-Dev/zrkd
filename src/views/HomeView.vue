@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <header class="masthead">
+    <header class="home-nav">
       <div class="masthead-row">
         <button class="nav-btn" type="button" aria-label="我的" @click="openSettings">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -25,6 +25,9 @@
           </button>
         </div>
       </div>
+    </header>
+
+    <header class="masthead">
       <h1 class="masthead-title">{{ greeting }}<small>{{ weekdayText }}</small></h1>
       <p class="masthead-date">{{ todayLabel }}</p>
     </header>
@@ -177,8 +180,7 @@ const settingsOpen = ref(false);
 const showAll = ref(false);
 const info = computed(() => dayInfo(todayKey.value));
 
-const greetingText = ref(pickGreeting());
-const greeting = computed(() => greetingText.value);
+const greeting = ref(pickGreeting());
 
 const todayParts = computed(() => parseDateKey(todayKey.value) || { year: 1970, month: 1, day: 1 });
 
@@ -239,7 +241,7 @@ function scheduleDayRefresh() {
   clearInterval(dayTimer);
   dayTimer = setInterval(() => {
     if (refreshToday()) {
-      greetingText.value = pickGreeting();
+      greeting.value = pickGreeting();
       reload().catch(() => {});
     }
   }, 60_000);
