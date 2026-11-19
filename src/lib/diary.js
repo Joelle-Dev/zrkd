@@ -56,9 +56,9 @@ export function normalizeDiaryInput(input = {}) {
 export function validateDiary(input) {
   const value = normalizeDiaryInput(input);
   if (!value.text && !value.title && !value.photo) {
-    return { ok: false, error: '写点什么，或者放张照片' };
+    return { ok: false, error: '写两句吧，或者扔张照片进来' };
   }
-  if (!isValidDateKey(value.date)) return { ok: false, error: '日期不对，检查一下' };
+  if (!isValidDateKey(value.date)) return { ok: false, error: '日期有点离谱，检查下' };
   return { ok: true, value };
 }
 

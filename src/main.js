@@ -14,7 +14,7 @@ import { initTheme } from './utils/theme';
 
 initTheme();
 
-const ERROR_TOAST = '指日可待绊了一下，再试一次吧';
+const ERROR_TOAST = '绊了一跤，再来一次吧';
 const ERROR_TOAST_GAP = 3000;
 let lastErrorToastAt = 0;
 
@@ -60,8 +60,8 @@ const updateSW = isNativeApp ? null : registerSW({
     if (refreshPrompting) return;
     refreshPrompting = true;
     showConfirmDialog({
-      title: '有个新版本',
-      message: buildLabel ? `更新一下就能用新版本啦（${buildLabel}）` : '更新一下就能用新版本啦',
+      title: '有新版本了',
+      message: buildLabel ? `更新一下，换身新衣裳（${buildLabel}）` : '更新一下就能用新版本啦',
       confirmButtonText: '现在更新',
       cancelButtonText: '稍后'
     }).then(() => {
@@ -72,7 +72,7 @@ const updateSW = isNativeApp ? null : registerSW({
     });
   },
   onOfflineReady() {
-    showToast('离线也能用啦');
+    showToast('断网也能用，稳');
   }
 });
 

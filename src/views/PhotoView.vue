@@ -17,8 +17,8 @@
     </header>
 
     <div v-if="!events.length" class="history-off">
-      <span>还没有日子，先加一个再来拍照</span>
-      <button class="text-btn" type="button" @click="router.push('/event/new')">加一个</button>
+      <span>还没日子可拍，先去记一个</span>
+      <button class="text-btn" type="button" @click="router.push('/event/new')">去加</button>
     </div>
 
     <div v-if="events.length > 1" class="event-picker">
@@ -40,14 +40,14 @@
         <path d="M4.4 8.6A1.7 1.7 0 0 1 6.1 6.9h1.8l1.2-1.9h5.8l1.2 1.9h1.8a1.7 1.7 0 0 1 1.7 1.7v8.2a1.7 1.7 0 0 1-1.7 1.7H6.1a1.7 1.7 0 0 1-1.7-1.7z"></path>
         <circle cx="12" cy="12.7" r="3.2"></circle>
       </svg>
-      <strong>拍一张，水印当场就带上</strong>
-      <small>取景时就能看到标题、天数和日期，拍完直接存进相册</small>
+      <strong>拍一张，让水印替你说话</strong>
+      <small>取景就看得见标题天数，拍完直接进相册</small>
       <div class="dropzone-actions">
         <button class="primary-btn" type="button" @click="openCamera">
           {{ cameraSupported ? '打开相机' : '拍一张' }}
         </button>
         <button class="secondary-btn" type="button" @click="openLibrary">
-          从相册选
+          相册里挑
         </button>
       </div>
     </div>
@@ -92,10 +92,10 @@
           {{ saveButtonLabel }}
         </button>
         <p class="photo-hint">
-          <template v-if="nativeApp">点一下就直接存进系统相册，不用再经过分享面板。</template>
-          <template v-else-if="canShare">点上面按钮会打开系统面板，选<b>存储图像</b>才会进相册。</template>
-          <template v-else-if="isSecure">这个浏览器不支持直接分享，点上面按钮会显示大图，<b>长按保存</b>。</template>
-          <template v-else>当前是 <b>HTTP</b> 本地测试环境，浏览器不允许直接存相册；部署到 GitHub Pages 的 HTTPS 站点后就没有这一步了。</template>
+          <template v-if="nativeApp">点一下直接进相册，省去分享面板绕路。</template>
+          <template v-else-if="canShare">点上面会弹系统面板，选「存储图像」才进相册。</template>
+          <template v-else-if="isSecure">这浏览器不太配合，点上面显示大图，<b>长按保存</b>。</template>
+          <template v-else>现在是 <b>HTTP</b> 本地测试，浏览器不给存相册；上了 HTTPS 就不用这么费劲。</template>
         </p>
       </div>
     </template>
@@ -214,7 +214,7 @@ const cameraDate = computed(() => (activeEvent.value
   : ''));
 
 const headSub = computed(() => {
-  if (!activeEvent.value) return '先建一个日子';
+  if (!activeEvent.value) return '先记一个日子';
   const value = desc.value;
   if (!value || value.signed === null) return formatDateDot(activeEvent.value.targetDate);
   const label = value.kind === 'today' ? '就是今天' : `${value.label} ${value.days} 天`;
@@ -222,15 +222,15 @@ const headSub = computed(() => {
 });
 
 const renderLabel = computed(() => {
-  if (!sourceUrl.value) return '还没选照片';
-  if (renderState.value === 'generating') return '正在生成';
+  if (!sourceUrl.value) return '还没挑照片';
+  if (renderState.value === 'generating') return '正在画';
   if (renderState.value === 'ready') return `就绪 ${renderedSize.value?.width || ''}×${renderedSize.value?.height || ''}`;
-  if (renderState.value === 'error') return '生成失败';
+  if (renderState.value === 'error') return '画砸了';
   return '待处理';
 });
 
 const saveButtonLabel = computed(() => {
-  if (renderState.value === 'generating') return '正在生成…';
+  if (renderState.value === 'generating') return '正在画…';
   if (renderState.value === 'error') return '换张照片试试';
   if (nativeApp) return '存进相册';
   return shareSupported.value ? '保存到相册' : '显示大图，长按保存';
@@ -256,7 +256,7 @@ function openCamera() {
 
 function onCameraError(err) {
   if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
-    showToast('没拿到相机权限，可以改用相册');
+    showToast('摄像头没给面子，改用相册吧');
   }
 }
 
@@ -269,11 +269,11 @@ function onPick(event) {
   event.target.value = '';
   if (!file) return;
   if (!/^image\//.test(file.type)) {
-    showToast('这不是图片');
+    showToast('这玩意儿不像图片');
     return;
   }
   if (file.size > 30 * 1024 * 1024) {
-    showToast('图片太大了，换一张');
+    showToast('图大得离谱，换一张');
     return;
   }
   releaseUrls();
@@ -324,7 +324,7 @@ async function generate() {
   } catch (err) {
     if (token !== renderToken) return;
     renderState.value = 'error';
-    errorText.value = err?.message || '图片处理失败';
+    errorText.value = err?.message || '图片闹脾气了';
   }
 }
 
@@ -336,7 +336,7 @@ async function generate() {
 function saveToAlbum() {
   const blob = renderedBlob.value;
   if (!blob) {
-    showToast('图片还没准备好');
+    showToast('图还没准备好');
     return;
   }
   const filename = photoFilename();
@@ -345,9 +345,9 @@ function saveToAlbum() {
     showToast({ message: '正在存进相册…', duration: 1200 });
     savePhotoToAlbum(blob, filename).then(() => {
       haptic('success');
-      showToast('已存进相册');
+      showToast('进相册了');
     }).catch((err) => {
-      showToast(err?.message === '图片还没准备好' ? err.message : '保存失败，检查一下相册权限');
+      showToast(err?.message === '图片还没准备好' ? err.message : '没存上，看看相册给不给面子');
     });
     return;
   }
@@ -362,25 +362,25 @@ function saveToAlbum() {
     shareFile(toFile(blob, filename), meta).then((result) => {
       if (result === 'share') {
         haptic('success');
-        showToast('已交给系统，选「存储图像」就进相册了');
+        showToast('交给系统了，记得选「存储图像」');
       } else if (result === 'cancelled') {
         // 用户取消，什么都不做
       } else {
         fallbackSave(blob, filename).catch(() => {
-          showToast('保存失败，长按图片试试');
+          showToast('没存上，长按图片试试运气');
         });
       }
     }).catch(() => {
-      showToast('保存失败，长按图片试试');
+      showToast('没存上，长按图片试试运气');
     });
     return;
   }
 
   fallbackSave(blob, filename).then((mode) => {
     haptic('light');
-    if (mode === 'download') showToast('已下载到「下载」文件夹');
+    if (mode === 'download') showToast('丢进「下载」文件夹了');
   }).catch(() => {
-    showToast('保存失败，长按图片试试');
+    showToast('没存上，长按图片试试运气');
   });
 }
 

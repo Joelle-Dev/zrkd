@@ -18,10 +18,10 @@ function normalizeEventInput(input = {}) {
 
 export function validateEvent(input) {
   const normalized = normalizeEventInput(input);
-  if (!normalized.title) return { ok: false, error: '给它起个名字吧' };
-  if (!isValidDateKey(normalized.targetDate)) return { ok: false, error: '日期不对，检查一下' };
+  if (!normalized.title) return { ok: false, error: '总得给它起个名字吧' };
+  if (!isValidDateKey(normalized.targetDate)) return { ok: false, error: '日期有点离谱，检查下' };
   const parts = parseDateKey(normalized.targetDate);
-  if (parts.year < 1900 || parts.year > 2999) return { ok: false, error: '年份超出范围了' };
+  if (parts.year < 1900 || parts.year > 2999) return { ok: false, error: '年份跑太远了' };
   return { ok: true, value: normalized };
 }
 

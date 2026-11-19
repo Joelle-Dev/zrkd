@@ -242,6 +242,17 @@ h1, h2, h3, h4, p {
   min-width: 0;
 }
 
+/* 返回箭头在左、标题在右的编辑页页头 */
+.edit-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.edit-head .page-head-copy {
+  flex: 1;
+}
+
 .page-title {
   font-family: var(--font-display);
   font-size: 23px;
@@ -635,7 +646,14 @@ h1, h2, h3, h4, p {
 
 .swatch-row {
   display: flex;
+  align-items: center;
   gap: 12px;
+}
+
+.swatch-label {
+  font-size: 11.5px;
+  color: var(--muted-soft);
+  letter-spacing: 0.04em;
 }
 
 .swatch {
@@ -1035,13 +1053,10 @@ h1, h2, h3, h4, p {
   opacity: 0.75;
 }
 
-.event-card.is-countdown::before {
-  background: var(--countdown);
-}
-
+/* 竖条与光晕用「这一天自己的颜色」，数字仍用方向色 */
 .event-card.is-countdown {
   background:
-    radial-gradient(110% 100% at 100% 0%, var(--countdown-tint) 0%, transparent 60%),
+    radial-gradient(110% 100% at 100% 0%, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 60%),
     var(--surface);
 }
 
@@ -1055,13 +1070,9 @@ h1, h2, h3, h4, p {
   opacity: 0.8;
 }
 
-.event-card.is-past::before {
-  background: var(--elapsed);
-}
-
 .event-card.is-past {
   background:
-    radial-gradient(110% 100% at 100% 0%, var(--elapsed-tint) 0%, transparent 60%),
+    radial-gradient(110% 100% at 100% 0%, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 60%),
     var(--surface);
 }
 
@@ -1135,24 +1146,40 @@ h1, h2, h3, h4, p {
 }
 
 .tl-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 650;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--ink-soft);
 }
 
+.tl-date::before {
+  content: '';
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+
 .tl-count {
-  font-size: 10.5px;
-  color: var(--muted-soft);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  font-size: 10px;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
 .tl-item {
   position: relative;
   display: grid;
-  grid-template-columns: 44px 16px minmax(0, 1fr);
-  column-gap: 6px;
+  grid-template-columns: 62px 16px minmax(0, 1fr);
+  column-gap: 8px;
   padding: 2px 0;
+  border-radius: var(--radius-sm);
 }
 
 /* 时间轴竖线：贯穿整组，止于最后一条 */
@@ -1161,18 +1188,18 @@ h1, h2, h3, h4, p {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(44px + 6px + 7.5px);
+  left: calc(62px + 8px + 7.5px);
   width: 1px;
-  background: var(--line-strong);
+  background: var(--line);
 }
 
 .tl-item:first-of-type::before {
-  top: 13px;
+  top: 15px;
 }
 
 .tl-group .tl-item:last-child::before {
   bottom: auto;
-  height: 13px;
+  height: 15px;
 }
 
 .tl-hit {
@@ -1189,15 +1216,32 @@ h1, h2, h3, h4, p {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
-.tl-time {
+/* 左侧时间戳：上面时分，下面年月日 */
+.tl-stamp {
   grid-column: 1;
-  padding-top: 12px;
-  text-align: right;
-  font-size: 10.5px;
-  font-weight: 550;
-  color: var(--muted-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding-top: 11px;
   font-variant-numeric: tabular-nums;
+}
+
+.tl-time {
+  font-size: 12px;
+  font-weight: 650;
   letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+
+.tl-day {
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--muted-soft);
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .tl-dot {
@@ -1205,10 +1249,15 @@ h1, h2, h3, h4, p {
   justify-self: center;
   width: 9px;
   height: 9px;
-  margin-top: 13px;
+  margin-top: 16px;
   border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+  transition: background 0.16s ease;
+}
+
+.tl-item:active .tl-dot {
   background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 /* 正文不套卡片，直接落在纸面上 */
@@ -1273,11 +1322,14 @@ h1, h2, h3, h4, p {
   color: var(--ink);
 }
 
+/* 配图只做「有照片」的提示：小方图贴在段落末尾，不抢正文 */
 .tl-thumb {
   display: block;
-  width: 100%;
-  max-height: 200px;
+  width: 58px;
+  height: 58px;
+  margin-top: 2px;
   border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
   object-fit: cover;
 }
 
@@ -1773,6 +1825,12 @@ h1, h2, h3, h4, p {
   font-weight: 650;
   letter-spacing: 0.14em;
   color: var(--muted);
+}
+
+.write-picker-hint {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted-soft);
 }
 
 .write-picker-list {
@@ -2855,12 +2913,30 @@ h1, h2, h3, h4, p {
   gap: 10px;
 }
 
+.field-hint {
+  padding: 8px 14px 12px 50px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted-soft);
+}
+
 .date-extras {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 8px 14px 12px 50px;
   border-bottom: 1px solid var(--line);
+}
+
+/* 日期上方的一句引导：未来倒数 / 过去正数 */
+.date-guide {
+  margin: 4px 2px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-tint);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 
 .edit-preview small {

@@ -14,7 +14,7 @@
           <span class="section-meta">{{ stateLabel }}</span>
         </div>
 
-        <LoadingState v-if="loading" text="正在联网翻旧报纸…" inline />
+        <LoadingState v-if="loading" text="正在翻发黄的旧报纸…" inline />
 
         <div v-else-if="events.length" class="history-list">
           <article
@@ -38,17 +38,17 @@
         </div>
 
         <div v-else class="history-off">
-          <span>{{ offline ? '现在没网，翻不到旧报纸，连上网络再试试' : '今天没有可展示的旧事' }}</span>
+          <span>{{ offline ? '没网，旧报纸翻不动，连上再来' : '今天旧报纸上没什么热闹' }}</span>
           <button class="text-btn" type="button" @click="load(true)">重试</button>
         </div>
 
-        <p class="photo-hint" style="margin-top: 10px;">数据来源：百度百科 · 只把今天的日期发出去，按月缓存在本机</p>
+        <p class="photo-hint" style="margin-top: 10px;">资料来源：百度百科 · 只把日期递出去，按月存在本机</p>
       </section>
     </template>
 
     <div v-else class="history-off">
-      <span>历史上的今天没打开，开启后需要联网取史料</span>
-      <button class="text-btn" type="button" @click="router.push('/settings')">去开启</button>
+      <span>这功能还没开，开了才去搬史料</span>
+      <button class="text-btn" type="button" @click="router.push('/settings')">去开</button>
     </div>
 
     <footer class="page-footer">

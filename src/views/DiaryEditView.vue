@@ -116,7 +116,7 @@
         role="textbox"
         aria-multiline="true"
         aria-label="正文"
-        data-placeholder="写点什么…"
+        data-placeholder="随便写点什么…"
         @input="onInput"
         @keydown="onKeydown"
         @paste="onPaste"
@@ -134,7 +134,8 @@
 
     <van-popup v-model:show="pickerOpen" position="bottom" round>
       <div class="write-picker">
-        <span class="write-picker-title">关联一个日子</span>
+        <span class="write-picker-title">关联到某个日子</span>
+        <span class="write-picker-hint">选一个日子，这篇日记就会挂上它的名字，列表里一眼看出在记哪件事。不选也没关系。</span>
         <div class="write-picker-list">
           <button
             v-for="event in events"
@@ -144,9 +145,9 @@
             :class="{ 'is-active': form.eventId === event.id }"
             @click="toggleEvent(event.id)"
           >{{ event.title }}</button>
-          <span v-if="!events.length" class="write-picker-empty">还没有日子</span>
+          <span v-if="!events.length" class="write-picker-empty">还没建过日子</span>
         </div>
-        <button class="secondary-btn" type="button" @click="pickerOpen = false">好了</button>
+        <button class="secondary-btn" type="button" @click="pickerOpen = false">就这样</button>
       </div>
     </van-popup>
   </div>
@@ -194,10 +195,10 @@ let saveTimer = null;
 let leaving = false;
 
 const saveLabel = computed(() => {
-  if (saveState.value === 'saving') return '保存中';
-  if (saveState.value === 'pending') return '待保存';
-  if (saveState.value === 'saved') return '已保存';
-  if (saveState.value === 'error') return '保存失败';
+  if (saveState.value === 'saving') return '正往本子里塞';
+  if (saveState.value === 'pending') return '等会儿再塞';
+  if (saveState.value === 'saved') return '塞好了';
+  if (saveState.value === 'error') return '没塞进去';
   return '';
 });
 
@@ -263,14 +264,14 @@ async function onPick(event) {
   if (!file) return;
   if (locked.value) return;
   if (file.size > 30 * 1024 * 1024) {
-    showToast('图片太大了，换一张');
+    showToast('这图太大了，扛不动');
     return;
   }
   try {
     form.photo = await compressImageToDataUrl(file);
     haptic('light');
   } catch (err) {
-    showToast(err?.message || '这张图处理失败');
+    showToast(err?.message || '这张图闹脾气了');
   }
 }
 
@@ -421,7 +422,7 @@ async function load() {
   try {
     const record = await getDiary(route.params.id);
     if (!record) {
-      showToast('这篇日记不见了');
+      showToast('这篇日记好像溜走了');
       router.replace('/diary');
       return;
     }
@@ -439,7 +440,7 @@ async function load() {
       refreshCount();
     }
   } catch (err) {
-    showToast('打开失败，再试一次');
+    showToast('没打开，再敲一次门');
   }
 }
 
@@ -447,10 +448,10 @@ async function confirmDelete() {
   if (!original.value) return;
   try {
     await showConfirmDialog({
-      title: '删掉这篇日记？',
-      message: '删掉后就找不回来了。',
-      confirmButtonText: '删掉',
-      cancelButtonText: '再想想',
+      title: '这篇要删掉？',
+      message: '删了就真没了，别指望垃圾桶。',
+      confirmButtonText: '删了',
+      cancelButtonText: '留着吧',
       confirmButtonColor: 'var(--danger)'
     });
   } catch (err) {
@@ -461,10 +462,10 @@ async function confirmDelete() {
     await diaries.reload();
     leaving = true;
     haptic('warning');
-    showToast('删掉了');
+    showToast('删了，干净了');
     router.replace('/diary');
   } catch (err) {
-    showToast('删除失败，再试一次');
+    showToast('没删掉，它还挺倔');
   }
 }
 

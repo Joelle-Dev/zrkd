@@ -21,13 +21,13 @@
         v-model="query"
         class="search-input"
         type="search"
-        placeholder="找找写过什么"
+        placeholder="翻翻都写过啥"
         aria-label="搜索日记"
       >
       <button v-if="query" class="search-clear" type="button" aria-label="清空搜索" @click="query = ''">×</button>
     </div>
 
-    <LoadingState v-if="loading && !ready" text="正在翻本子…" />
+    <LoadingState v-if="loading && !ready" text="本子有点厚，稍等…" />
 
     <template v-else-if="groups.length">
       <div class="timeline">
@@ -41,7 +41,7 @@
             v-for="item in group.items"
             :key="item.id"
             class="tl-item"
-            :style="item.accent ? { '--accent': item.accent } : null"
+            :style="accentStyleOf(item.accent)"
           >
             <button
               class="tl-hit"
@@ -50,7 +50,10 @@
               @click="open(item)"
             ></button>
 
-            <span class="tl-time">{{ timeOf(item.createdAt) }}</span>
+            <div class="tl-stamp">
+              <span class="tl-time">{{ timeOf(item.createdAt) }}</span>
+              <span class="tl-day">{{ formatDateDot(item.date) }}</span>
+            </div>
             <span class="tl-dot" aria-hidden="true"></span>
 
             <div class="tl-content">
@@ -77,9 +80,9 @@
         <circle cx="11" cy="11" r="6.2"></circle>
         <path d="m15.6 15.6 4 4"></path>
       </svg>
-      <strong>没找到「{{ query }}」</strong>
-      <span>换个词试试，或者清空搜索</span>
-      <button class="secondary-btn" type="button" style="margin-top: 12px;" @click="query = ''">清空搜索</button>
+      <strong>没翻到「{{ query }}」</strong>
+      <span>换个词，或者假装没找过</span>
+      <button class="secondary-btn" type="button" style="margin-top: 12px;" @click="query = ''">不找了</button>
     </div>
 
     <div v-else-if="ready" class="empty-hint">
@@ -88,17 +91,17 @@
         <path d="M6 4.5a2 2 0 0 0-2 2v13h2"></path>
         <path d="M8.6 9h6.6M8.6 12.6h6.6"></path>
       </svg>
-      <strong>还没有日记</strong>
-      <span>写下此刻的心情<br>回头看都是自己的日子</span>
+      <strong>本子还是白的</strong>
+      <span>随便写两句<br>将来的你会谢谢现在的你</span>
       <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="write">
-        写第一篇
+        开个头
       </button>
     </div>
 
     <footer class="page-footer">
       <span>指日可待</span>
       <span>·</span>
-      <span>日记都在你自己的设备上</span>
+      <span>日记没离开过这台设备</span>
     </footer>
   </div>
 </template>
@@ -111,7 +114,8 @@ import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { groupDiariesByDate, moodOf } from '../lib/diary';
 import { sanitizeHtml, textToHtml } from '../lib/richtext';
-import { dateKeyOf, formatDateCN, parseDateKey, weekdayCN } from '../lib/countdown';
+import { accentStyleOf } from '../utils/theme';
+import { dateKeyOf, formatDateCN, formatDateDot, parseDateKey, weekdayCN } from '../lib/countdown';
 
 const router = useRouter();
 const { diaries, ready, loading } = useDiaries();
@@ -135,8 +139,8 @@ const groups = computed(() => {
 
 const subtitle = computed(() => {
   const count = diaries.value.length;
-  if (!count) return '记下今天，也记下以前';
-  return `一共 ${count} 篇，慢慢翻`;
+  if (!count) return '今天、昨天，还有那些忘了的日子';
+  return `${count} 篇存货，够翻一阵`;
 });
 
 const eventMap = computed(() => {

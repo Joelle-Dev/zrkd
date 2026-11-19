@@ -72,6 +72,8 @@ export function alpha(hex, opacity) {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 }
 
+// 大数字用方向色：过去=暖黄（已经），未来=冷蓝（还有），
+// 「就是今天」没有方向，用这一天自己的颜色。
 function kindColor(kind, accent) {
   if (kind === 'past') return ELAPSED;
   if (kind === 'countdown') return COUNTDOWN;

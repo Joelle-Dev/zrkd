@@ -29,12 +29,12 @@
       <p class="masthead-date">{{ todayLabel }}</p>
     </header>
 
-    <!-- 今天是什么日子 -->
+    <!-- 今天是个什么日子 -->
     <section class="today-panel">
       <div class="today-panel-main">
         <span class="today-kicker">今天是什么日子</span>
         <span class="today-lunar">{{ lunarLine }}</span>
-        <span class="today-sub">{{ jieqiText || '日子平平，也挺好' }}</span>
+        <span class="today-sub">{{ jieqiText || '今天平平无奇，也挺好' }}</span>
         <div v-if="info?.festivals?.length" class="today-festivals">
           <span v-for="item in info.festivals" :key="item" class="festival-pill">{{ item }}</span>
         </div>
@@ -66,11 +66,11 @@
     <!-- 倒数日列表 -->
     <section>
       <div class="section-head">
-        <h2 class="section-title">你的日子</h2>
+        <h2 class="section-title">你在数的日子</h2>
         <span v-if="validEvents.length" class="section-meta">{{ validEvents.length }} 个</span>
       </div>
 
-      <LoadingState v-if="loading && !ready" text="正在翻日历…" />
+      <LoadingState v-if="loading && !ready" text="日历翻得正起劲…" />
 
       <div v-else-if="hasEvents" class="event-grid">
         <article
@@ -78,7 +78,7 @@
           :key="event.id"
           class="event-card"
           :class="`is-${describeCache[event.id].kind}`"
-          :style="{ '--accent': event.accent }"
+          :style="accentStyleOf(event.accent)"
         >
           <button
             class="event-hit"
@@ -111,7 +111,7 @@
           type="button"
           @click="showAll = !showAll"
         >
-          {{ showAll ? '收起一些' : `再看 ${hiddenCount} 个日子` }}
+          {{ showAll ? '收起一些' : `底下还压着 ${hiddenCount} 个` }}
         </button>
       </div>
 
@@ -120,10 +120,10 @@
           <rect x="4" y="5.4" width="16" height="15" rx="2.4"></rect>
           <path d="M8 3.6v3.4M16 3.6v3.4M4 10.2h16"></path>
         </svg>
-        <strong>还没有要数的日子</strong>
-        <span>生日、纪念日、考试、假期<br>选个未来的日子倒数，选个过去的日子正着数</span>
+        <strong>这里空空如也</strong>
+        <span>生日、纪念日、考试、发工资……<br>未来的往前数，过去的往后数</span>
         <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="router.push('/event/new')">
-          加第一个日子
+          先加一个
         </button>
       </div>
     </section>
@@ -131,7 +131,7 @@
     <footer class="page-footer">
       <span>指日可待</span>
       <span>·</span>
-      <span>日子都在你自己的设备上</span>
+      <span>日子只住在你这台设备里</span>
     </footer>
 
     <van-popup
@@ -160,6 +160,7 @@ import {
   weekdayCN
 } from '../lib/countdown';
 import { greeting as pickGreeting } from '../utils/greeting';
+import { accentStyleOf } from '../utils/theme';
 
 const router = useRouter();
 const { sorted, ready, loading, todayKey, reload, refreshToday } = useEvents();

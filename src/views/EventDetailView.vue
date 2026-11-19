@@ -16,10 +16,10 @@
       </button>
     </header>
 
-    <LoadingState v-if="loading" text="正在翻这一页…" />
+    <LoadingState v-if="loading" text="正在把这一天找出来…" />
 
     <template v-else-if="record">
-      <article class="detail-card" :style="{ '--accent': record.accent }">
+      <article class="detail-card" :style="accentStyleOf(record.accent)">
         <div class="detail-seal" aria-hidden="true">日</div>
         <span class="detail-brand">指日可待</span>
 
@@ -50,16 +50,16 @@
           {{ saveLabel }}
         </button>
         <p class="photo-hint">
-          <template v-if="nativeApp">点一下就直接存进系统相册。</template>
-          <template v-else-if="canShare">会打开系统面板，选<b>存储图像</b>才会进相册。</template>
-          <template v-else>点一下把这张卡片存下来；不行就长按图片保存。</template>
+          <template v-if="nativeApp">点一下，直接进相册。</template>
+          <template v-else-if="canShare">会弹系统面板，选「存储图像」才算数。</template>
+          <template v-else>点一下存图；它要是不听话，就长按。</template>
         </p>
       </div>
     </template>
 
     <div v-else class="history-off">
-      <span>这个日子不见了</span>
-      <button class="text-btn" type="button" @click="goHome">回首页</button>
+      <span>这一天好像溜走了</span>
+      <button class="text-btn" type="button" @click="goHome">回窝</button>
     </div>
   </div>
 </template>
@@ -82,6 +82,7 @@ import {
 } from '../utils/album';
 import { isNativeApp, savePhotoToAlbum } from '../utils/native';
 import { makeGoBack } from '../utils/back';
+import { accentStyleOf } from '../utils/theme';
 import { haptic } from '../utils/haptics';
 
 const route = useRoute();
@@ -118,10 +119,10 @@ const lunarLine = computed(() => {
 });
 
 const saveLabel = computed(() => {
-  if (renderState.value === 'generating') return '正在生成…';
+  if (renderState.value === 'generating') return '正在画…';
   if (renderState.value === 'error') return '再试一次';
   if (nativeApp) return '存进相册';
-  return shareSupported.value ? '保存这张图' : '存为图片';
+  return shareSupported.value ? '存下这天' : '存成图';
 });
 
 let renderToken = 0;
@@ -161,7 +162,7 @@ async function generate() {
 function saveImage() {
   const blob = renderedBlob.value;
   if (!blob) {
-    showToast(renderState.value === 'generating' ? '图片还在生成，稍等一下' : '图片还没准备好');
+    showToast(renderState.value === 'generating' ? '图还在画，喘口气' : '图还没画完');
     if (renderState.value === 'error') generate();
     return;
   }
@@ -176,9 +177,9 @@ function saveImage() {
     showToast({ message: '正在存进相册…', duration: 1200 });
     savePhotoToAlbum(blob, filename).then(() => {
       haptic('success');
-      showToast('已存进相册');
+      showToast('进相册了');
     }).catch(() => {
-      showToast('保存失败，检查一下相册权限');
+      showToast('没存上，看看相册给不给面子');
     });
     return;
   }
@@ -188,21 +189,21 @@ function saveImage() {
     shareFile(file, meta).then((result) => {
       if (result === 'share') {
         haptic('success');
-        showToast('已交给系统，选「存储图像」就进相册了');
+        showToast('交给系统了，记得选「存储图像」');
       } else if (result === 'unsupported') {
-        fallbackSave(blob, filename).catch(() => showToast('保存失败，长按图片试试'));
+        fallbackSave(blob, filename).catch(() => showToast('没存上，长按图片试试运气'));
       }
     }).catch(() => {
-      showToast('保存失败，长按图片试试');
+      showToast('没存上，长按图片试试运气');
     });
     return;
   }
 
   fallbackSave(blob, filename).then((mode) => {
     haptic('light');
-    if (mode === 'download') showToast('已下载到「下载」文件夹');
+    if (mode === 'download') showToast('丢进「下载」文件夹了');
   }).catch(() => {
-    showToast('保存失败，长按图片试试');
+    showToast('没存上，长按图片试试运气');
   });
 }
 

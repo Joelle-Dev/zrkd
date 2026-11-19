@@ -260,6 +260,32 @@ export function setAccentColor(value) {
   apply();
 }
 
+const cardAccentCache = new Map();
+
+/**
+ * 把某个日子自己的颜色变成一组 CSS 变量。
+ * 只覆盖 --accent / --accent-rgb，其它派生色仍跟主题走，
+ * 这样卡片竖条、光晕、印章描边会变成这一天的专属色。
+ *
+ * 会按当前主题把明度夹到可读区间（深色下自动提亮），
+ * 否则深色主题里偏暗的颜色会看不见。结果按 颜色+主题 缓存。
+ * 非法或缺失时返回 null，调用方直接不绑定 style，回落到主题色。
+ */
+export function accentStyleOf(input) {
+  if (!hexToRgb(input)) return null;
+  const key = `${String(input).toLowerCase()}|${appliedTheme.value}`;
+  const cached = cardAccentCache.get(key);
+  if (cached) return cached;
+
+  const vars = accentVars(input, appliedTheme.value);
+  const style = {
+    '--accent': vars['--accent'],
+    '--accent-rgb': vars['--accent-rgb']
+  };
+  cardAccentCache.set(key, style);
+  return style;
+}
+
 export function initTheme() {
   apply();
   window.matchMedia?.('(prefers-color-scheme: dark)')

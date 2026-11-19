@@ -1,21 +1,21 @@
 <template>
   <div class="page">
-    <header class="page-head">
-      <div class="page-head-copy">
-        <h1 class="page-title">{{ isEditing ? '改这个日子' : '加一个日子' }}</h1>
-        <p class="page-subtitle">{{ previewSubtitle }}</p>
-      </div>
+    <header class="edit-head">
       <button class="icon-btn" type="button" aria-label="返回" @click="goBack">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 5-7 7 7 7"></path>
         </svg>
       </button>
+      <div class="page-head-copy">
+        <h1 class="page-title">{{ isEditing ? '改这个日子' : '记一个日子' }}</h1>
+        <p class="page-subtitle">{{ previewSubtitle }}</p>
+      </div>
     </header>
 
-    <LoadingState v-if="loading" text="正在打开…" />
+    <LoadingState v-if="loading" text="正在把这页翻出来…" />
 
     <template v-else>
-      <div class="edit-preview" :class="previewKindClass" :style="{ '--accent': form.accent }">
+      <div class="edit-preview" :class="previewKindClass" :style="accentStyleOf(form.accent)">
         <span v-if="previewPrefix" class="edit-preview-verb">{{ previewPrefix }}</span>
         <b>{{ previewFigure }}</b>
         <span v-if="previewUnit">{{ previewUnit }}</span>
@@ -36,11 +36,13 @@
             class="line-input"
             type="text"
             maxlength="40"
-            placeholder="叫什么，比如「在一起」"
+            placeholder="给这天起个名，比如「发工资」"
             autocomplete="off"
             aria-label="叫什么"
           >
         </div>
+
+        <p class="date-guide">挑个未来的日子，就替你倒数；挑个过去的日子，就替你记着已经走了多远。</p>
 
         <div class="field-line">
           <span class="field-icon" aria-hidden="true">
@@ -76,7 +78,7 @@
             v-model="form.note"
             class="line-textarea"
             maxlength="120"
-            placeholder="写点只有你们懂的（可选）"
+            placeholder="写句只有你们懂的（可不写）"
             aria-label="一句话"
           ></textarea>
         </div>
@@ -90,20 +92,23 @@
               <circle cx="15.2" cy="12.8" r="1.1"></circle>
             </svg>
           </span>
-          <div class="swatch-row">
+          <div class="swatch-row" role="radiogroup" aria-label="卡片颜色">
             <button
               v-for="color in accents"
               :key="color.key"
               class="swatch"
               type="button"
+              role="radio"
               :class="{ 'is-active': form.accent === color.value }"
               :style="{ '--swatch': color.value }"
               :aria-label="color.label"
-              :aria-pressed="form.accent === color.value"
-              @click="form.accent = color.value"
+              :aria-checked="form.accent === color.value"
+              @click="pickAccent(color)"
             ></button>
+            <span class="swatch-label">{{ accentName }}</span>
           </div>
         </div>
+        <p class="field-hint">卡片左侧竖条和底色用这里的颜色；数字的蓝/黄表示还有 / 已经</p>
       </div>
 
       <div v-if="errorText" class="history-off" style="border-radius: var(--radius-sm);">
@@ -121,7 +126,7 @@
         <button class="secondary-btn" type="button" style="color: var(--danger);" @click="confirmDelete">删除</button>
       </div>
 
-      <p class="photo-hint">日期只存在这台设备上，不联网、不上传。</p>
+      <p class="photo-hint">日期就搁在这台设备里，不上云、不外传。</p>
     </template>
   </div>
 </template>
@@ -143,6 +148,7 @@ import {
 } from '../lib/countdown';
 import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
+import { accentStyleOf } from '../utils/theme';
 
 const route = useRoute();
 const router = useRouter();
@@ -167,6 +173,15 @@ const isEditing = computed(() => Boolean(route.params.id));
 
 const accents = ACCENTS;
 
+const accentName = computed(() => (
+  ACCENTS.find((color) => color.value === form.accent)?.label || ''
+));
+
+function pickAccent(color) {
+  form.accent = color.value;
+  haptic('light');
+}
+
 const desc = computed(() => describeEvent(form, events.todayKey.value));
 
 const previewFigure = computed(() => {
@@ -188,7 +203,7 @@ const previewDate = computed(() => {
   return `${formatDateCN(form.targetDate)}\n${weekdayCN(form.targetDate)}`;
 });
 
-const previewSubtitle = computed(() => (isEditing.value ? '改完记得保存' : '选一个未来的日子倒数，或过去的日子正着数'));
+const previewSubtitle = computed(() => (isEditing.value ? '改完记得按保存，别白改' : '未来的日子往前数，过去的日子往后数'));
 
 const directionHint = computed(() => {
   const value = desc.value;
@@ -209,10 +224,10 @@ onBeforeRouteLeave(async () => {
   if (!dirty.value) return true;
   try {
     await showConfirmDialog({
-      title: '还没保存，直接走？',
-      message: '刚才的改动会丢掉。',
-      confirmButtonText: '放弃改动',
-      cancelButtonText: '再想想',
+      title: '还没保存，说走就走？',
+      message: '刚才改的会人间蒸发。',
+      confirmButtonText: '算了，走',
+      cancelButtonText: '我再改改',
       confirmButtonColor: 'var(--danger)'
     });
     return true;
@@ -233,7 +248,7 @@ async function load() {
   try {
     const record = await getEvent(route.params.id);
     if (!record) {
-      showToast('这个日子不见了');
+      showToast('这个日子好像溜了');
       router.replace('/');
       return;
     }
@@ -243,7 +258,7 @@ async function load() {
     form.accent = record.accent;
     form.note = record.note || '';
   } catch (err) {
-    errorText.value = '打开失败，回上一页再试';
+    errorText.value = '打不开，退一步再试试';
   } finally {
     loading.value = false;
     dirty.value = false;
@@ -259,11 +274,11 @@ async function submit() {
     haptic('success');
     await events.reload();
     dirty.value = false;
-    showToast(isEditing.value ? '改好啦' : '记下了');
+    showToast(isEditing.value ? '改好了' : '记下了，跑不掉');
     // 新增和修改都一样：存完直接回首页
     router.replace('/');
   } catch (err) {
-    errorText.value = err?.message || '保存失败，再试一次';
+    errorText.value = err?.message || '没存上，再来一次';
     haptic('warning');
   } finally {
     saving.value = false;
@@ -274,10 +289,10 @@ async function confirmDelete() {
   if (!original.value) return;
   try {
     await showConfirmDialog({
-      title: '删掉这个日子？',
-      message: `「${original.value.title}」会被移除，照片不受影响。`,
-      confirmButtonText: '删掉',
-      cancelButtonText: '再想想',
+      title: '这个日子不要了？',
+      message: `「${original.value.title}」会被请走，照片不受牵连。`,
+      confirmButtonText: '请走',
+      cancelButtonText: '留着吧',
       confirmButtonColor: 'var(--danger)'
     });
   } catch (err) {
@@ -288,10 +303,10 @@ async function confirmDelete() {
     await events.reload();
     dirty.value = false;
     haptic('warning');
-    showToast('删掉了');
+    showToast('送走了');
     router.replace('/');
   } catch (err) {
-    showToast('删除失败，再试一次');
+    showToast('没送走，它赖着不走');
   }
 }
 
