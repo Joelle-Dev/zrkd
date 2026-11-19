@@ -33,14 +33,17 @@
     </header>
 
     <div class="write-body">
-      <input
-        v-model="form.title"
+      <div
+        ref="titleEl"
         class="write-title"
-        type="text"
-        maxlength="60"
-        placeholder="标题"
-        autocomplete="off"
-      >
+        contenteditable="true"
+        role="textbox"
+        aria-label="标题"
+        data-placeholder="标题"
+        @input="onTitleInput"
+        @keydown.enter.prevent="focusEditor"
+        @paste="onPaste"
+      ></div>
 
       <div
         ref="editor"
@@ -146,6 +149,7 @@ import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import { countWords, sanitizeHtml, textToHtml } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
+import { hideAccessoryBar, showAccessoryBar } from '../utils/keyboard';
 import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
 
@@ -158,6 +162,7 @@ const { sorted } = useEvents();
 const moods = MOODS;
 
 const editor = ref(null);
+const titleEl = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
 const pickerOpen = ref(false);
@@ -242,6 +247,17 @@ function refreshCount() {
   wordCount.value = countWords(text);
 }
 
+function onTitleInput() {
+  const text = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trimStart();
+  form.title = text.slice(0, 60);
+  dirty.value = true;
+}
+
+// 标题里敲回车就跳到正文，别在标题里换行
+function focusEditor() {
+  editor.value?.focus();
+}
+
 function onInput() {
   refreshCount();
   syncActive();
@@ -320,6 +336,7 @@ async function load() {
     form.photo = record.photo || '';
     form.eventId = record.eventId || '';
     await nextTick();
+    if (titleEl.value) titleEl.value.innerText = record.title || '';
     if (editor.value) {
       editor.value.innerHTML = record.html || textToHtml(record.text);
       refreshCount();
@@ -335,7 +352,8 @@ async function submit() {
   saving.value = true;
   try {
     const html = sanitizeHtml(editor.value?.innerHTML || '');
-    await saveDiary({ ...form, html }, original.value);
+    const title = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trim();
+    await saveDiary({ ...form, title, html }, original.value);
     await diaries.reload();
     dirty.value = false;
     haptic('success');
@@ -381,10 +399,52 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
+// 键盘弹起时，把底部工具栏顶到键盘上方。
+// iOS Safari 不会缩短布局视口，只能靠 visualViewport 求差值。
+function bindKeyboardInset() {
+  const vv = window.visualViewport;
+  if (!vv) return () => {};
+  const root = document.documentElement;
+
+  const update = () => {
+    const gap = window.innerHeight - vv.height - vv.offsetTop;
+    const active = document.activeElement;
+    const editing = Boolean(active) && (
+      active.tagName === 'INPUT' ||
+      active.tagName === 'TEXTAREA' ||
+      active.isContentEditable
+    );
+    const inset = editing && gap > 120 ? Math.round(gap) : 0;
+    root.style.setProperty('--kb-inset', `${inset}px`);
+  };
+
+  const delayed = () => setTimeout(update, 60);
+
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  window.addEventListener('orientationchange', update);
+  document.addEventListener('focusin', delayed);
+  document.addEventListener('focusout', delayed);
+  update();
+
+  return () => {
+    vv.removeEventListener('resize', update);
+    vv.removeEventListener('scroll', update);
+    window.removeEventListener('orientationchange', update);
+    document.removeEventListener('focusin', delayed);
+    document.removeEventListener('focusout', delayed);
+    root.style.removeProperty('--kb-inset');
+  };
+}
+
+let cleanupKeyboard = null;
+
 onMounted(async () => {
   form.date = dateKeyOf();
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
+  cleanupKeyboard = bindKeyboardInset();
+  hideAccessoryBar();
   if (!isEditing.value) {
     dirty.value = false;
     await nextTick();
@@ -394,5 +454,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
+  cleanupKeyboard?.();
+  showAccessoryBar();
 });
 </script>

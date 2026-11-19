@@ -1365,7 +1365,8 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: calc(var(--safe-top) + 10px) var(--shell-pad) 0;
+  /* 给吸底工具栏留位置；键盘弹起时再额外让出键盘高度 */
+  padding: calc(var(--safe-top) + 10px) var(--shell-pad) calc(72px + var(--safe-bottom) + var(--kb-inset, 0px));
   background: var(--surface);
 }
 
@@ -1462,6 +1463,7 @@ h1, h2, h3, h4, p {
 
 .write-title {
   width: 100%;
+  min-height: 40px;
   padding: 6px 0;
   border: 0;
   background: transparent;
@@ -1471,11 +1473,17 @@ h1, h2, h3, h4, p {
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
-.write-title::placeholder {
+.write-title:empty::before {
+  content: attr(data-placeholder);
   color: var(--placeholder);
   font-weight: 500;
+  pointer-events: none;
 }
 
 .write-title:focus,
@@ -1540,13 +1548,18 @@ h1, h2, h3, h4, p {
 }
 
 .write-bar {
-  position: sticky;
-  bottom: 0;
+  position: fixed;
+  left: 50%;
+  bottom: var(--kb-inset, 0px);
+  z-index: 12;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 0 calc(var(--safe-bottom) + 10px);
+  width: min(100%, var(--shell-max));
+  padding: 10px var(--shell-pad)
+    max(10px, calc(var(--safe-bottom) - var(--kb-inset, 0px)));
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
