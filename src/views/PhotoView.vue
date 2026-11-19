@@ -109,7 +109,7 @@
       :date-text="cameraDate"
       :position="position"
       @close="onCameraClosed"
-      @done="goHome"
+      @done="onCameraDone"
       @error="onCameraError"
     />
 
@@ -387,10 +387,9 @@ function goBack() {
   else router.replace('/');
 }
 
-// 拍完存好点「完成」，直接回首页，不留在拍照页
-function goHome() {
+// 拍完存好点「完成」，或者中途取消：都只是关掉相机，留在这一页
+function onCameraDone() {
   cameraOpen.value = false;
-  router.replace('/');
 }
 
 function onCameraClosed() {
@@ -413,10 +412,17 @@ watch([sourceFile, position, activeEventId], () => {
   if (sourceFile.value) generate();
 });
 
+// 第一张照片准备好就自动开相机。事件是异步加载的，
+// 不能在 onMounted 里直接判断 events.length。
+const autoOpened = ref(false);
+watch(activeEvent, (event) => {
+  if (autoOpened.value || !event || !cameraSupported) return;
+  autoOpened.value = true;
+  cameraOpen.value = true;
+}, { immediate: true });
+
 onMounted(async () => {
   await pickInitialEvent();
-  // 拍照是独立功能：进这一页直接开相机，拍完存好点「完成」就回首页
-  if (cameraSupported && events.value.length) cameraOpen.value = true;
 });
 
 onUnmounted(() => {
