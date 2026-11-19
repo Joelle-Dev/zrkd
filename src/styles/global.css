@@ -315,12 +315,19 @@ h1, h2, h3, h4, p {
 /* 写作页铺的是纸白底，顶部整条设置栏一起吸顶。
    负 margin 把吸顶条撑满整页宽，免得正文从两侧的留白缝里穿过去。 */
 .write-page > .write-topbar {
-  position: relative;
+  position: sticky;
+  top: var(--vv-top, 0px);
   z-index: 12;
   flex: 0 0 auto;
   margin: 0 calc(-1 * var(--shell-pad));
   padding: calc(var(--safe-top) + 8px) var(--shell-pad) 0;
   background: var(--surface);
+}
+
+/* 浏览器把光标滚进视野时，给吸顶栏留出空间，别被压住 */
+.write-title,
+.write-editor {
+  scroll-margin-top: calc(var(--safe-top) + 104px);
 }
 
 /* 首页头部 = 导航条：左「我的」、中标题、右操作 */
@@ -1759,26 +1766,23 @@ h1, h2, h3, h4, p {
   font-weight: 600;
 }
 
-/* 写作页：贴住「视觉视口」，而不是 layout viewport。
-   iOS 弹键盘时缩的是 visualViewport，sticky/fixed 的顶栏会被
-   视觉视口的滚动顶出可见区。这里改成 position: fixed，用 JS 写进来的
-   --vv-top / --vv-height 跟着视觉视口走：键盘弹不弹，顶栏都钉在顶部，
-   正文在剩余空间里滚动，不会被键盘盖住。 */
+/* 写作页：整页正常文档流，顶栏 sticky。
+   之前用 position: fixed + 内部滚动，会带来三个 iOS 老毛病：
+     1. fixed 容器里的滚动区在惯性滚动后吞点按（底部文字点不动）；
+     2. 同一个滚动区吞长按选择（选不中）；
+     3. 每次 visualViewport 一变就重排整页，光标进文字时和浏览器
+        的「滚到可见位置」互相较劲，整页会抖。
+   现在页面随内容自然增长、由文档滚动，问题都不存在；
+   顶栏只 sticky，键盘弹起时用 --vv-top 补一点偏移即可。 */
 .write-page {
-  position: fixed;
-  top: var(--vv-top, 0px);
-  left: 0;
-  right: 0;
-  z-index: 1;
   display: flex;
   flex-direction: column;
-  height: var(--vv-height, 100dvh);
+  min-height: 100dvh;
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 0 var(--shell-pad) 0;
+  padding: 0 var(--shell-pad) calc(28px + var(--safe-bottom));
   background: var(--surface);
-  overflow: hidden;
 }
 
 .write-head {
@@ -1852,11 +1856,7 @@ h1, h2, h3, h4, p {
   flex-direction: column;
   gap: 6px;
   flex: 1 1 auto;
-  min-height: 0;
-  padding: 6px 2px calc(24px + var(--safe-bottom));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  padding: 6px 2px 24px;
 }
 
 .write-title {

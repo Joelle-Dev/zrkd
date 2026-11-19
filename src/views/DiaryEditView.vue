@@ -504,15 +504,14 @@ function onSelectionChange() {
 }
 
 /**
- * 让写作页贴住「视觉视口」。
+ * 让吸顶栏贴住「视觉视口」。
  *
  * iOS 弹键盘时缩的是 visualViewport，布局视口（100dvh）不动，
- * 于是 fixed / sticky 的顶栏会被视觉视口的滚动顶出可见区——这就是
- * 「光标一点进正文，头部就跑了」的原因。
+ * sticky 顶栏会被视觉视口的滚动顶出可见区。把 offsetTop 写进
+ * --vv-top，让顶栏的 sticky top 跟着补回来即可。
  *
- * 解法：把 visualViewport 的 offsetTop / height 写进 CSS 变量，
- * 页面用 position: fixed + top/height 跟着视觉视口走。
- * 键盘弹起、收起、转屏、捏合缩放都会触发 resize/scroll，实时同步。
+ * 注意只动顶栏、不动整页：整页随 visualViewport 重排，会和浏览器
+ * 「把光标滚进视野」的自动滚动互相较劲，页面就会抖。
  */
 let cleanupViewport = null;
 
@@ -525,7 +524,6 @@ function bindViewport() {
   const apply = () => {
     frame = 0;
     root.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
-    root.style.setProperty('--vv-height', `${Math.round(vv.height)}px`);
   };
 
   const update = () => {
@@ -544,7 +542,6 @@ function bindViewport() {
     vv.removeEventListener('scroll', update);
     window.removeEventListener('orientationchange', update);
     root.style.removeProperty('--vv-top');
-    root.style.removeProperty('--vv-height');
   };
 }
 
