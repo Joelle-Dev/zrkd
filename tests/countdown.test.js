@@ -9,6 +9,7 @@ import {
   describeEvent,
   formatDateCN,
   formatDateDot,
+  formatDateShort,
   weekdayCN,
   sortEventsByUrgency
 } from '../src/lib/countdown.js';
@@ -86,6 +87,12 @@ test('格式化', () => {
   assert.equal(weekdayCN('2026-11-18'), '周三');
   assert.equal(weekdayCN('2026-11-22'), '周日');
   assert.equal(formatDateCN('bad'), '');
+});
+
+test('formatDateShort 同年省年份，跨年带年份', () => {
+  assert.equal(formatDateShort('2026-11-19', '2026-01-01'), '11月19日');
+  assert.equal(formatDateShort('2027-01-01', '2026-12-31'), '2027年1月1日');
+  assert.equal(formatDateShort('bad', '2026-01-01'), '');
 });
 
 test('dateKeyFromParts 补零', () => {

@@ -5,6 +5,7 @@
 
 import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
 import { dateKeyOf, isValidDateKey } from './countdown.js';
+import { uid } from './id.js';
 import { htmlToText, sanitizeHtml, textToHtml } from './richtext.js';
 
 export const MOODS = Object.freeze([
@@ -20,11 +21,6 @@ const MOOD_KEYS = new Set(MOODS.map((mood) => mood.key));
 const TITLE_MAX = 60;
 const TEXT_MAX = 4000;
 const PHOTO_MAX_CHARS = 900_000; // 约 660KB 二进制，压缩后够用
-
-function uid(prefix = 'dy') {
-  const random = Math.random().toString(36).slice(2, 9);
-  return `${prefix}_${Date.now().toString(36)}_${random}`;
-}
 
 export function moodOf(key) {
   return MOODS.find((mood) => mood.key === key) || null;

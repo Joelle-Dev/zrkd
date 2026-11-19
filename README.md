@@ -25,10 +25,13 @@
 - 底部「日记」，一天可以写好几篇
 - 写作页整页留白：上面标题、下面正文，底部一行工具栏
 - 支持加粗 / 斜体 / 下划线，底栏实时显示字数
+- 日期用自绘面板：整月网格 + 今天/昨天/明天/一周后快捷，点标题回到今天
 - 可以带心情表情、一张配图、关联某个日子
 - 按日期倒序分组，同一天的多篇按时间排
 - 正文以白名单过滤后的 HTML 存储（只留 b/i/u/br/div/p，属性全丢），同时导出纯文本供列表预览
 - 配图会先压到长边 1200 / JPEG 0.82 再存进 IndexedDB
+
+> 日期选择器是自绘的（`components/DatePicker.vue` + `lib/calendar.js`）。原生 `input[type=date]` 在 iOS 上只能弹系统滚轮，样式不可控、也没有「昨天/一周后」这类快捷；网格计算抽成了纯函数，有 12 项单元测试覆盖闰年 2 月、跨年补位等情况。
 
 > 富文本没有引入第三方编辑器。需求只有几个格式按钮，用 `contenteditable` + `execCommand` + 白名单过滤约 100 行就够；Tiptap/ProseMirror 那类方案会多出 100KB+ 且复杂度不划算。
 
@@ -181,13 +184,19 @@ VITE_APP_START_URL=/你的仓库名/ VITE_APP_SCOPE=/你的仓库名/ npm run bu
 
 旧的 `npm run build:docs` 仍然保留（输出到 `docs/`），用于「Deploy from a branch」方式；注意 `docs/` 在 `.gitignore` 里，需要手动 `git add -f docs`。
 
-## 图标
+## 图标与启动页
 
 ```bash
 npm run icons
 ```
 
-`scripts/make-icons.mjs` 用 zlib 手写 PNG，无外部依赖，一次生成 192/512/maskable/apple-touch 四个尺寸。改配色只需改脚本顶部的 `BG` / `INK` / `ACCENT`。
+`scripts/make-icons.mjs` 用 zlib 手写 PNG，无外部依赖。图形是朱砂渐变的圆角方块 + 白色「日」，一次生成：
+
+- 网页/PWA：`public/icons/` 下的 192 / 512 / maskable / apple-touch
+- iOS：`AppIcon.appiconset` 的 1024 图标、`Splash.imageset` 的 2732 启动图
+- Android：各密度 `ic_launcher` / `ic_launcher_foreground`，以及横竖屏各尺寸的 `splash.png`
+
+网页端还有一层 `index.html` 里的启动页（`#boot-splash`），首屏挂载后由 `src/main.js` 淡出。改配色只需改脚本顶部的 `CREAM` / `ACCENT` / `ACCENT_DEEP`。
 
 ## 设计边界
 

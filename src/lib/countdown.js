@@ -90,6 +90,18 @@ export function formatDateCN(key) {
   return `${parts.year}年${parts.month}月${parts.day}日`;
 }
 
+/**
+ * 同一年的日期省掉年份：2026年11月19日 → 11月19日。
+ * 跨年才显示年份，列表里少一截噪音。
+ */
+export function formatDateShort(key, baseKey = dateKeyOf()) {
+  const parts = parseDateKey(key);
+  if (!parts) return '';
+  const base = parseDateKey(baseKey);
+  if (base && base.year === parts.year) return `${parts.month}月${parts.day}日`;
+  return formatDateCN(key);
+}
+
 export function formatDateDot(key) {
   const parts = parseDateKey(key);
   if (!parts) return '';

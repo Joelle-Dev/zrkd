@@ -12,6 +12,21 @@
       </button>
     </header>
 
+    <div v-if="diaries.length > 3" class="search-line">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.2"></circle>
+        <path d="m15.6 15.6 4 4"></path>
+      </svg>
+      <input
+        v-model="query"
+        class="search-input"
+        type="search"
+        placeholder="找找写过什么"
+        aria-label="搜索日记"
+      >
+      <button v-if="query" class="search-clear" type="button" aria-label="清空搜索" @click="query = ''">×</button>
+    </div>
+
     <LoadingState v-if="loading && !ready" text="正在翻本子…" />
 
     <template v-else-if="groups.length">
@@ -51,14 +66,24 @@
       </section>
     </template>
 
+    <div v-else-if="ready && query" class="empty-hint">
+      <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="6.2"></circle>
+        <path d="m15.6 15.6 4 4"></path>
+      </svg>
+      <strong>没找到「{{ query }}」</strong>
+      <span>换个词试试，或者清空搜索</span>
+      <button class="secondary-btn" type="button" style="margin-top: 12px;" @click="query = ''">清空搜索</button>
+    </div>
+
     <div v-else-if="ready" class="empty-hint">
       <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M6 4.5h11.2a1.3 1.3 0 0 1 1.3 1.3v13.4a1.3 1.3 0 0 1-1.3 1.3H6"></path>
         <path d="M6 4.5a2 2 0 0 0-2 2v13h2"></path>
         <path d="M8.6 9h6.6M8.6 12.6h6.6"></path>
       </svg>
-      <strong>还没有写过日记</strong>
-      <span>一天可以写好几篇<br>记下今天发生了什么</span>
+      <strong>还没有日记</strong>
+      <span>写下此刻的心情<br>回头看都是自己的日子</span>
       <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="write">
         写第一篇
       </button>
@@ -73,7 +98,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useDiaries } from '../composables/useDiaries';
@@ -86,7 +111,21 @@ const router = useRouter();
 const { diaries, ready, loading } = useDiaries();
 const { events } = useEvents();
 
-const groups = computed(() => groupDiariesByDate(diaries.value));
+const query = ref('');
+
+function matchesQuery(item, raw) {
+  const needle = raw.trim().toLowerCase();
+  if (!needle) return true;
+  return [item.title, item.text, moodOf(item.mood)?.label]
+    .filter(Boolean)
+    .some((field) => String(field).toLowerCase().includes(needle));
+}
+
+const groups = computed(() => {
+  const raw = query.value;
+  const filtered = raw.trim() ? diaries.value.filter((item) => matchesQuery(item, raw)) : diaries.value;
+  return groupDiariesByDate(filtered);
+});
 
 const subtitle = computed(() => {
   const count = diaries.value.length;

@@ -39,8 +39,77 @@
   </script>
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <style>
+    /* 启动页：Vue 挂载前先亮出「日」，避免白屏 */
+    #boot-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 13px;
+      background: #f4efe4;
+      color: #241f19;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      transition: opacity 0.32s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #boot-splash.is-hiding {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #boot-splash .boot-mark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 66px;
+      height: 66px;
+      border-radius: 20px;
+      background: linear-gradient(150deg, var(--accent, #c2564a) 0%, var(--accent-strong, #97382f) 100%);
+      color: var(--accent-on, #ffffff);
+      font-family: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+      box-shadow: 0 8px 24px rgba(151, 56, 47, 0.28);
+    }
+    #boot-splash .boot-name {
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: 0.12em;
+      color: #423a2f;
+    }
+    #boot-splash .boot-sub {
+      font-size: 11.5px;
+      letter-spacing: 0.08em;
+      color: #776c5b;
+    }
+    [data-theme='dark'] #boot-splash {
+      background: #14110e;
+      color: #f0e8db;
+    }
+    [data-theme='dark'] #boot-splash .boot-mark {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    [data-theme='dark'] #boot-splash .boot-name {
+      color: #d8ccba;
+    }
+    [data-theme='dark'] #boot-splash .boot-sub {
+      color: #a29787;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #boot-splash { transition: none; }
+    }
+  </style>
 </head>
 <body>
+  <div id="boot-splash" aria-hidden="true">
+    <div class="boot-mark">日</div>
+    <div class="boot-name">指日可待</div>
+    <div class="boot-sub">一天一天，等到那天</div>
+  </div>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
 </body>

@@ -20,14 +20,6 @@
           :aria-pressed="form.mood === mood.key"
           @click="toggleMood(mood.key)"
         >{{ mood.emoji }}</button>
-        <input
-          ref="dateInput"
-          class="sr-only"
-          type="date"
-          v-model="form.date"
-          min="1900-01-01"
-          max="2999-12-31"
-        >
       </div>
       <button v-if="isEditing" class="write-icon" type="button" aria-label="删除" @click="confirmDelete">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -121,6 +113,8 @@
 
     <input ref="libraryInput" class="sr-only" type="file" accept="image/*" @change="onPick">
 
+    <DatePicker v-model="form.date" v-model:show="dateOpen" />
+
     <van-popup v-model:show="pickerOpen" position="bottom" round>
       <div class="write-picker">
         <span class="write-picker-title">关联一个日子</span>
@@ -142,31 +136,35 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog, showToast } from 'vant';
+import DatePicker from '../components/DatePicker.vue';
 import { MOODS, getDiary, removeDiary, saveDiary } from '../lib/diary';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
-import { formatDateCN, parseDateKey, weekdayCN } from '../lib/countdown';
+import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import { countWords, sanitizeHtml, textToHtml } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
+import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
 
 const route = useRoute();
 const router = useRouter();
+const goBack = makeGoBack(router, '/diary');
 const diaries = useDiaries();
 const { sorted } = useEvents();
 
 const moods = MOODS;
 
 const editor = ref(null);
-const dateInput = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
 const pickerOpen = ref(false);
+const dateOpen = ref(false);
 const wordCount = ref(0);
 const original = ref(null);
+const dirty = ref(false);
 
 const active = reactive({ bold: false, italic: false, underline: false });
 
@@ -193,14 +191,9 @@ const linkedTitle = computed(() => {
   return event ? event.title : '';
 });
 
-function todayKey() {
-  const now = new Date();
-  const pad = (value) => String(value).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
 function toggleMood(key) {
   form.mood = form.mood === key ? '' : key;
+  dirty.value = true;
   haptic('light');
 }
 
@@ -210,17 +203,7 @@ function toggleEvent(id) {
 }
 
 function openDate() {
-  const input = dateInput.value;
-  if (!input) return;
-  if (typeof input.showPicker === 'function') {
-    try {
-      input.showPicker();
-      return;
-    } catch (err) {
-      // 某些浏览器要求用户手势，落到 click()
-    }
-  }
-  input.click();
+  dateOpen.value = true;
 }
 
 function openLibrary() {
@@ -262,6 +245,7 @@ function refreshCount() {
 function onInput() {
   refreshCount();
   syncActive();
+  dirty.value = true;
 }
 
 function onKeydown(event) {
@@ -298,10 +282,27 @@ function exec(command) {
   haptic('light');
 }
 
-function goBack() {
-  if (window.history.length > 1) router.back();
-  else router.replace('/diary');
-}
+// 写了一半误触返回就全没了：离开前问一句。
+// flush: 'sync' 让「程序填表」和「用户输入」的时序确定，水合后显式收尾。
+watch(form, () => {
+  dirty.value = true;
+}, { deep: true, flush: 'sync' });
+
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return true;
+  try {
+    await showConfirmDialog({
+      title: '还没保存，直接走？',
+      message: '这篇日记的改动会丢掉。',
+      confirmButtonText: '放弃改动',
+      cancelButtonText: '再想想',
+      confirmButtonColor: 'var(--danger)'
+    });
+    return true;
+  } catch (err) {
+    return false;
+  }
+});
 
 async function load() {
   if (!isEditing.value) return;
@@ -323,6 +324,7 @@ async function load() {
       editor.value.innerHTML = record.html || textToHtml(record.text);
       refreshCount();
     }
+    dirty.value = false;
   } catch (err) {
     showToast('打开失败，再试一次');
   }
@@ -335,6 +337,7 @@ async function submit() {
     const html = sanitizeHtml(editor.value?.innerHTML || '');
     await saveDiary({ ...form, html }, original.value);
     await diaries.reload();
+    dirty.value = false;
     haptic('success');
     showToast(isEditing.value ? '改好啦' : '记下了');
     router.replace('/diary');
@@ -362,6 +365,7 @@ async function confirmDelete() {
   try {
     await removeDiary(original.value.id);
     await diaries.reload();
+    dirty.value = false;
     haptic('warning');
     showToast('删掉了');
     router.replace('/diary');
@@ -378,10 +382,11 @@ function onSelectionChange() {
 }
 
 onMounted(async () => {
-  form.date = todayKey();
+  form.date = dateKeyOf();
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   if (!isEditing.value) {
+    dirty.value = false;
     await nextTick();
     editor.value?.focus();
   }

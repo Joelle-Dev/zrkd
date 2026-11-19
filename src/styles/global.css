@@ -533,13 +533,6 @@ h1, h2, h3, h4, p {
   gap: 7px;
 }
 
-.field-label {
-  font-size: 11.5px;
-  font-weight: 650;
-  color: var(--muted);
-  letter-spacing: 0.06em;
-}
-
 .input,
 .textarea {
   width: 100%;
@@ -586,20 +579,6 @@ h1, h2, h3, h4, p {
 .field-note.hint-past {
   color: var(--elapsed-ink);
   font-weight: 600;
-}
-
-.field-gap {
-  margin-top: 15px;
-}
-
-.field-gap + .field-gap {
-  margin-top: 14px;
-}
-
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
 }
 
 .chip {
@@ -1057,6 +1036,47 @@ h1, h2, h3, h4, p {
 }
 
 /* 日记：按日期分组，每条像一页纸 */
+.search-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted-soft);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.search-input:focus {
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--placeholder);
+}
+
+.search-clear {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-tint);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
 .diary-group {
   display: flex;
   flex-direction: column;
@@ -1169,6 +1189,172 @@ h1, h2, h3, h4, p {
   max-height: 220px;
   border-radius: var(--radius-sm);
   object-fit: cover;
+}
+
+/* 日期选择面板：自绘日历，替代原生 input[type=date] */
+.date-picker-pop.van-popup {
+  background: var(--surface);
+}
+
+.dp {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px var(--shell-pad) calc(var(--safe-bottom) + 16px);
+}
+
+.dp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dp-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+
+.dp-nav:active {
+  background: var(--surface-tint);
+}
+
+.dp-title {
+  flex: 1;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-quick {
+  display: flex;
+  gap: 7px;
+}
+
+.dp-quick-btn {
+  flex: 1;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.dp-quick-btn.is-active {
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.dp-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted-soft);
+  text-align: center;
+  letter-spacing: 0.06em;
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.dp-day {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.dp-day:active {
+  background: var(--surface-tint);
+}
+
+.dp-day.is-out {
+  color: var(--placeholder);
+}
+
+.dp-day.is-today {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.dp-day.is-today::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dp-day.is-selected {
+  background: var(--accent-strong);
+  color: var(--accent-on);
+  font-weight: 650;
+}
+
+.dp-day.is-selected::after {
+  background: var(--accent-on);
+  opacity: 0.7;
+}
+
+.dp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.dp-preview {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dp-close {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-muted, var(--surface-tint));
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* 写作页：整页留白，只有标题、正文、底部工具条 */
@@ -2175,6 +2361,114 @@ h1, h2, h3, h4, p {
 
 .edit-preview-verb {
   align-self: center;
+}
+
+/* 编辑表单：图标在左、输入在右，去掉一列「标签」，靠占位文字提示 */
+.edit-fields {
+  padding: 4px 4px;
+}
+
+.field-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.field-line:last-child {
+  border-bottom: 0;
+}
+
+.field-line.is-stacked {
+  align-items: flex-start;
+}
+
+.field-line.is-stacked .field-icon {
+  margin-top: 3px;
+}
+
+.field-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: var(--surface-tint);
+  color: var(--muted);
+}
+
+.line-input,
+.line-textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.line-input:focus,
+.line-textarea:focus {
+  outline: none;
+}
+
+.line-date-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.line-date-trigger > span:first-child {
+  color: var(--ink);
+}
+
+.line-date-weekday {
+  color: var(--muted-soft);
+  font-size: 12.5px;
+}
+
+.line-date-trigger > svg {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--muted-soft);
+}
+
+.line-input::placeholder,
+.line-textarea::placeholder {
+  color: var(--placeholder);
+  font-weight: 450;
+}
+
+.line-input.line-date {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.line-textarea {
+  min-height: 46px;
+  margin-top: 4px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.field-line .swatch-row {
+  gap: 10px;
+}
+
+.date-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 14px 12px 50px;
+  border-bottom: 1px solid var(--line);
 }
 
 .edit-preview small {

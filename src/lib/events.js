@@ -1,11 +1,7 @@
 import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
 import { ACCENTS, DEFAULT_EVENT } from './constants.js';
 import { isValidDateKey, parseDateKey } from './countdown.js';
-
-function uid(prefix = 'ev') {
-  const random = Math.random().toString(36).slice(2, 9);
-  return `${prefix}_${Date.now().toString(36)}_${random}`;
-}
+import { uid } from './id.js';
 
 function normalizeEventInput(input = {}) {
   const targetDate = String(input.targetDate || '').trim();

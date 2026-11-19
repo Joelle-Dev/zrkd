@@ -77,3 +77,12 @@ const updateSW = isNativeApp ? null : registerSW({
 });
 
 createApp(App).use(router).mount('#app');
+
+// 首屏挂载完成再收掉启动页，避免中间闪一下白屏
+const bootSplash = document.getElementById('boot-splash');
+if (bootSplash) {
+  requestAnimationFrame(() => {
+    bootSplash.classList.add('is-hiding');
+    setTimeout(() => bootSplash.remove(), 400);
+  });
+}

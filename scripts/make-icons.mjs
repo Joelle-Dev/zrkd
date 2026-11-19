@@ -1,10 +1,19 @@
-// 生成 PWA 图标（无外部依赖，用 zlib 手写 PNG）
-import { deflateSync } from 'node:zlib';
-import { writeFileSync, mkdirSync } from 'node:fs';
+// 生成应用图标与启动页图形（无外部依赖，用 zlib 手写 PNG）。
+//
+// 图形：朱砂渐变圆角方块 + 白色「日」。
+// 除了 PWA 图标，还会一并刷新 iOS / Android 原生工程的图标与启动图，
+// 让网页、PWA、原生壳三个入口的 logo 保持一致。
+//
+// 用法：npm run icons
 
-const BG = [250, 246, 239];
-const INK = [38, 34, 29];
+import { deflateSync } from 'node:zlib';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+
+const CREAM = [244, 239, 228];
 const ACCENT = [194, 86, 74];
+const ACCENT_DEEP = [151, 56, 47];
+const WHITE = [255, 255, 255];
 
 function crc32(buf) {
   let c;
@@ -28,14 +37,14 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-function png(size, pixel) {
-  const raw = Buffer.alloc((size * 4 + 1) * size);
+function png(width, height, pixel, level = 9) {
+  const raw = Buffer.alloc((width * 4 + 1) * height);
   let offset = 0;
-  for (let y = 0; y < size; y += 1) {
+  for (let y = 0; y < height; y += 1) {
     raw[offset] = 0;
     offset += 1;
-    for (let x = 0; x < size; x += 1) {
-      const [r, g, b, a] = pixel(x, y, size);
+    for (let x = 0; x < width; x += 1) {
+      const [r, g, b, a] = pixel(x, y, width, height);
       raw[offset] = r;
       raw[offset + 1] = g;
       raw[offset + 2] = b;
@@ -44,16 +53,46 @@ function png(size, pixel) {
     }
   }
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8;
   ihdr[9] = 6;
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr),
-    chunk('IDAT', deflateSync(raw, { level: 9 })),
+    chunk('IDAT', deflateSync(raw, { level })),
     chunk('IEND', Buffer.alloc(0))
   ]);
+}
+
+// 2x2 超采样，压掉圆角与斜边的锯齿
+function smooth(width, height, sampler, level = 9, ss = 2) {
+  return png(width, height, (x, y) => {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let a = 0;
+    for (let j = 0; j < ss; j += 1) {
+      for (let i = 0; i < ss; i += 1) {
+        const [sr, sg, sb, sa] = sampler(x + (i + 0.5) / ss, y + (j + 0.5) / ss, width, height);
+        const af = sa / 255;
+        r += sr * af;
+        g += sg * af;
+        b += sb * af;
+        a += sa;
+      }
+    }
+    const total = ss * ss;
+    const alpha = a / total;
+    if (alpha <= 0) return [0, 0, 0, 0];
+    const af = alpha / 255;
+    return [
+      Math.round(r / total / af),
+      Math.round(g / total / af),
+      Math.round(b / total / af),
+      Math.round(alpha)
+    ];
+  }, level);
 }
 
 function mix(a, b, t) {
@@ -64,77 +103,143 @@ function mix(a, b, t) {
   ];
 }
 
-function roundRectHit(x, y, x0, y0, x1, y1, radius) {
+function gradient(x, y, w, h) {
+  const t = Math.min(1, Math.max(0, (x / w) * 0.55 + (y / h) * 0.45));
+  return mix(ACCENT, ACCENT_DEEP, t);
+}
+
+function insideRoundRect(x, y, x0, y0, x1, y1, radius) {
+  if (x < x0 || x > x1 || y < y0 || y > y1) return false;
   const cx = Math.min(Math.max(x, x0 + radius), x1 - radius);
   const cy = Math.min(Math.max(y, y0 + radius), y1 - radius);
-  if (x >= x0 && x <= x1 && y >= cy - radius && y <= cy + radius && (x < x0 + radius || x > x1 - radius)) {
-    return Math.hypot(x - cx, y - cy) <= radius;
-  }
-  return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+  return Math.hypot(x - cx, y - cy) <= radius;
 }
 
-// 图形：奶油底 + 红色日历页 + 中间「日」的横线刻度
-function draw(x, y, size) {
-  const u = size / 100;
-  const radius = size * 0.22;
-  const dx = Math.abs(x - size / 2) - (size / 2 - radius);
-  const dy = Math.abs(y - size / 2) - (size / 2 - radius);
-  const outside = Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) +
-    Math.min(Math.max(dx, dy), 0) - radius;
-  if (outside > 0) return [0, 0, 0, 0];
-
-  let color = BG;
-
-  // 日历主体
-  const bx0 = 22 * u;
-  const by0 = 26 * u;
-  const bx1 = 78 * u;
-  const by1 = 80 * u;
-  if (roundRectHit(x, y, bx0, by0, bx1, by1, 8 * u)) {
-    color = mix(BG, ACCENT, 0.92);
-  }
-
-  // 顶部装订条
-  if (x >= bx0 && x <= bx1 && y >= by0 && y <= by0 + 9 * u) {
-    color = mix(ACCENT, INK, 0.18);
-  }
-
-  // 两条挂环
-  const rings = [38, 62];
-  for (const rx of rings) {
-    if (Math.abs(x - rx * u) <= 2.2 * u && y >= 18 * u && y <= by0 + 2 * u) {
-      color = mix(BG, INK, 0.4);
-    }
-  }
-
-  // 日历上的三条刻度线（像天数在减少）
-  const lines = [
-    [34, 45, 66],
-    [34, 56, 58],
-    [34, 67, 48]
-  ];
-  for (const [lx0, ly, lx1] of lines) {
-    if (
-      x >= lx0 * u - 2 * u && x <= lx1 * u + 2 * u &&
-      Math.abs(y - ly * u) <= 2.4 * u
-    ) {
-      color = mix(BG, INK, 0.72);
-    }
-  }
-
-  return [...color, 255];
+// 「日」：外框 + 中间一横。笔画用矩形，天然锐利。
+function glyph(x, y, x0, y0, x1, y1, stroke) {
+  if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+  if (x <= x0 + stroke || x >= x1 - stroke || y <= y0 + stroke || y >= y1 - stroke) return true;
+  const midY = (y0 + y1) / 2;
+  return Math.abs(y - midY) <= stroke / 2;
 }
 
-const dir = new URL('../public/icons/', import.meta.url);
-mkdirSync(dir, { recursive: true });
-for (const size of [192, 512]) {
-  writeFileSync(new URL(`icon-${size}.png`, dir), png(size, draw));
+function drawGlyph(x, y, size) {
+  return glyph(
+    x, y,
+    size * 0.275, size * 0.245,
+    size * 0.725, size * 0.755,
+    size * 0.072
+  );
 }
-writeFileSync(new URL('apple-touch-icon.png', dir), png(180, draw));
-writeFileSync(new URL('icon-maskable-512.png', dir), png(512, (x, y, size) => {
-  // maskable：缩到中间 80% 安全区
-  const inset = size * 0.1;
-  const inner = draw(x - inset, y - inset, size - inset * 2);
-  return inner[3] === 0 ? [...BG, 255] : inner;
-}));
-console.log('icons written');
+
+// 图标：圆角方块，四角透明（PWA / 旧版 Android）
+function roundedIcon(x, y, size) {
+  if (!insideRoundRect(x, y, 0, 0, size, size, size * 0.225)) return [0, 0, 0, 0];
+  if (drawGlyph(x, y, size)) return [...WHITE, 255];
+  return [...gradient(x, y, size, size), 255];
+}
+
+// 方形满铺（iOS 会自己切圆角；maskable 需要铺满整块）
+function flatIcon(x, y, size) {
+  if (drawGlyph(x, y, size)) return [...WHITE, 255];
+  return [...gradient(x, y, size, size), 255];
+}
+
+// Android 自适应图标前景：透明底 + 白色「日」，背景色在 XML 里
+function adaptiveForeground(x, y, size) {
+  const hit = glyph(
+    x, y,
+    size * 0.3, size * 0.275,
+    size * 0.7, size * 0.725,
+    size * 0.06
+  );
+  return hit ? [...WHITE, 255] : [0, 0, 0, 0];
+}
+
+// 启动页：奶油底 + 居中的朱砂圆角方块 + 白色「日」
+function splash(x, y, width, height) {
+  const short = Math.min(width, height);
+  const mark = short * 0.3;
+  const cx = width / 2;
+  const cy = height / 2;
+  const x0 = cx - mark / 2;
+  const y0 = cy - mark / 2;
+  if (insideRoundRect(x, y, x0, y0, x0 + mark, y0 + mark, mark * 0.22)) {
+    const hit = glyph(
+      x, y,
+      cx - mark * 0.185, cy - mark * 0.21,
+      cx + mark * 0.185, cy + mark * 0.21,
+      mark * 0.055
+    );
+    if (hit) return [...WHITE, 255];
+    return [...gradient(x - x0, y - y0, mark, mark), 255];
+  }
+  return [...CREAM, 255];
+}
+
+const root = new URL('../', import.meta.url);
+
+function write(relativePath, buffer) {
+  const url = new URL(relativePath, root);
+  mkdirSync(dirname(url.pathname), { recursive: true });
+  writeFileSync(url, buffer);
+  return buffer;
+}
+
+/* ---------- PWA / 网页图标 ---------- */
+write('public/icons/icon-192.png', smooth(192, 192, roundedIcon));
+write('public/icons/icon-512.png', smooth(512, 512, roundedIcon));
+write('public/icons/apple-touch-icon.png', smooth(180, 180, flatIcon));
+write('public/icons/icon-maskable-512.png', smooth(512, 512, flatIcon));
+
+/* ---------- iOS ---------- */
+write('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png', smooth(1024, 1024, flatIcon));
+const iosSplash = smooth(2732, 2732, splash, 6);
+write('ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png', iosSplash);
+write('ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png', iosSplash);
+write('ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png', iosSplash);
+
+/* ---------- Android ---------- */
+const DENSITIES = {
+  mdpi: { icon: 48, foreground: 108 },
+  hdpi: { icon: 72, foreground: 162 },
+  xhdpi: { icon: 96, foreground: 216 },
+  xxhdpi: { icon: 144, foreground: 324 },
+  xxxhdpi: { icon: 192, foreground: 432 }
+};
+
+for (const [density, sizes] of Object.entries(DENSITIES)) {
+  const dir = `android/app/src/main/res/mipmap-${density}`;
+  const icon = smooth(sizes.icon, sizes.icon, roundedIcon);
+  write(`${dir}/ic_launcher.png`, icon);
+  write(`${dir}/ic_launcher_round.png`, icon);
+  write(`${dir}/ic_launcher_foreground.png`, smooth(sizes.foreground, sizes.foreground, adaptiveForeground));
+}
+
+// 自适应图标的底色跟着 logo 变成朱砂，白色「日」才看得见
+write('android/app/src/main/res/values/ic_launcher_background.xml', Buffer.from(
+  '<?xml version="1.0" encoding="utf-8"?>\n' +
+  '<resources>\n' +
+  '    <color name="ic_launcher_background">#C2564A</color>\n' +
+  '</resources>\n'
+));
+
+const SPLASHES = {
+  'drawable': [480, 320],
+  'drawable-land-mdpi': [480, 320],
+  'drawable-land-hdpi': [800, 480],
+  'drawable-land-xhdpi': [1280, 720],
+  'drawable-land-xxhdpi': [1600, 960],
+  'drawable-land-xxxhdpi': [1920, 1280],
+  'drawable-port-mdpi': [320, 480],
+  'drawable-port-hdpi': [480, 800],
+  'drawable-port-xhdpi': [720, 1280],
+  'drawable-port-xxhdpi': [960, 1600],
+  'drawable-port-xxxhdpi': [1280, 1920]
+};
+
+for (const [dir, [width, height]] of Object.entries(SPLASHES)) {
+  write(`android/app/src/main/res/${dir}/splash.png`, smooth(width, height, splash, 6));
+}
+
+console.log('icons + splash written');

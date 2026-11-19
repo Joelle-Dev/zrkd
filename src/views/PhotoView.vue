@@ -150,10 +150,12 @@ import {
   toFile
 } from '../utils/album';
 import { isNativeApp, savePhotoToAlbum } from '../utils/native';
+import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
 
 const route = useRoute();
 const router = useRouter();
+const goBack = makeGoBack(router);
 const { sorted, todayKey } = useEvents();
 
 const cameraInput = ref(null);
@@ -382,10 +384,7 @@ function saveToAlbum() {
   });
 }
 
-function goBack() {
-  if (window.history.length > 1) router.back();
-  else router.replace('/');
-}
+
 
 // 拍完存好点「完成」，或者中途取消：都只是关掉相机，留在这一页
 function onCameraDone() {

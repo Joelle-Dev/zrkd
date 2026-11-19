@@ -140,6 +140,22 @@
         <span class="settings-side">{{ storageLabel }}</span>
       </div>
 
+      <button class="settings-row" type="button" @click="exportData">
+        <span class="settings-main">
+          <span class="settings-label">导出备份</span>
+          <span class="settings-desc">把日子和日记存成一个 JSON 文件</span>
+        </span>
+        <span class="settings-side">导出</span>
+      </button>
+
+      <button class="settings-row" type="button" @click="importData">
+        <span class="settings-main">
+          <span class="settings-label">从备份恢复</span>
+          <span class="settings-desc">按 id 合并进来，不会删掉现有内容</span>
+        </span>
+        <span class="settings-side">选择文件</span>
+      </button>
+
       <button class="settings-row" type="button" @click="clearHistory">
         <span class="settings-main">
           <span class="settings-label">清空历史事件缓存</span>
@@ -147,6 +163,8 @@
         </span>
         <span class="settings-side">清理</span>
       </button>
+
+      <input ref="backupInput" class="sr-only" type="file" accept="application/json,.json" @change="onBackupPick">
     </section>
 
     <section class="settings-group">
@@ -192,30 +210,34 @@ import {
 import { getSetting, setSetting } from '../lib/db';
 import { HISTORY_ONLINE_KEY } from '../lib/constants';
 import { clearHistoryCache } from '../lib/history';
+import {
+  backupFilename,
+  exportBackup,
+  importBackup,
+  serializeBackup
+} from '../lib/backup';
 import { getStorageUsage, formatBytes } from '../lib/storage';
 import { useEvents } from '../composables/useEvents';
 import { useDiaries } from '../composables/useDiaries';
 import { usePwaInstall } from '../composables/usePwaInstall';
+import { makeGoBack } from '../utils/back';
 
 defineProps({
   drawer: { type: Boolean, default: false }
 });
 const emit = defineEmits(['close']);
 const router = useRouter();
+const goBack = makeGoBack(router);
 
-function goBack() {
-  if (window.history.length > 1) router.back();
-  else router.replace('/');
-}
-
-const { events } = useEvents();
-const { diaries } = useDiaries();
+const { events, reload: reloadEvents } = useEvents();
+const { diaries, reload: reloadDiaries } = useDiaries();
 const { standalone, isIos, promptInstall } = usePwaInstall();
 
 const themeOptions = THEME_OPTIONS;
 const accentPresets = ACCENT_PRESETS;
 const historyOnline = ref(true);
 const storageUsage = ref(0);
+const backupInput = ref(null);
 
 const isPresetActive = (preset) => accentColor.value.toLowerCase() === preset.value.toLowerCase();
 
@@ -283,6 +305,44 @@ async function clearHistory() {
     showToast('已清空');
   } catch (err) {
     showToast('清理失败');
+  }
+}
+
+async function exportData() {
+  try {
+    const backup = await exportBackup();
+    const text = serializeBackup(backup);
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = backupFilename();
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showToast(`已导出 ${backup.events.length} 个日子、${backup.diaries.length} 篇日记`);
+  } catch (err) {
+    showToast('导出失败，再试一次');
+  }
+}
+
+function importData() {
+  backupInput.value?.click();
+}
+
+async function onBackupPick(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const counts = await importBackup(text);
+    await Promise.all([reloadEvents(), reloadDiaries()]);
+    storageUsage.value = await getStorageUsage().catch(() => 0);
+    showToast(`恢复了 ${counts.events} 个日子、${counts.diaries} 篇日记`);
+  } catch (err) {
+    showToast(err?.message || '这个文件导不进来');
   }
 }
 

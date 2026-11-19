@@ -70,6 +70,13 @@ export default defineConfig(({ mode }) => {
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             },
             {
+              name: '写日记',
+              short_name: '日记',
+              description: '记下今天发生了什么',
+              url: `${startUrl}#/diary/new`,
+              icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
+            },
+            {
               name: '加一个日子',
               short_name: '加日子',
               description: '新建一个倒数日',

@@ -54,7 +54,7 @@
             <small>天</small>
           </template>
         </span>
-        <span class="builtin-date">{{ formatDateCN(item.targetDate) }}</span>
+        <span class="builtin-date">{{ formatDateShort(item.targetDate) }}</span>
       </article>
     </section>
 
@@ -83,7 +83,7 @@
           ></button>
           <div class="event-card-top">
             <span class="event-title">{{ event.title }}</span>
-            <span class="event-date">{{ formatDateCN(event.targetDate) }}</span>
+            <span class="event-date">{{ formatDateShort(event.targetDate) }}</span>
           </div>
 
           <div class="event-figure">
@@ -106,7 +106,7 @@
           type="button"
           @click="showAll = !showAll"
         >
-          {{ showAll ? '收起一些' : `还有 ${hiddenCount} 个日子` }}
+          {{ showAll ? '收起一些' : `再看 ${hiddenCount} 个日子` }}
         </button>
       </div>
 
@@ -150,6 +150,7 @@ import { builtInCountdowns } from '../lib/samples';
 import {
   describeEvent,
   formatDateCN,
+  formatDateShort,
   parseDateKey,
   weekdayCN
 } from '../lib/countdown';
