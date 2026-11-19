@@ -134,8 +134,8 @@
 
       <div class="settings-row">
         <span class="settings-main">
-          <span class="settings-label">已保存的日子</span>
-          <span class="settings-desc">{{ eventCount }} 个</span>
+          <span class="settings-label">已保存的内容</span>
+          <span class="settings-desc">{{ eventCount }} 个日子 · {{ diaryCount }} 篇日记</span>
         </span>
         <span class="settings-side">{{ storageLabel }}</span>
       </div>
@@ -194,6 +194,7 @@ import { HISTORY_ONLINE_KEY } from '../lib/constants';
 import { clearHistoryCache } from '../lib/history';
 import { getStorageUsage, formatBytes } from '../lib/storage';
 import { useEvents } from '../composables/useEvents';
+import { useDiaries } from '../composables/useDiaries';
 import { usePwaInstall } from '../composables/usePwaInstall';
 
 defineProps({
@@ -208,6 +209,7 @@ function goBack() {
 }
 
 const { events } = useEvents();
+const { diaries } = useDiaries();
 const { standalone, isIos, promptInstall } = usePwaInstall();
 
 const themeOptions = THEME_OPTIONS;
@@ -236,6 +238,7 @@ function onCustomAccent(event) {
 }
 
 const eventCount = computed(() => events.value.length);
+const diaryCount = computed(() => diaries.value.length);
 
 const storageLabel = computed(() => (storageUsage.value ? formatBytes(storageUsage.value) : ''));
 

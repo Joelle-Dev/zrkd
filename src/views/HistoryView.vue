@@ -29,7 +29,7 @@
                 <span v-if="item.typeLabel" class="history-tag">{{ item.typeLabel }}</span>
               </div>
               <span class="history-meta">
-                <span v-if="yearsAgo(item.year)">{{ yearsAgo(item.year) }}</span>
+                <span v-if="yearsAgo(item.year)" class="history-ago">{{ yearsAgo(item.year) }}</span>
                 <span v-if="item.festival">{{ yearsAgo(item.year) ? ' · ' : '' }}{{ item.festival }}</span>
               </span>
               <p v-if="item.desc" class="history-desc">{{ item.desc }}</p>

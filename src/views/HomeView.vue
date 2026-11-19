@@ -6,12 +6,19 @@
           <span class="brand-mark" aria-hidden="true">日</span>
           <span class="brand-name">指日可待</span>
         </button>
-        <button class="icon-btn" type="button" aria-label="拍照" @click="router.push('/photo')">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4.2 8.2A1.7 1.7 0 0 1 5.9 6.5h2.2l1.3-2h5.2l1.3 2h2.2a1.7 1.7 0 0 1 1.7 1.7v9.1a1.7 1.7 0 0 1-1.7 1.7H5.9a1.7 1.7 0 0 1-1.7-1.7z"></path>
-            <circle cx="12" cy="12.6" r="3.4"></circle>
-          </svg>
-        </button>
+        <div class="masthead-actions">
+          <button class="icon-btn" type="button" aria-label="拍照" @click="router.push('/photo')">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4.2 8.2A1.7 1.7 0 0 1 5.9 6.5h2.2l1.3-2h5.2l1.3 2h2.2a1.7 1.7 0 0 1 1.7 1.7v9.1a1.7 1.7 0 0 1-1.7 1.7H5.9a1.7 1.7 0 0 1-1.7-1.7z"></path>
+              <circle cx="12" cy="12.6" r="3.4"></circle>
+            </svg>
+          </button>
+          <button class="icon-btn" type="button" aria-label="加一个日子" @click="router.push('/event/new')">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 5.5v13M5.5 12h13"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       <h1 class="masthead-title">{{ greeting }}<small>{{ weekdayText }}</small></h1>
       <p class="masthead-date">{{ todayLabel }}</p>
@@ -38,8 +45,14 @@
       <article v-for="item in builtins" :key="item.key" class="builtin-card">
         <span class="builtin-label">{{ item.label }}</span>
         <span class="builtin-figure">
-          <b :class="{ 'is-word': item.days === 0 }">{{ item.days === 0 ? '就是今天' : item.days }}</b>
-          <small v-if="item.days !== 0">天</small>
+          <template v-if="item.days === 0">
+            <b class="is-word">就是今天</b>
+          </template>
+          <template v-else>
+            <span class="figure-verb">还有</span>
+            <b class="is-countdown">{{ item.days }}</b>
+            <small>天</small>
+          </template>
         </span>
         <span class="builtin-date">{{ formatDateCN(item.targetDate) }}</span>
       </article>
@@ -49,7 +62,7 @@
     <section>
       <div class="section-head">
         <h2 class="section-title">你的日子</h2>
-        <button class="text-btn" type="button" @click="router.push('/event/new')">加一个</button>
+        <span v-if="validEvents.length" class="section-meta">{{ validEvents.length }} 个</span>
       </div>
 
       <LoadingState v-if="loading && !ready" text="正在翻日历…" />
@@ -59,7 +72,7 @@
           v-for="event in visibleEvents"
           :key="event.id"
           class="event-card"
-          :class="{ 'is-past': describeCache[event.id].kind === 'past' }"
+          :class="`is-${describeCache[event.id].kind}`"
           :style="{ '--accent': event.accent }"
         >
           <button
@@ -70,26 +83,21 @@
           ></button>
           <div class="event-card-top">
             <span class="event-title">{{ event.title }}</span>
+            <span class="event-date">{{ formatDateCN(event.targetDate) }}</span>
           </div>
-          <p v-if="event.note" class="event-note">{{ event.note }}</p>
 
           <div class="event-figure">
-            <span
-              v-if="describeCache[event.id].kind !== 'today'"
-              class="event-verb"
-            >{{ describeCache[event.id].label }}</span>
-            <span
-              class="event-number"
-              :class="{ 'is-word': describeCache[event.id].kind === 'today' }"
-            >{{ figureOf(describeCache[event.id]) }}</span>
-            <span v-if="describeCache[event.id].kind !== 'today'" class="event-unit">天</span>
+            <template v-if="describeCache[event.id].kind === 'today'">
+              <span class="event-number is-word">就是今天</span>
+            </template>
+            <template v-else>
+              <span class="event-verb">{{ describeCache[event.id].label }}</span>
+              <span class="event-number">{{ describeCache[event.id].days }}</span>
+              <span class="event-unit">天</span>
+            </template>
           </div>
 
-          <div class="event-foot">
-            <span>{{ formatDateCN(event.targetDate) }}</span>
-            <span class="event-date">{{ weekdayCN(event.targetDate) }}</span>
-          </div>
-
+          <p v-if="event.note" class="event-note">{{ event.note }}</p>
         </article>
 
         <button
@@ -200,11 +208,6 @@ const hiddenCount = computed(() => Math.max(0, validEvents.value.length - visibl
 
 const hasEvents = computed(() => visibleEvents.value.length > 0);
 
-function figureOf(desc) {
-  if (!desc || desc.signed === null) return '—';
-  return desc.kind === 'today' ? '今天' : String(desc.days);
-}
-
 function openEvent(event) {
   router.push(`/event/${event.id}`);
 }
@@ -238,10 +241,6 @@ onUnmounted(() => {
 
 <style scoped>
 .event-card.is-past {
-  opacity: 0.82;
-}
-
-.event-card.is-past .event-number {
-  font-size: 44px;
+  opacity: 0.92;
 }
 </style>

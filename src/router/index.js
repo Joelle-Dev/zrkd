@@ -7,6 +7,23 @@ const routes = [
     component: () => import('../views/HomeView.vue')
   },
   {
+    path: '/diary',
+    name: 'diary',
+    component: () => import('../views/DiaryView.vue')
+  },
+  {
+    path: '/diary/new',
+    name: 'diary-new',
+    meta: { immersive: true },
+    component: () => import('../views/DiaryEditView.vue')
+  },
+  {
+    path: '/diary/:id',
+    name: 'diary-entry',
+    meta: { immersive: true },
+    component: () => import('../views/DiaryEditView.vue')
+  },
+  {
     path: '/history',
     name: 'history',
     component: () => import('../views/HistoryView.vue')

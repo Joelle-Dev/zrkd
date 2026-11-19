@@ -2,7 +2,7 @@ import { DB_NAME, DB_VERSION } from './constants.js';
 
 export { DB_NAME, DB_VERSION };
 
-const STORES = ['events'];
+const STORES = ['events', 'diary'];
 const SETTINGS_STORE = 'settings';
 const ALL_STORES = [...STORES, SETTINGS_STORE];
 
@@ -46,6 +46,11 @@ function openDB() {
         const store = db.createObjectStore('events', { keyPath: 'id' });
         store.createIndex('targetDate', 'targetDate', { unique: false });
         store.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('diary')) {
+        const diary = db.createObjectStore('diary', { keyPath: 'id' });
+        diary.createIndex('date', 'date', { unique: false });
+        diary.createIndex('createdAt', 'createdAt', { unique: false });
       }
       if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
         db.createObjectStore(SETTINGS_STORE, { keyPath: 'key' });

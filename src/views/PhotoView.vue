@@ -8,7 +8,7 @@
       </button>
       <div class="photo-head-copy">
         <span class="photo-head-title">{{ activeEvent?.title || '拍照记日子' }}</span>
-        <span class="photo-head-sub">{{ headSub }}</span>
+        <span class="photo-head-sub" :class="desc ? `is-${desc.kind}` : ''">{{ headSub }}</span>
       </div>
       <span v-if="!cameraSupported" class="render-status" :class="`is-${renderState}`">
         <span class="dot"></span>

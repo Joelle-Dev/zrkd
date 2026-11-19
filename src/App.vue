@@ -46,6 +46,13 @@ const TABS = [
     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.4" width="16" height="15" rx="2.4"/><path d="M8 3.6v3.4M16 3.6v3.4M4 10.2h16"/><path d="M8.6 14.4h2.2M13.2 14.4h2.2M8.6 17.6h2.2"/></svg>'
   },
   {
+    name: 'diary',
+    label: '日记',
+    path: '/diary',
+    match: ['diary'],
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 3.6h10.6a1.4 1.4 0 0 1 1.4 1.4v14a1.4 1.4 0 0 1-1.4 1.4H6.6a2 2 0 0 1-2-2V5.6a2 2 0 0 1 2-2z"/><path d="M4.6 5.6v13.4"/><path d="M8.4 8.6h6.4M8.4 12h6.4M8.4 15.4h4"/></svg>'
+  },
+  {
     name: 'history',
     label: '历史',
     path: '/history',

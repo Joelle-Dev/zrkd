@@ -15,7 +15,7 @@
     <LoadingState v-if="loading" text="正在打开…" />
 
     <template v-else>
-      <div class="edit-preview" :style="{ '--accent': form.accent }">
+      <div class="edit-preview" :class="previewKindClass" :style="{ '--accent': form.accent }">
         <span v-if="previewPrefix" class="edit-preview-verb">{{ previewPrefix }}</span>
         <b>{{ previewFigure }}</b>
         <span v-if="previewUnit">{{ previewUnit }}</span>
@@ -46,7 +46,7 @@
             min="1900-01-01"
             max="2999-12-31"
           >
-          <p class="field-note">{{ directionHint }}</p>
+          <p class="field-note" :class="`hint-${desc.kind}`">{{ directionHint }}</p>
           <div class="chip-row" style="margin-top: 2px;">
             <button
               v-for="preset in presets"
@@ -158,6 +158,8 @@ const previewUnit = computed(() => (desc.value.kind === 'today' ? '' : '天'));
 const previewPrefix = computed(() => (
   desc.value.signed === null || desc.value.kind === 'today' ? '' : desc.value.label
 ));
+
+const previewKindClass = computed(() => `is-${desc.value.kind}`);
 
 const previewDate = computed(() => {
   if (!form.targetDate) return '';
