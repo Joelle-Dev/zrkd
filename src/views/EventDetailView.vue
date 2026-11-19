@@ -1,7 +1,7 @@
 <template>
   <div class="detail-page">
     <header class="detail-head">
-      <button class="icon-btn" type="button" aria-label="返回" @click="goBack">
+      <button class="icon-btn detail-back" type="button" aria-label="返回" @click="goBack">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 5-7 7 7 7"></path>
         </svg>
@@ -20,8 +20,18 @@
 
     <template v-else-if="record">
       <article class="detail-card" :style="accentStyleOf(record.accent)">
-        <div class="detail-seal" aria-hidden="true">日</div>
-        <span class="detail-brand">指日可待</span>
+        <header class="detail-card-head">
+          <div class="detail-card-id">
+            <span class="detail-seal" aria-hidden="true">日</span>
+            <span class="detail-brand">指日可待</span>
+          </div>
+          <span class="detail-stub" aria-hidden="true">
+            <b>{{ dateChip.md }}</b>
+            <small>{{ dateChip.weekday }}</small>
+          </span>
+        </header>
+
+        <div class="detail-tear" aria-hidden="true"></div>
 
         <h1 class="detail-title">{{ record.title }}</h1>
         <p v-if="record.note" class="detail-note">{{ record.note }}</p>
@@ -41,20 +51,40 @@
           <span>{{ dateLine }}</span>
           <span v-if="lunarLine" class="detail-lunar">{{ lunarLine }}</span>
         </div>
-
-        <div class="detail-foot">一天一天，等到那天</div>
       </article>
 
-      <div class="detail-save">
+      <div class="detail-actions">
+        <button class="secondary-btn detail-write" type="button" @click="writeDiary">写一篇</button>
         <button class="primary-btn" type="button" :disabled="renderState === 'generating'" @click="saveImage">
           {{ saveLabel }}
         </button>
-        <p class="photo-hint">
-          <template v-if="nativeApp">点一下，直接进相册。</template>
-          <template v-else-if="canShare">会弹系统面板，选「存储图像」才算数。</template>
-          <template v-else>点一下存图；它要是不听话，就长按。</template>
-        </p>
       </div>
+      <p class="photo-hint">
+        <template v-if="nativeApp">点一下，直接进相册。</template>
+        <template v-else-if="canShare">会弹系统面板，选「存储图像」才算数。</template>
+        <template v-else>点一下存图；它要是不听话，就长按。</template>
+      </p>
+
+      <section class="detail-related">
+        <div class="section-head">
+          <h2 class="section-title">相关的日记</h2>
+          <span class="section-meta">{{ relatedDiaries.length ? `${relatedDiaries.length} 篇` : '还没写' }}</span>
+        </div>
+
+        <div v-if="relatedDiaries.length" class="related-list">
+          <button
+            v-for="item in relatedDiaries"
+            :key="item.id"
+            class="related-item"
+            type="button"
+            @click="openDiary(item)"
+          >
+            <span class="related-date">{{ formatDateDot(item.date) }}</span>
+            <span class="related-title">{{ item.title || item.text || '这一天，写了点东西' }}</span>
+          </button>
+        </div>
+        <p v-else class="related-empty">这段时间还没留下文字。要不要补一句？</p>
+      </section>
     </template>
 
     <div v-else class="history-off">
@@ -70,9 +100,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import LoadingState from '../components/LoadingState.vue';
 import { useEvents } from '../composables/useEvents';
+import { useDiaries } from '../composables/useDiaries';
 import { getEvent } from '../lib/events';
 import { dayInfo } from '../lib/almanac';
-import { describeEvent, formatDateCN, weekdayCN } from '../lib/countdown';
+import { describeEvent, formatDateCN, formatDateDot, parseDateKey, weekdayCN } from '../lib/countdown';
+import { diariesForEvent } from '../lib/diary';
 import { renderShareCard, shareCardFilename } from '../lib/shareCard';
 import {
   canShareFile,
@@ -89,6 +121,7 @@ const route = useRoute();
 const router = useRouter();
 const goBack = makeGoBack(router);
 const { todayKey } = useEvents();
+const { diaries } = useDiaries();
 
 const loading = ref(true);
 const record = ref(null);
@@ -102,6 +135,19 @@ const canShare = computed(() => shareSupported.value);
 const desc = computed(() => (record.value
   ? describeEvent(record.value, todayKey.value)
   : { kind: 'invalid', days: 0, label: '' }));
+
+const relatedDiaries = computed(() => (record.value
+  ? diariesForEvent(diaries.value, record.value.id)
+  : []));
+
+const dateChip = computed(() => {
+  if (!record.value) return { md: '', weekday: '' };
+  const parts = parseDateKey(record.value.targetDate);
+  return {
+    md: parts ? `${String(parts.month).padStart(2, '0')}.${String(parts.day).padStart(2, '0')}` : '',
+    weekday: weekdayCN(record.value.targetDate)
+  };
+});
 
 const dateLine = computed(() => (record.value
   ? `${formatDateCN(record.value.targetDate)} · ${weekdayCN(record.value.targetDate)}`
@@ -205,6 +251,15 @@ function saveImage() {
   }).catch(() => {
     showToast('没存上，长按图片试试运气');
   });
+}
+
+function openDiary(item) {
+  router.push(`/diary/${item.id}`);
+}
+
+function writeDiary() {
+  if (!record.value) return;
+  router.push({ path: '/diary/new', query: { event: record.value.id } });
 }
 
 function editEvent() {

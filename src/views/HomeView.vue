@@ -88,7 +88,10 @@
           ></button>
           <div class="event-card-top">
             <span class="event-title">{{ event.title }}</span>
-            <span class="event-date">{{ formatDateShort(event.targetDate) }}</span>
+            <span class="event-card-side">
+              <span v-if="diaryCounts[event.id]" class="event-diary-badge">{{ diaryCounts[event.id] }} 篇</span>
+              <span class="event-date">{{ formatDateShort(event.targetDate) }}</span>
+            </span>
           </div>
 
           <div class="event-figure">
@@ -150,8 +153,10 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue
 import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useEvents } from '../composables/useEvents';
+import { useDiaries } from '../composables/useDiaries';
 import { dayInfo, jieqiLine } from '../lib/almanac';
 import { builtInCountdowns } from '../lib/samples';
+import { countDiariesByEvent } from '../lib/diary';
 import {
   describeEvent,
   formatDateCN,
@@ -164,6 +169,7 @@ import { accentStyleOf } from '../utils/theme';
 
 const router = useRouter();
 const { sorted, ready, loading, todayKey, reload, refreshToday } = useEvents();
+const { diaries } = useDiaries();
 
 const SettingsView = defineAsyncComponent(() => import('./SettingsView.vue'));
 
@@ -191,6 +197,8 @@ const lunarLine = computed(() => {
 const jieqiText = computed(() => jieqiLine(info.value));
 
 const builtins = computed(() => builtInCountdowns(todayKey.value));
+
+const diaryCounts = computed(() => countDiariesByEvent(diaries.value));
 
 const describeCache = computed(() => {
   const map = {};

@@ -109,3 +109,19 @@ export function groupDiariesByDate(list) {
   }
   return groups;
 }
+
+/** 挑出关联到某个日子的日记，按时间倒序 */
+export function diariesForEvent(list, eventId) {
+  if (!eventId) return [];
+  return sortDiaries(list.filter((item) => item.eventId === eventId));
+}
+
+/** 每条日子各关联了几篇日记，返回 { [eventId]: count }（只统计 > 0 的） */
+export function countDiariesByEvent(list) {
+  const counts = {};
+  for (const item of list) {
+    if (!item.eventId) continue;
+    counts[item.eventId] = (counts[item.eventId] || 0) + 1;
+  }
+  return counts;
+}

@@ -135,7 +135,6 @@
     <van-popup v-model:show="pickerOpen" position="bottom" round>
       <div class="write-picker">
         <span class="write-picker-title">关联到某个日子</span>
-        <span class="write-picker-hint">选一个日子，这篇日记就会挂上它的名字，列表里一眼看出在记哪件事。不选也没关系。</span>
         <div class="write-picker-list">
           <button
             v-for="event in events"
@@ -523,6 +522,11 @@ onMounted(async () => {
   cleanupKeyboard = bindKeyboardInset();
   hideAccessoryBar();
   if (!isEditing.value) {
+    // 从日子详情点「写一篇」进来时，自动带上那条日子
+    const presetEvent = String(route.query.event || '');
+    if (presetEvent && events.value.some((item) => item.id === presetEvent)) {
+      form.eventId = presetEvent;
+    }
     // 新日记直接进入可写状态
     locked.value = false;
     await nextTick();

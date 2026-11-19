@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   MOODS,
+  countDiariesByEvent,
+  diariesForEvent,
   groupDiariesByDate,
   moodOf,
   normalizeDiaryInput,
@@ -100,4 +102,28 @@ test('groupDiariesByDate 按日分组，日期倒序', () => {
 
 test('groupDiariesByDate 空列表返回空数组', () => {
   assert.deepEqual(groupDiariesByDate([]), []);
+});
+
+test('diariesForEvent 只取关联到该日子的，且时间倒序', () => {
+  const list = [
+    { id: 'a', date: '2026-11-18', createdAt: 1, eventId: 'ev_1' },
+    { id: 'b', date: '2026-11-19', createdAt: 2, eventId: 'ev_2' },
+    { id: 'c', date: '2026-11-19', createdAt: 9, eventId: 'ev_1' },
+    { id: 'd', date: '2026-11-20', createdAt: 3 }
+  ];
+  assert.deepEqual(diariesForEvent(list, 'ev_1').map((item) => item.id), ['c', 'a']);
+  assert.deepEqual(diariesForEvent(list, ''), []);
+  assert.deepEqual(diariesForEvent(list, 'ev_none'), []);
+});
+
+test('countDiariesByEvent 只统计有效关联', () => {
+  const list = [
+    { id: 'a', eventId: 'ev_1' },
+    { id: 'b', eventId: 'ev_1' },
+    { id: 'c', eventId: 'ev_2' },
+    { id: 'd' },
+    { id: 'e', eventId: '' }
+  ];
+  assert.deepEqual(countDiariesByEvent(list), { ev_1: 2, ev_2: 1 });
+  assert.deepEqual(countDiariesByEvent([]), {});
 });

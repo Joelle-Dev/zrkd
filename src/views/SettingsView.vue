@@ -1,9 +1,9 @@
 <template>
-  <div class="page">
+  <div class="page settings-page">
     <header class="page-head">
       <div class="page-head-copy">
         <h1 class="page-title">我的</h1>
-        <p class="page-subtitle">日子都住在这台设备里</p>
+        <p class="page-subtitle">一天一天，等到那天。日子只在这台设备里。</p>
       </div>
       <button v-if="drawer" class="icon-btn" type="button" aria-label="关闭" @click="emit('close')">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -17,26 +17,16 @@
       </button>
     </header>
 
-    <div class="about-card">
-      <span class="about-mark" aria-hidden="true">日</span>
-      <span class="about-title">指日可待</span>
-      <p class="about-text">
-        一天一天，等到那天。<br>
-        不登录、不上云、不偷看——只有「历史上的今天」会出门一趟，随时能喊停。
-      </p>
-    </div>
-
     <section class="settings-group">
-      <div class="section-head" style="margin-bottom: 2px;">
+      <div class="section-head">
         <h2 class="section-title">外观</h2>
       </div>
       <div class="settings-row">
         <span class="settings-main">
           <span class="settings-label">主题</span>
-          <span class="settings-desc">晚上看眼睛不抗议</span>
         </span>
         <span class="settings-side">
-          <div class="segmented" style="width: 168px;">
+          <div class="segmented settings-segmented">
             <button
               v-for="option in themeOptions"
               :key="option.key"
@@ -51,9 +41,9 @@
       </div>
 
       <div class="settings-row settings-row-stack">
-        <span class="settings-main">
+        <span class="settings-main settings-main-inline">
           <span class="settings-label">主题色</span>
-          <span class="settings-desc">{{ accentLabel }} · 按钮和导航跟着一起换装</span>
+          <span class="settings-desc">{{ accentLabel }}</span>
         </span>
         <div class="theme-swatches" role="radiogroup" aria-label="主题色">
           <button
@@ -104,14 +94,14 @@
     </section>
 
     <section class="settings-group">
-      <div class="section-head" style="margin-bottom: 2px;">
+      <div class="section-head">
         <h2 class="section-title">内容</h2>
       </div>
 
       <div class="settings-row" role="switch" :aria-checked="historyOnline" tabindex="0" @click="toggleHistory()" @keydown.enter.prevent="toggleHistory()" @keydown.space.prevent="toggleHistory()">
         <span class="settings-main">
           <span class="settings-label">历史上的今天</span>
-          <span class="settings-desc">开了就把今天的日期递给百度百科，按月存本地；随时能反悔</span>
+          <span class="settings-desc">把今天的日期发给百度百科，按月缓存在本机</span>
         </span>
         <span class="settings-side" @click.stop>
           <van-switch :model-value="historyOnline" size="20" @update:model-value="toggleHistory" />
@@ -121,14 +111,13 @@
       <div class="settings-row">
         <span class="settings-main">
           <span class="settings-label">农历与节气</span>
-          <span class="settings-desc">本地算，连网都不用</span>
         </span>
-        <span class="settings-side">已开启</span>
+        <span class="settings-side">本地计算</span>
       </div>
     </section>
 
     <section class="settings-group">
-      <div class="section-head" style="margin-bottom: 2px;">
+      <div class="section-head">
         <h2 class="section-title">数据</h2>
       </div>
 
@@ -140,26 +129,14 @@
         <span class="settings-side">{{ storageLabel }}</span>
       </div>
 
-      <button class="settings-row" type="button" @click="exportData">
-        <span class="settings-main">
-          <span class="settings-label">导出备份</span>
-          <span class="settings-desc">把日子和日记打包成 JSON</span>
-        </span>
-        <span class="settings-side">导出</span>
-      </button>
-
-      <button class="settings-row" type="button" @click="importData">
-        <span class="settings-main">
-          <span class="settings-label">从备份恢复</span>
-          <span class="settings-desc">按 id 合并，不碰你现有的</span>
-        </span>
-        <span class="settings-side">选择文件</span>
-      </button>
+      <div class="settings-actions">
+        <button class="secondary-btn" type="button" @click="exportData">导出备份</button>
+        <button class="secondary-btn" type="button" @click="importData">从备份恢复</button>
+      </div>
 
       <button class="settings-row" type="button" @click="clearHistory">
         <span class="settings-main">
           <span class="settings-label">旧报纸缓存</span>
-          <span class="settings-desc">只清缓存，日子纹丝不动</span>
         </span>
         <span class="settings-side">清理</span>
       </button>
@@ -167,29 +144,23 @@
       <input ref="backupInput" class="sr-only" type="file" accept="application/json,.json" @change="onBackupPick">
     </section>
 
-    <section class="settings-group">
-      <div class="section-head" style="margin-bottom: 2px;">
+    <section v-if="!standalone" class="settings-group">
+      <div class="section-head">
         <h2 class="section-title">关于</h2>
       </div>
 
-      <button v-if="!standalone" class="settings-row" type="button" @click="install">
+      <button class="settings-row" type="button" @click="install">
         <span class="settings-main">
           <span class="settings-label">添加到主屏幕</span>
-          <span class="settings-desc">{{ isIos ? '在 Safari 里点分享 → 添加到主屏幕' : '装成 App，全屏更敞亮' }}</span>
+          <span class="settings-desc">{{ isIos ? 'Safari 分享 → 添加到主屏幕' : '装成 App，全屏打开' }}</span>
         </span>
         <span class="settings-side">安装</span>
       </button>
-
-      <div class="settings-row">
-        <span class="settings-main">
-          <span class="settings-label">版本</span>
-          <span class="settings-desc">{{ buildLabel }}</span>
-        </span>
-      </div>
     </section>
 
-    <p class="photo-hint">
-      提醒：iOS 偶尔会清理久不打开的站点数据，重要的日子记得加到主屏幕。
+    <p class="settings-foot">
+      <span>指日可待 · {{ buildLabel }}</span>
+      <span>iOS 可能清理久不打开的站点数据，重要的日子记得加到主屏幕</span>
     </p>
   </div>
 </template>
