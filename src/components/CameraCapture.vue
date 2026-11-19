@@ -1,8 +1,9 @@
 <template>
   <Teleport to="body">
-    <div class="camera-layer" role="dialog" aria-modal="true" aria-label="取景">
+    <div class="camera-layer" role="dialog" aria-modal="true" aria-label="拍照">
       <div ref="stage" class="camera-stage">
-        <div ref="frame" class="camera-frame">
+        <!-- 取景：水印以 DOM 实时叠在画面上 -->
+        <div v-if="isLiveView" ref="frame" class="camera-frame">
           <video
             ref="video"
             class="camera-video"
@@ -24,30 +25,81 @@
           </div>
         </div>
 
-        <p v-if="state === 'starting'" class="camera-status">正在打开相机…</p>
-        <p v-else-if="state === 'error'" class="camera-status is-error">{{ errorText }}</p>
+        <!-- 拍完：直接是带水印的成品，按钮就压在图上 -->
+        <div
+          v-else-if="shotUrl"
+          class="camera-frame camera-result"
+          :style="resultFrameStyle"
+        >
+          <img class="camera-result-img" :src="shotUrl" alt="拍好的照片">
+          <div class="camera-result-actions" :style="saveBtnStyle">
+            <template v-if="phase === 'saved'">
+              <p class="camera-saved-note">{{ savedNote }}</p>
+              <button class="camera-save" type="button" @click="retry">再拍一张</button>
+              <button class="camera-retry" type="button" @click="done">完成</button>
+            </template>
+            <template v-else>
+              <button class="camera-save" type="button" :disabled="saving" @click="saveShot">
+                {{ saving ? '正在存…' : '存为图片' }}
+              </button>
+              <button class="camera-retry" type="button" :disabled="saving" @click="retry">重拍</button>
+            </template>
+            <p v-if="savedHint" class="camera-save-hint">{{ savedHint }}</p>
+          </div>
+        </div>
+
+        <p v-if="phase === 'starting'" class="camera-status">正在打开相机…</p>
+        <p v-else-if="phase === 'error'" class="camera-status is-error">{{ errorText }}</p>
+      </div>
+
+      <div v-if="isLiveView" class="camera-options">
+        <button
+          type="button"
+          :class="{ 'is-active': position === 'bottom' }"
+          @click="position = 'bottom'"
+        >底部居中</button>
+        <button
+          type="button"
+          :class="{ 'is-active': position === 'center' }"
+          @click="position = 'center'"
+        >画面正中</button>
       </div>
 
       <div class="camera-bar">
-        <button class="camera-side" type="button" @click="$emit('close')">取消</button>
+        <button class="camera-side" type="button" @click="close">
+          {{ isLiveView ? '取消' : '关闭' }}
+        </button>
         <button
+          v-if="isLiveView"
           class="camera-shutter"
           type="button"
           aria-label="拍照"
-          :disabled="state !== 'live' || capturing"
+          :disabled="phase !== 'live' || shooting"
           @click="shoot"
         >
           <span></span>
         </button>
-        <button class="camera-side" type="button" :disabled="state !== 'live'" @click="flip">翻转</button>
+        <span v-else class="camera-side-spacer" aria-hidden="true"></span>
+        <button
+          v-if="isLiveView"
+          class="camera-side"
+          type="button"
+          :disabled="phase !== 'live'"
+          @click="flip"
+        >翻转</button>
+        <span v-else class="camera-side-spacer" aria-hidden="true"></span>
       </div>
     </div>
   </Teleport>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { computeLayout } from '../lib/watermark';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { showToast } from 'vant';
+import { computeLayout, renderWatermark } from '../lib/watermark';
+import { photoFilename } from '../utils/album';
+import { saveImageToAlbum } from '../utils/saveImage';
+import { haptic } from '../utils/haptics';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -58,27 +110,38 @@ const props = defineProps({
   position: { type: String, default: 'bottom' }
 });
 
-const emit = defineEmits(['capture', 'close', 'error']);
+const emit = defineEmits(['close', 'done', 'error']);
 
 const stage = ref(null);
 const frame = ref(null);
 const video = ref(null);
-const state = ref('starting');
+
+const phase = ref('starting'); // starting | live | review | saving | saved | error
 const errorText = ref('');
-const capturing = ref(false);
+const shooting = ref(false);
+const saving = ref(false);
+const savedHint = ref('');
+const savedNote = ref('已存进相册');
 const facing = ref('environment');
+const position = ref(props.position);
+
+const shotBlob = ref(null);
+const shotUrl = ref('');
+
 const box = ref({ width: 0, height: 0 });
 const intrinsic = ref({ width: 0, height: 0 });
 
 let stream = null;
 let resizeObserver = null;
 
+const isLiveView = computed(() => phase.value === 'starting' || phase.value === 'live' || phase.value === 'error');
+
 // 水印按画面的真实像素算布局，再整体缩到预览尺寸，
 // 这样取景框里看到的位置、字号和最后出片完全一致。
 const layout = computed(() => {
   const { width, height } = intrinsic.value;
   if (!width || !height) return null;
-  return computeLayout(width, height, { position: props.position });
+  return computeLayout(width, height, { position: position.value });
 });
 
 const scale = computed(() => {
@@ -145,12 +208,33 @@ const dateStyle = computed(() => {
   };
 });
 
+// 成品框保持拍摄时的比例，保存按钮才能稳定压在水印下面
+const resultFrameStyle = computed(() => (
+  box.value.width && box.value.height
+    ? { width: `${box.value.width}px`, height: `${box.value.height}px` }
+    : {}
+));
+
+// 让按钮贴在水印块外面，别把标题/天数/日期盖住。
+const saveBtnStyle = computed(() => {
+  const current = layout.value;
+  const { height } = intrinsic.value;
+  if (!current || !height) return { bottom: '6%' };
+
+  if (position.value === 'center') {
+    const below = current.centerY + current.blockHeight / 2 + current.dateSize * 1.6;
+    return { top: `${below / scale.value}px` };
+  }
+  const blockTop = current.titleY - current.titleSize * 0.8;
+  return { bottom: `${(height - blockTop) / scale.value + 10}px` };
+});
+
 function describeError(err) {
   const name = err?.name || '';
   if (name === 'NotAllowedError' || name === 'SecurityError') return '没拿到相机权限，去系统设置里允许一下';
   if (name === 'NotFoundError' || name === 'OverconstrainedError') return '这台设备没有可用的相机';
   if (name === 'NotReadableError') return '相机被别的应用占着，关掉再试';
-  return '打不开相机，换成从相册选吧';
+  return '打不开相机，换个方式试试';
 }
 
 function stopStream() {
@@ -160,10 +244,19 @@ function stopStream() {
   if (video.value) video.value.srcObject = null;
 }
 
+function releaseShot() {
+  if (shotUrl.value) URL.revokeObjectURL(shotUrl.value);
+  shotUrl.value = '';
+  shotBlob.value = null;
+  savedHint.value = '';
+  savedNote.value = '已存进相册';
+}
+
 async function start() {
-  state.value = 'starting';
+  phase.value = 'starting';
   errorText.value = '';
   stopStream();
+  releaseShot();
   try {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw Object.assign(new Error('unsupported'), { name: 'NotSupportedError' });
@@ -179,11 +272,10 @@ async function start() {
     if (!video.value) return;
     video.value.srcObject = stream;
     await video.value.play().catch(() => {});
-    await nextTick();
     measure();
-    state.value = 'live';
+    phase.value = 'live';
   } catch (err) {
-    state.value = 'error';
+    phase.value = 'error';
     errorText.value = describeError(err);
     emit('error', err);
   }
@@ -217,8 +309,8 @@ function measure() {
 
 async function shoot() {
   const el = video.value;
-  if (!el || state.value !== 'live' || capturing.value) return;
-  capturing.value = true;
+  if (!el || phase.value !== 'live' || shooting.value) return;
+  shooting.value = true;
   try {
     const width = el.videoWidth;
     const height = el.videoHeight;
@@ -230,44 +322,105 @@ async function shoot() {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('这台设备不支持拍照');
 
+    // 前置摄像头预览是镜像的，成片也要镜像，否则水印文字会反。
     if (facing.value === 'user') {
       ctx.translate(width, 0);
       ctx.scale(-1, 1);
     }
     ctx.drawImage(el, 0, 0, width, height);
 
-    const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob((result) => {
-        if (result) resolve(result);
-        else reject(new Error('照片生成失败'));
-      }, 'image/jpeg', 0.95);
+    // 直接把水印烧进图片，成品就是最终存下来的样子。
+    const result = await renderWatermark({
+      source: canvas,
+      title: props.title,
+      number: props.number,
+      prefix: props.prefix,
+      unit: props.unit,
+      dateText: props.dateText,
+      position: position.value
     });
 
-    emit('capture', blob);
+    stopStream();
+    shotBlob.value = result.blob;
+    shotUrl.value = URL.createObjectURL(result.blob);
+    phase.value = 'review';
+    haptic('light');
   } catch (err) {
     errorText.value = err?.message || '拍照失败，再试一次';
-    state.value = 'error';
+    phase.value = 'error';
   } finally {
-    capturing.value = false;
+    shooting.value = false;
   }
+}
+
+async function retry() {
+  if (saving.value) return;
+  await start();
+}
+
+async function saveShot() {
+  if (saving.value || !shotBlob.value) return;
+  saving.value = true;
+  phase.value = 'saving';
+  try {
+    const mode = await saveImageToAlbum(shotBlob.value, photoFilename(), {
+      title: props.title || '指日可待',
+      text: props.dateText ? `${props.title} · ${props.dateText}` : '指日可待'
+    });
+    haptic('success');
+    if (mode === 'album') {
+      savedNote.value = '已存进相册';
+      phase.value = 'saved';
+    } else if (mode === 'shared') {
+      savedNote.value = '已交给系统';
+      savedHint.value = '在系统面板里选「存储图像」就进相册了';
+      phase.value = 'saved';
+    } else if (mode === 'cancelled') {
+      phase.value = 'review';
+    } else if (mode === 'download') {
+      savedNote.value = '已下载';
+      savedHint.value = '文件在「下载」文件夹里';
+      phase.value = 'saved';
+    } else {
+      savedNote.value = '长按图片保存';
+      phase.value = 'saved';
+    }
+  } catch (err) {
+    phase.value = 'review';
+    showToast(err?.message === '图片还没准备好' ? err.message : '保存失败，检查一下相册权限');
+  } finally {
+    saving.value = false;
+  }
+}
+
+function close() {
+  releaseShot();
+  stopStream();
+  emit('close');
+}
+
+// 存完点「完成」就离开拍照页，不留一个空的预览页
+function done() {
+  releaseShot();
+  stopStream();
+  emit('done');
 }
 
 function onVisibility() {
   if (document.visibilityState === 'visible') return;
-  stopStream();
+  if (phase.value === 'live') stopStream();
 }
 
 onMounted(async () => {
   document.body.style.overflow = 'hidden';
   window.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('resize', measure);
+  window.addEventListener('orientationchange', measure);
   await start();
   if (stage.value && 'ResizeObserver' in window) {
     resizeObserver = new ResizeObserver(() => measure());
     resizeObserver.observe(stage.value);
   }
-  window.addEventListener('resize', measure);
-  window.addEventListener('orientationchange', measure);
-  video.value?.addEventListener('loadedmetadata', measure);
 });
 
 onUnmounted(() => {
@@ -275,8 +428,8 @@ onUnmounted(() => {
   window.removeEventListener('visibilitychange', onVisibility);
   window.removeEventListener('resize', measure);
   window.removeEventListener('orientationchange', measure);
-  video.value?.removeEventListener('loadedmetadata', measure);
   resizeObserver?.disconnect();
+  releaseShot();
   stopStream();
 });
 </script>

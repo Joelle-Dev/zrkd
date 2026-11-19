@@ -10,7 +10,7 @@
         <span class="photo-head-title">{{ activeEvent?.title || '拍照记日子' }}</span>
         <span class="photo-head-sub">{{ headSub }}</span>
       </div>
-      <span class="render-status" :class="`is-${renderState}`">
+      <span v-if="!cameraSupported" class="render-status" :class="`is-${renderState}`">
         <span class="dot"></span>
         {{ renderLabel }}
       </span>
@@ -41,7 +41,7 @@
         <circle cx="12" cy="12.7" r="3.2"></circle>
       </svg>
       <strong>拍一张，水印当场就带上</strong>
-      <small>相机取景时就能看到标题、天数和日期，按快门直接出成品</small>
+      <small>取景时就能看到标题、天数和日期，拍完直接存进相册</small>
       <div class="dropzone-actions">
         <button class="primary-btn" type="button" @click="openCamera">
           {{ cameraSupported ? '打开相机' : '拍一张' }}
@@ -108,8 +108,8 @@
       :unit="cameraUnit"
       :date-text="cameraDate"
       :position="position"
-      @capture="onCaptured"
-      @close="cameraOpen = false"
+      @close="onCameraClosed"
+      @done="goHome"
       @error="onCameraError"
     />
 
@@ -252,19 +252,6 @@ function openCamera() {
   cameraInput.value?.click();
 }
 
-function onCaptured(blob) {
-  if (!blob) return;
-  const file = toFile(blob, `capture-${Date.now()}.jpg`);
-  releaseUrls();
-  sourceFile.value = file;
-  const url = URL.createObjectURL(file);
-  objectUrls.push(url);
-  sourceUrl.value = url;
-  errorText.value = '';
-  cameraOpen.value = false;
-  haptic('light');
-}
-
 function onCameraError(err) {
   if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
     showToast('没拿到相机权限，可以改用相册');
@@ -400,6 +387,16 @@ function goBack() {
   else router.replace('/');
 }
 
+// 拍完存好点「完成」，直接回首页，不留在拍照页
+function goHome() {
+  cameraOpen.value = false;
+  router.replace('/');
+}
+
+function onCameraClosed() {
+  cameraOpen.value = false;
+}
+
 async function pickInitialEvent() {
   const queryId = route.query.event;
   if (queryId) {
@@ -418,6 +415,8 @@ watch([sourceFile, position, activeEventId], () => {
 
 onMounted(async () => {
   await pickInitialEvent();
+  // 拍照是独立功能：进这一页直接开相机，拍完存好点「完成」就回首页
+  if (cameraSupported && events.value.length) cameraOpen.value = true;
 });
 
 onUnmounted(() => {
