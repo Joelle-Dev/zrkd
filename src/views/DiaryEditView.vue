@@ -1,42 +1,105 @@
 <template>
-  <div class="write-page">
+  <div class="write-page" :class="{ 'is-locked': locked }">
     <header class="write-head">
       <button class="write-icon" type="button" aria-label="返回" @click="goBack">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 5-7 7 7 7"></path>
         </svg>
       </button>
-      <div class="write-meta">
-        <button class="write-date" type="button" @click="openDate">
-          {{ dateLabel }}
-        </button>
+
+      <!-- 格式工具搬到顶层，写作时不用低头看底部 -->
+      <div v-if="!locked" class="write-tools">
         <button
-          v-for="mood in moods"
-          :key="mood.key"
-          class="write-mood"
+          class="write-tool"
           type="button"
-          :class="{ 'is-active': form.mood === mood.key }"
-          :aria-label="mood.label"
-          :aria-pressed="form.mood === mood.key"
-          @click="toggleMood(mood.key)"
-        >{{ mood.emoji }}</button>
+          :class="{ 'is-active': active.bold }"
+          aria-label="加粗"
+          @mousedown.prevent
+          @click="exec('bold')"
+        ><b>B</b></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': active.italic }"
+          aria-label="斜体"
+          @mousedown.prevent
+          @click="exec('italic')"
+        ><i>I</i></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': active.underline }"
+          aria-label="下划线"
+          @mousedown.prevent
+          @click="exec('underline')"
+        ><u>U</u></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': form.eventId }"
+          aria-label="关联一个日子"
+          @mousedown.prevent
+          @click="pickerOpen = true"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
+            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+          </svg>
+        </button>
+        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
+            <circle cx="8.6" cy="10.2" r="1.4"></circle>
+            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
+          </svg>
+        </button>
       </div>
+
+      <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }} 字</span>
+
+      <span v-if="locked" class="write-head-spacer"></span>
+
+      <!-- 打开旧日记先锁定，点这里才进入编辑 -->
+      <button v-if="locked && isEditing" class="write-edit" type="button" @click="unlock">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4.4 19.6h4l9.6-9.6a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4.4 15.6z"></path>
+          <path d="M13.2 7.2l3.6 3.6"></path>
+        </svg>
+        编辑
+      </button>
+
       <button v-if="isEditing" class="write-icon" type="button" aria-label="删除" @click="confirmDelete">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M5.2 7h13.6M9.4 7V5.2a1.1 1.1 0 0 1 1.1-1.1h3a1.1 1.1 0 0 1 1.1 1.1V7"></path>
           <path d="M6.6 7l.8 11.6a1.4 1.4 0 0 0 1.4 1.3h6.4a1.4 1.4 0 0 0 1.4-1.3L18 7"></path>
         </svg>
       </button>
-      <button class="write-save" type="button" :disabled="saving" @click="submit">
-        {{ saving ? '保存中' : '完成' }}
-      </button>
+
+      <span v-if="!locked" class="write-save-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
     </header>
+
+    <div class="write-subhead">
+      <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
+      <button
+        v-for="mood in moods"
+        :key="mood.key"
+        class="write-mood"
+        type="button"
+        :disabled="locked"
+        :class="{ 'is-active': form.mood === mood.key }"
+        :aria-label="mood.label"
+        :aria-pressed="form.mood === mood.key"
+        @click="toggleMood(mood.key)"
+      >{{ mood.emoji }}</button>
+      <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
+    </div>
 
     <div class="write-body">
       <div
         ref="titleEl"
         class="write-title"
-        contenteditable="true"
+        :contenteditable="!locked"
+        :tabindex="locked ? -1 : 0"
         role="textbox"
         aria-label="标题"
         data-placeholder="标题"
@@ -48,7 +111,8 @@
       <div
         ref="editor"
         class="write-editor"
-        contenteditable="true"
+        :contenteditable="!locked"
+        :tabindex="locked ? -1 : 0"
         role="textbox"
         aria-multiline="true"
         aria-label="正文"
@@ -60,59 +124,9 @@
 
       <div v-if="form.photo" class="write-photo">
         <img :src="form.photo" alt="配图">
-        <button class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
+        <button v-if="!locked" class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
       </div>
     </div>
-
-    <footer class="write-bar">
-      <div class="write-tools">
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': active.bold }"
-          aria-label="加粗"
-          @click="exec('bold')"
-        ><b>B</b></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': active.italic }"
-          aria-label="斜体"
-          @click="exec('italic')"
-        ><i>I</i></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': active.underline }"
-          aria-label="下划线"
-          @click="exec('underline')"
-        ><u>U</u></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': form.eventId }"
-          aria-label="关联一个日子"
-          @click="pickerOpen = true"
-        >
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
-            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
-          </svg>
-        </button>
-        <button class="write-tool" type="button" aria-label="插入图片" @click="openLibrary">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
-            <circle cx="8.6" cy="10.2" r="1.4"></circle>
-            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
-          </svg>
-        </button>
-      </div>
-
-      <div class="write-info">
-        <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
-        <span class="write-count">{{ wordCount }} 字</span>
-      </div>
-    </footer>
 
     <input ref="libraryInput" class="sr-only" type="file" accept="image/*" @change="onPick">
 
@@ -169,7 +183,23 @@ const pickerOpen = ref(false);
 const dateOpen = ref(false);
 const wordCount = ref(0);
 const original = ref(null);
-const dirty = ref(false);
+const saveState = ref('idle'); // idle | pending | saving | saved | error
+const recordId = ref('');
+
+// 打开旧日记默认锁定，只能看；点右上角「编辑」才解锁输入
+const locked = ref(Boolean(route.params.id));
+
+const SAVE_DELAY = 700;
+let saveTimer = null;
+let leaving = false;
+
+const saveLabel = computed(() => {
+  if (saveState.value === 'saving') return '保存中';
+  if (saveState.value === 'pending') return '待保存';
+  if (saveState.value === 'saved') return '已保存';
+  if (saveState.value === 'error') return '保存失败';
+  return '';
+});
 
 const active = reactive({ bold: false, italic: false, underline: false });
 
@@ -197,14 +227,26 @@ const linkedTitle = computed(() => {
 });
 
 function toggleMood(key) {
+  if (locked.value) return;
   form.mood = form.mood === key ? '' : key;
-  dirty.value = true;
   haptic('light');
 }
 
 function toggleEvent(id) {
+  if (locked.value) return;
   form.eventId = form.eventId === id ? '' : id;
   haptic('light');
+}
+
+function unlock() {
+  if (!locked.value) return;
+  locked.value = false;
+  saveState.value = 'idle';
+  haptic('light');
+  nextTick(() => {
+    const hasTitle = Boolean((titleEl.value?.innerText || '').trim());
+    (hasTitle ? editor.value : titleEl.value)?.focus();
+  });
 }
 
 function openDate() {
@@ -219,6 +261,7 @@ async function onPick(event) {
   const file = event.target.files?.[0];
   event.target.value = '';
   if (!file) return;
+  if (locked.value) return;
   if (file.size > 30 * 1024 * 1024) {
     showToast('图片太大了，换一张');
     return;
@@ -250,7 +293,6 @@ function refreshCount() {
 function onTitleInput() {
   const text = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trimStart();
   form.title = text.slice(0, 60);
-  dirty.value = true;
 }
 
 // 标题里敲回车就跳到正文，别在标题里换行
@@ -261,7 +303,7 @@ function focusEditor() {
 function onInput() {
   refreshCount();
   syncActive();
-  dirty.value = true;
+  scheduleSave();
 }
 
 function onKeydown(event) {
@@ -295,29 +337,83 @@ function exec(command) {
   }
   syncActive();
   refreshCount();
+  scheduleSave();
   haptic('light');
 }
 
-// 写了一半误触返回就全没了：离开前问一句。
-// flush: 'sync' 让「程序填表」和「用户输入」的时序确定，水合后显式收尾。
+// 结构性的改动（日期、心情、配图、关联）直接触发保存
 watch(form, () => {
-  dirty.value = true;
+  scheduleSave();
 }, { deep: true, flush: 'sync' });
 
-onBeforeRouteLeave(async () => {
-  if (!dirty.value) return true;
-  try {
-    await showConfirmDialog({
-      title: '还没保存，直接走？',
-      message: '这篇日记的改动会丢掉。',
-      confirmButtonText: '放弃改动',
-      cancelButtonText: '再想想',
-      confirmButtonColor: 'var(--danger)'
-    });
-    return true;
-  } catch (err) {
-    return false;
+// 与 saveDiary 的校验保持一致：标题、正文、配图三者有其一才落库。
+// 只点心情不产生记录，避免出现空白日记。
+function hasContent() {
+  const title = (titleEl.value?.innerText || '').trim();
+  const text = (editor.value?.innerText || '').trim();
+  return Boolean(title || text || form.photo);
+}
+
+/**
+ * 自动保存：输入停止 700ms 后落库。
+ * 新增时第一次保存会把 id 记下来，后续都在同一条上更新。
+ */
+function scheduleSave() {
+  if (locked.value) return;
+  if (saveState.value === 'saving') {
+    // 保存途中又有新输入，结束后再存一次
+    saveState.value = 'pending';
+    return;
   }
+  saveState.value = 'pending';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, SAVE_DELAY);
+}
+
+async function flushSave() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  if (!hasContent()) {
+    saveState.value = 'idle';
+    return;
+  }
+  if (saving.value) {
+    saveState.value = 'pending';
+    return;
+  }
+
+  saving.value = true;
+  saveState.value = 'saving';
+  try {
+    const html = sanitizeHtml(editor.value?.innerHTML || '');
+    const title = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trim();
+    const saved = await saveDiary({
+      ...form,
+      title,
+      html,
+      id: recordId.value || undefined
+    }, original.value || (recordId.value ? { id: recordId.value } : null));
+
+    recordId.value = saved.id;
+    original.value = saved;
+    saveState.value = 'saved';
+    await diaries.reload();
+  } catch (err) {
+    saveState.value = 'error';
+  } finally {
+    saving.value = false;
+  }
+}
+
+// 离开就立刻存，不再弹「还没保存」的提示
+onBeforeRouteLeave(async () => {
+  if (leaving) return true;
+  leaving = true;
+  // 锁定查看时没有任何改动，直接走
+  if (locked.value) return true;
+  clearTimeout(saveTimer);
+  if (hasContent()) await flushSave().catch(() => {});
+  return true;
 });
 
 async function load() {
@@ -330,6 +426,7 @@ async function load() {
       return;
     }
     original.value = record;
+    recordId.value = record.id;
     form.date = record.date;
     form.title = record.title || '';
     form.mood = record.mood || '';
@@ -341,29 +438,8 @@ async function load() {
       editor.value.innerHTML = record.html || textToHtml(record.text);
       refreshCount();
     }
-    dirty.value = false;
   } catch (err) {
     showToast('打开失败，再试一次');
-  }
-}
-
-async function submit() {
-  if (saving.value) return;
-  saving.value = true;
-  try {
-    const html = sanitizeHtml(editor.value?.innerHTML || '');
-    const title = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trim();
-    await saveDiary({ ...form, title, html }, original.value);
-    await diaries.reload();
-    dirty.value = false;
-    haptic('success');
-    showToast(isEditing.value ? '改好啦' : '记下了');
-    router.replace('/diary');
-  } catch (err) {
-    showToast(err?.message || '保存失败，再试一次');
-    haptic('warning');
-  } finally {
-    saving.value = false;
   }
 }
 
@@ -383,7 +459,7 @@ async function confirmDelete() {
   try {
     await removeDiary(original.value.id);
     await diaries.reload();
-    dirty.value = false;
+    leaving = true;
     haptic('warning');
     showToast('删掉了');
     router.replace('/diary');
@@ -446,7 +522,8 @@ onMounted(async () => {
   cleanupKeyboard = bindKeyboardInset();
   hideAccessoryBar();
   if (!isEditing.value) {
-    dirty.value = false;
+    // 新日记直接进入可写状态
+    locked.value = false;
     await nextTick();
     editor.value?.focus();
   }

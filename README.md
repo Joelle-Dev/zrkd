@@ -13,6 +13,7 @@
 - 内置倒数：距离新年、距离周末，不用手动添加
 - 自定义颜色，一张卡片一眼认出是哪个日子
 - 跨零点自动更新，不用手动刷新
+- 新增或修改保存后直接回首页
 
 **外观**
 
@@ -23,8 +24,9 @@
 **日记**
 
 - 底部「日记」，一天可以写好几篇
-- 写作页整页留白：上面标题、下面正文，底部一行工具栏
-- 支持加粗 / 斜体 / 下划线，底栏实时显示字数
+- 写作页整页留白：上面标题、下面正文
+- 加粗 / 斜体 / 下划线、字数统计都在顶栏，写作时不用低头找按钮
+- 自动保存：输入停止约 0.7 秒落库，顶栏显示「已保存」；直接返回也会先存再走，不再弹「还没保存」
 - 日期用自绘面板：整月网格 + 今天/昨天/明天/一周后快捷，点标题回到今天
 - 键盘弹起时底部工具栏自动顶到键盘上方（`visualViewport` 求差，兼容 iOS Safari）
 - 标题与正文都用 `contenteditable`，页面里没有 `input`/`textarea`
@@ -198,13 +200,13 @@ VITE_APP_START_URL=/你的仓库名/ VITE_APP_SCOPE=/你的仓库名/ npm run bu
 npm run icons
 ```
 
-`scripts/make-icons.mjs` 用 zlib 手写 PNG，无外部依赖。图形是朱砂渐变的圆角方块 + 白色「日」，一次生成：
+`scripts/make-icons.mjs` 用 zlib 手写 PNG，无外部依赖。图形是一枚中式小印：宣纸色印面 + 朱砂印框 + 朱砂「日」（刻意避开「红底白字」，那种配色太像日本国旗），一次生成：
 
 - 网页/PWA：`public/icons/` 下的 192 / 512 / maskable / apple-touch
 - iOS：`AppIcon.appiconset` 的 1024 图标、`Splash.imageset` 的 2732 启动图
 - Android：各密度 `ic_launcher` / `ic_launcher_foreground`，以及横竖屏各尺寸的 `splash.png`
 
-网页端还有一层 `index.html` 里的启动页（`#boot-splash`），首屏挂载后由 `src/main.js` 淡出。改配色只需改脚本顶部的 `CREAM` / `ACCENT` / `ACCENT_DEEP`。
+网页端还有一层 `index.html` 里的启动页（`#boot-splash`），首屏挂载后由 `src/main.js` 淡出。改配色只需改脚本顶部的 `PAPER` / `CINNABAR` / `CREAM`。
 
 ## 设计边界
 

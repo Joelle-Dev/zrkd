@@ -2,19 +2,24 @@
   <div class="page">
     <header class="masthead">
       <div class="masthead-row">
-        <button class="brand brand-btn" type="button" aria-label="打开我的" @click="openSettings">
-          <span class="brand-mark" aria-hidden="true">日</span>
-          <span class="brand-name">指日可待</span>
+        <button class="nav-btn" type="button" aria-label="我的" @click="openSettings">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8.2" r="3.4"></circle>
+            <path d="M5.2 19.6c0-3.5 3.1-5.8 6.8-5.8s6.8 2.3 6.8 5.8"></path>
+          </svg>
         </button>
+
+        <h1 class="nav-title">指日可待</h1>
+
         <div class="masthead-actions">
-          <button class="icon-btn" type="button" aria-label="拍照" @click="router.push('/photo')">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <button class="nav-btn" type="button" aria-label="拍照" @click="router.push('/photo')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M4.2 8.2A1.7 1.7 0 0 1 5.9 6.5h2.2l1.3-2h5.2l1.3 2h2.2a1.7 1.7 0 0 1 1.7 1.7v9.1a1.7 1.7 0 0 1-1.7 1.7H5.9a1.7 1.7 0 0 1-1.7-1.7z"></path>
               <circle cx="12" cy="12.6" r="3.4"></circle>
             </svg>
           </button>
-          <button class="icon-btn" type="button" aria-label="加一个日子" @click="router.push('/event/new')">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <button class="nav-btn" type="button" aria-label="加一个日子" @click="router.push('/event/new')">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 5.5v13M5.5 12h13"></path>
             </svg>
           </button>
@@ -78,7 +83,7 @@
           <button
             class="event-hit"
             type="button"
-            :aria-label="`${event.title}，${describeCache[event.id].label} ${describeCache[event.id].days} 天，查看或修改`"
+            :aria-label="`${event.title}，${describeCache[event.id].label} ${describeCache[event.id].days} 天，查看这一天`"
             @click="openEvent(event)"
           ></button>
           <div class="event-card-top">

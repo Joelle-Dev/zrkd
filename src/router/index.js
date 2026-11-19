@@ -35,10 +35,16 @@ const routes = [
     component: () => import('../views/EventEditView.vue')
   },
   {
+    path: '/event/:id/edit',
+    name: 'event-edit',
+    meta: { immersive: true },
+    component: () => import('../views/EventEditView.vue')
+  },
+  {
     path: '/event/:id',
     name: 'event',
     meta: { immersive: true },
-    component: () => import('../views/EventEditView.vue')
+    component: () => import('../views/EventDetailView.vue')
   },
   {
     path: '/photo',

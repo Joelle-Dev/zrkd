@@ -255,16 +255,13 @@ async function submit() {
   saving.value = true;
   errorText.value = '';
   try {
-    const saved = await saveEvent({ ...form }, original.value);
+    await saveEvent({ ...form }, original.value);
     haptic('success');
     await events.reload();
     dirty.value = false;
     showToast(isEditing.value ? '改好啦' : '记下了');
-    if (isEditing.value) {
-      original.value = saved;
-      return;
-    }
-    router.replace(`/event/${saved.id}`);
+    // 新增和修改都一样：存完直接回首页
+    router.replace('/');
   } catch (err) {
     errorText.value = err?.message || '保存失败，再试一次';
     haptic('warning');

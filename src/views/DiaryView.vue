@@ -30,40 +30,46 @@
     <LoadingState v-if="loading && !ready" text="正在翻本子…" />
 
     <template v-else-if="groups.length">
-      <section v-for="group in groups" :key="group.date" class="diary-group">
-        <div class="diary-date-head">
-          <span class="diary-date">{{ groupLabel(group.date) }}</span>
-          <span class="diary-count">{{ group.items.length }} 篇</span>
-        </div>
-
-        <article
-          v-for="item in group.items"
-          :key="item.id"
-          class="diary-card"
-          :style="item.accent ? { '--accent': item.accent } : null"
-        >
-          <button
-            class="event-hit"
-            type="button"
-            :aria-label="`查看 ${groupLabel(group.date)} 的日记`"
-            @click="open(item)"
-          ></button>
-
-          <div class="diary-head">
-            <span v-if="moodOf(item.mood)" class="diary-mood" :aria-label="moodOf(item.mood).label">
-              {{ moodOf(item.mood).emoji }}
-            </span>
-            <span v-if="eventTitle(item.eventId)" class="diary-tag">{{ eventTitle(item.eventId) }}</span>
-            <span class="diary-time">{{ timeOf(item.createdAt) }}</span>
+      <div class="timeline">
+        <section v-for="group in groups" :key="group.date" class="tl-group">
+          <div class="tl-date-row">
+            <span class="tl-date">{{ groupLabel(group.date) }}</span>
+            <span class="tl-count">{{ group.items.length }} 篇</span>
           </div>
 
-          <h2 v-if="item.title" class="diary-title">{{ item.title }}</h2>
+          <article
+            v-for="item in group.items"
+            :key="item.id"
+            class="tl-item"
+            :style="item.accent ? { '--accent': item.accent } : null"
+          >
+            <button
+              class="tl-hit"
+              type="button"
+              :aria-label="`查看 ${groupLabel(group.date)} ${timeOf(item.createdAt)} 的日记`"
+              @click="open(item)"
+            ></button>
 
-          <div v-if="item.html || item.text" class="diary-body" v-html="previewHtml(item)"></div>
+            <span class="tl-time">{{ timeOf(item.createdAt) }}</span>
+            <span class="tl-dot" aria-hidden="true"></span>
 
-          <img v-if="item.photo" class="diary-thumb" :src="item.photo" alt="配图">
-        </article>
-      </section>
+            <div class="tl-content">
+              <div v-if="moodOf(item.mood) || eventTitle(item.eventId)" class="tl-meta">
+                <span v-if="moodOf(item.mood)" class="tl-mood" :aria-label="moodOf(item.mood).label">
+                  {{ moodOf(item.mood).emoji }}
+                </span>
+                <span v-if="eventTitle(item.eventId)" class="tl-tag">{{ eventTitle(item.eventId) }}</span>
+              </div>
+
+              <h2 v-if="item.title" class="tl-title">{{ item.title }}</h2>
+
+              <div v-if="item.html || item.text" class="tl-body" v-html="previewHtml(item)"></div>
+
+              <img v-if="item.photo" class="tl-thumb" :src="item.photo" alt="配图">
+            </div>
+          </article>
+        </section>
+      </div>
     </template>
 
     <div v-else-if="ready && query" class="empty-hint">
