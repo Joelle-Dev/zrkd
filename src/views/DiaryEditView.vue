@@ -1,98 +1,134 @@
 <template>
   <div class="write-page" :class="{ 'is-locked': locked }">
-    <header class="write-head">
-      <button class="write-icon" type="button" aria-label="返回" @click="goBack">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m15 5-7 7 7 7"></path>
-        </svg>
-      </button>
+    <!-- 顶部设置栏整体吸顶：格式、日期、心情、关联，写到哪儿都够得着 -->
+    <div class="write-topbar">
+      <header class="write-head">
+        <button class="write-icon" type="button" aria-label="返回" @click="goBack">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 5-7 7 7 7"></path>
+          </svg>
+        </button>
 
-      <!-- 格式工具搬到顶层，写作时不用低头看底部 -->
-      <div v-if="!locked" class="write-tools">
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': active.bold }"
-          aria-label="加粗"
-          @mousedown.prevent
-          @click="exec('bold')"
-        ><b>B</b></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': active.italic }"
-          aria-label="斜体"
-          @mousedown.prevent
-          @click="exec('italic')"
-        ><i>I</i></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': active.underline }"
-          aria-label="下划线"
-          @mousedown.prevent
-          @click="exec('underline')"
-        ><u>U</u></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': form.eventId }"
-          aria-label="关联一个日子"
-          @mousedown.prevent
-          @click="pickerOpen = true"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
-            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+        <!-- 格式工具搬到顶层，写作时不用低头看底部 -->
+        <div v-if="!locked" class="write-tools">
+          <button
+            class="write-tool"
+            type="button"
+            :class="{ 'is-active': active.bold }"
+            aria-label="加粗"
+            @mousedown.prevent
+            @click="exec('bold')"
+          ><b>B</b></button>
+          <button
+            class="write-tool"
+            type="button"
+            :class="{ 'is-active': active.italic }"
+            aria-label="斜体"
+            @mousedown.prevent
+            @click="exec('italic')"
+          ><i>I</i></button>
+          <button
+            class="write-tool"
+            type="button"
+            :class="{ 'is-active': active.underline }"
+            aria-label="下划线"
+            @mousedown.prevent
+            @click="exec('underline')"
+          ><u>U</u></button>
+          <button
+            class="write-tool"
+            type="button"
+            :class="{ 'is-active': form.eventId }"
+            aria-label="关联一个日子"
+            aria-controls="write-picker"
+            :aria-expanded="pickerOpen"
+            @mousedown.prevent
+            @click="pickerOpen = !pickerOpen"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
+              <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+            </svg>
+          </button>
+          <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
+              <circle cx="8.6" cy="10.2" r="1.4"></circle>
+              <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
+            </svg>
+          </button>
+        </div>
+
+        <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }} 字</span>
+
+        <span v-if="locked" class="write-head-spacer"></span>
+
+        <!-- 打开旧日记先锁定，点这里才进入编辑 -->
+        <button v-if="locked && isEditing" class="write-edit" type="button" @click="unlock">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.4 19.6h4l9.6-9.6a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4.4 15.6z"></path>
+            <path d="M13.2 7.2l3.6 3.6"></path>
+          </svg>
+          编辑
+        </button>
+
+        <button v-if="isEditing" class="write-icon" type="button" aria-label="删除" @click="confirmDelete">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5.2 7h13.6M9.4 7V5.2a1.1 1.1 0 0 1 1.1-1.1h3a1.1 1.1 0 0 1 1.1 1.1V7"></path>
+            <path d="M6.6 7l.8 11.6a1.4 1.4 0 0 0 1.4 1.3h6.4a1.4 1.4 0 0 0 1.4-1.3L18 7"></path>
           </svg>
         </button>
-        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
-            <circle cx="8.6" cy="10.2" r="1.4"></circle>
-            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
-          </svg>
-        </button>
+
+        <span v-if="!locked" class="write-save-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
+      </header>
+
+      <div class="write-subhead">
+        <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
+        <button
+          v-for="mood in moods"
+          :key="mood.key"
+          class="write-mood"
+          type="button"
+          :disabled="locked"
+          :class="{ 'is-active': form.mood === mood.key }"
+          :aria-label="mood.label"
+          :aria-pressed="form.mood === mood.key"
+          @click="toggleMood(mood.key)"
+        >{{ mood.emoji }}</button>
+        <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
       </div>
 
-      <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }} 字</span>
-
-      <span v-if="locked" class="write-head-spacer"></span>
-
-      <!-- 打开旧日记先锁定，点这里才进入编辑 -->
-      <button v-if="locked && isEditing" class="write-edit" type="button" @click="unlock">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4.4 19.6h4l9.6-9.6a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4.4 15.6z"></path>
-          <path d="M13.2 7.2l3.6 3.6"></path>
-        </svg>
-        编辑
-      </button>
-
-      <button v-if="isEditing" class="write-icon" type="button" aria-label="删除" @click="confirmDelete">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5.2 7h13.6M9.4 7V5.2a1.1 1.1 0 0 1 1.1-1.1h3a1.1 1.1 0 0 1 1.1 1.1V7"></path>
-          <path d="M6.6 7l.8 11.6a1.4 1.4 0 0 0 1.4 1.3h6.4a1.4 1.4 0 0 0 1.4-1.3L18 7"></path>
-        </svg>
-      </button>
-
-      <span v-if="!locked" class="write-save-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
-    </header>
-
-    <div class="write-subhead">
-      <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
-      <button
-        v-for="mood in moods"
-        :key="mood.key"
-        class="write-mood"
-        type="button"
-        :disabled="locked"
-        :class="{ 'is-active': form.mood === mood.key }"
-        :aria-label="mood.label"
-        :aria-pressed="form.mood === mood.key"
-        @click="toggleMood(mood.key)"
-      >{{ mood.emoji }}</button>
-      <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
+      <!-- 关联日子：贴着吸顶栏往下展开，不和底部键盘抢位置 -->
+      <Transition name="picker-drop">
+        <div
+          v-if="pickerOpen"
+          id="write-picker"
+          class="write-picker"
+          role="dialog"
+          aria-label="关联到某个日子"
+        >
+          <div class="write-picker-head">
+            <span class="write-picker-title">关联到某个日子</span>
+            <button class="write-picker-close" type="button" aria-label="收起" @mousedown.prevent @click="pickerOpen = false">×</button>
+          </div>
+          <div class="write-picker-list">
+            <button
+              v-for="event in events"
+              :key="event.id"
+              class="chip"
+              type="button"
+              :class="{ 'is-active': form.eventId === event.id }"
+              :aria-pressed="form.eventId === event.id"
+              @mousedown.prevent
+              @click="chooseEvent(event.id)"
+            >{{ event.title }}</button>
+            <span v-if="!events.length" class="write-picker-empty">还没建过日子</span>
+          </div>
+        </div>
+      </Transition>
     </div>
+
+    <div v-if="pickerOpen" class="write-picker-scrim" aria-hidden="true" @click="pickerOpen = false"></div>
 
     <div class="write-body">
       <div
@@ -131,24 +167,6 @@
     <input ref="libraryInput" class="sr-only" type="file" accept="image/*" @change="onPick">
 
     <DatePicker v-model="form.date" v-model:show="dateOpen" />
-
-    <van-popup v-model:show="pickerOpen" position="bottom" round>
-      <div class="write-picker">
-        <span class="write-picker-title">关联到某个日子</span>
-        <div class="write-picker-list">
-          <button
-            v-for="event in events"
-            :key="event.id"
-            class="chip"
-            type="button"
-            :class="{ 'is-active': form.eventId === event.id }"
-            @click="toggleEvent(event.id)"
-          >{{ event.title }}</button>
-          <span v-if="!events.length" class="write-picker-empty">还没建过日子</span>
-        </div>
-        <button class="secondary-btn" type="button" @click="pickerOpen = false">就这样</button>
-      </div>
-    </van-popup>
   </div>
 </template>
 
@@ -232,9 +250,11 @@ function toggleMood(key) {
   haptic('light');
 }
 
-function toggleEvent(id) {
+// 点一下就选中并收起，少点一次「就这样」
+function chooseEvent(id) {
   if (locked.value) return;
   form.eventId = form.eventId === id ? '' : id;
+  pickerOpen.value = false;
   haptic('light');
 }
 
@@ -250,10 +270,12 @@ function unlock() {
 }
 
 function openDate() {
+  pickerOpen.value = false;
   dateOpen.value = true;
 }
 
 function openLibrary() {
+  pickerOpen.value = false;
   libraryInput.value?.click();
 }
 
@@ -311,6 +333,10 @@ function onKeydown(event) {
     event.preventDefault();
     exec('bold');
   }
+}
+
+function onGlobalKeydown(event) {
+  if (event.key === 'Escape' && pickerOpen.value) pickerOpen.value = false;
 }
 
 // 粘贴只留纯文本，避免把网页样式带进来
@@ -475,51 +501,11 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
-// 键盘弹起时，把底部工具栏顶到键盘上方。
-// iOS Safari 不会缩短布局视口，只能靠 visualViewport 求差值。
-function bindKeyboardInset() {
-  const vv = window.visualViewport;
-  if (!vv) return () => {};
-  const root = document.documentElement;
-
-  const update = () => {
-    const gap = window.innerHeight - vv.height - vv.offsetTop;
-    const active = document.activeElement;
-    const editing = Boolean(active) && (
-      active.tagName === 'INPUT' ||
-      active.tagName === 'TEXTAREA' ||
-      active.isContentEditable
-    );
-    const inset = editing && gap > 120 ? Math.round(gap) : 0;
-    root.style.setProperty('--kb-inset', `${inset}px`);
-  };
-
-  const delayed = () => setTimeout(update, 60);
-
-  vv.addEventListener('resize', update);
-  vv.addEventListener('scroll', update);
-  window.addEventListener('orientationchange', update);
-  document.addEventListener('focusin', delayed);
-  document.addEventListener('focusout', delayed);
-  update();
-
-  return () => {
-    vv.removeEventListener('resize', update);
-    vv.removeEventListener('scroll', update);
-    window.removeEventListener('orientationchange', update);
-    document.removeEventListener('focusin', delayed);
-    document.removeEventListener('focusout', delayed);
-    root.style.removeProperty('--kb-inset');
-  };
-}
-
-let cleanupKeyboard = null;
-
 onMounted(async () => {
   form.date = dateKeyOf();
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
-  cleanupKeyboard = bindKeyboardInset();
+  window.addEventListener('keydown', onGlobalKeydown);
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
@@ -536,7 +522,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
-  cleanupKeyboard?.();
+  window.removeEventListener('keydown', onGlobalKeydown);
   showAccessoryBar();
 });
 </script>

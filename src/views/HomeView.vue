@@ -152,7 +152,15 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue';
+import {
+  computed,
+  defineAsyncComponent,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onUnmounted,
+  ref
+} from 'vue';
 import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useEvents } from '../composables/useEvents';
@@ -169,6 +177,8 @@ import {
 } from '../lib/countdown';
 import { greeting as pickGreeting } from '../utils/greeting';
 import { accentStyleOf } from '../utils/theme';
+
+defineOptions({ name: 'HomeView' });
 
 const router = useRouter();
 const { sorted, ready, loading, todayKey, reload, refreshToday } = useEvents();
@@ -247,8 +257,23 @@ function scheduleDayRefresh() {
   }, 60_000);
 }
 
+// KeepAlive 缓存后，onMounted 只跑一次；用 activated/deactivated
+// 在真正显示/隐藏时开关定时器，避免后台空转。
 onMounted(() => {
   scheduleDayRefresh();
+});
+
+onActivated(() => {
+  // 回到首页时顺带对一次日期（跨零点后缓存里可能还是旧的）
+  if (refreshToday()) {
+    greeting.value = pickGreeting();
+    reload().catch(() => {});
+  }
+  scheduleDayRefresh();
+});
+
+onDeactivated(() => {
+  clearInterval(dayTimer);
 });
 
 onUnmounted(() => {

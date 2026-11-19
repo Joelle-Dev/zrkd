@@ -1,8 +1,10 @@
 <template>
   <div class="app-shell" :class="{ 'is-immersive': isImmersive }">
     <RouterView v-slot="{ Component }">
-      <Transition :name="pageTransition" mode="out-in">
-        <component :is="Component" />
+      <Transition :name="pageTransition" mode="out-in" :css="transitionCss">
+        <KeepAlive :include="keepAliveNames">
+          <component :is="Component" />
+        </KeepAlive>
       </Transition>
     </RouterView>
 
@@ -26,7 +28,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { requestPersistence } from './lib/storage';
 import { useEvents } from './composables/useEvents';
@@ -37,6 +39,22 @@ const events = useEvents();
 
 const isImmersive = computed(() => Boolean(route.meta.immersive));
 const pageTransition = computed(() => route.meta.transition || 'page-fade');
+
+// 手机边缘滑动返回时，浏览器有自己的原生动画，再叠一层淡入反而闪。
+// 用 popstate 标记「这是一次后退」，后退那次关掉 CSS 过渡。
+const isPop = ref(false);
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    isPop.value = true;
+    // 动画结束后复位，普通点击导航仍有过渡
+    setTimeout(() => { isPop.value = false; }, 260);
+  });
+}
+const transitionCss = computed(() => !isPop.value);
+
+// 三个 tab 页缓存起来：从详情/编辑返回时不再整页重建，
+// 滚动位置、展开状态、问候语都保持原样。
+const keepAliveNames = ['HomeView', 'DiaryView', 'HistoryView'];
 
 const TABS = [
   {

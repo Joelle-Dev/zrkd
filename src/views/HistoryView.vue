@@ -69,6 +69,8 @@ import { getSetting } from '../lib/db';
 import { HISTORY_ONLINE_KEY } from '../lib/constants';
 import { formatDateCN, parseDateKey, weekdayCN } from '../lib/countdown';
 
+defineOptions({ name: 'HistoryView' });
+
 const router = useRouter();
 const { todayKey, refreshToday } = useEvents();
 

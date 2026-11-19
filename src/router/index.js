@@ -66,7 +66,10 @@ const routes = [
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior() {
+  // 返回上一页时回到离开时的位置，而不是一律回顶部。
+  // 前进/后退（含手机边缘滑动返回）浏览器会给 savedPosition。
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition;
     return { top: 0 };
   }
 });

@@ -117,6 +117,8 @@ import { sanitizeHtml, textToHtml } from '../lib/richtext';
 import { accentStyleOf } from '../utils/theme';
 import { dateKeyOf, formatDateCN, formatDateDot, parseDateKey, weekdayCN } from '../lib/countdown';
 
+defineOptions({ name: 'DiaryView' });
+
 const router = useRouter();
 const { diaries, ready, loading } = useDiaries();
 const { events } = useEvents();
