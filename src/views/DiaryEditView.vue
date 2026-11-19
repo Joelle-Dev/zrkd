@@ -431,14 +431,16 @@ async function flushSave() {
   }
 }
 
-// 离开就立刻存，不再弹「还没保存」的提示
-onBeforeRouteLeave(async () => {
+// 离开就立刻存，不再弹「还没保存」的提示。
+// 不 await：写 IndexedDB 跟组件生命周期无关，内容在调用瞬间就已经
+// 快照进参数里；若等它存完再放行，手机滑动返回会「卡一下再跳走」。
+onBeforeRouteLeave(() => {
   if (leaving) return true;
   leaving = true;
   // 锁定查看时没有任何改动，直接走
   if (locked.value) return true;
   clearTimeout(saveTimer);
-  if (hasContent()) await flushSave().catch(() => {});
+  if (hasContent()) flushSave().catch(() => {});
   return true;
 });
 
@@ -501,8 +503,17 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
+// 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
+function onPageHide() {
+  if (locked.value) return;
+  if (!hasContent()) return;
+  clearTimeout(saveTimer);
+  flushSave().catch(() => {});
+}
+
 onMounted(async () => {
   form.date = dateKeyOf();
+  window.addEventListener('pagehide', onPageHide);
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
@@ -523,6 +534,7 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
+  window.removeEventListener('pagehide', onPageHide);
   showAccessoryBar();
 });
 </script>

@@ -37,14 +37,39 @@ export function daysToWeekend(todayKey) {
   return { days: gap, targetDate: keyOf(target) };
 }
 
+function ratio(value, total) {
+  if (!Number.isFinite(value) || !total) return 0;
+  return Math.min(1, Math.max(0, value / total));
+}
+
 export function builtInCountdowns(todayKey) {
+  const parts = parseDateKey(todayKey);
+  if (!parts) return [];
   const items = [];
 
   const newYear = daysToNewYear(todayKey);
-  if (newYear) items.push({ key: 'new-year', label: '距离新年', ...newYear });
+  if (newYear) {
+    // 今年已经走过的比例；元旦当天当作满格，和「就是今天」对得上
+    const total = diffDays(`${parts.year}-01-01`, `${parts.year + 1}-01-01`);
+    const elapsed = diffDays(`${parts.year}-01-01`, todayKey);
+    items.push({
+      key: 'new-year',
+      label: '距离新年',
+      ...newYear,
+      progress: newYear.days === 0 ? 1 : ratio(elapsed, total)
+    });
+  }
 
   const weekend = daysToWeekend(todayKey);
-  if (weekend) items.push({ key: 'weekend', label: '距离周末', ...weekend });
+  if (weekend) {
+    // 周一到周六是一周里往周末走的路，走到就已经满格
+    items.push({
+      key: 'weekend',
+      label: '距离周末',
+      ...weekend,
+      progress: weekend.days === 0 ? 1 : ratio(6 - weekend.days, 6)
+    });
+  }
 
   return items;
 }

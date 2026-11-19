@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <header class="home-nav">
-      <div class="masthead-row">
+      <div class="home-nav-row">
         <button class="nav-btn" type="button" aria-label="我的" @click="openSettings">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="8.2" r="3.4"></circle>
@@ -11,7 +11,7 @@
 
         <h1 class="nav-title">指日可待</h1>
 
-        <div class="masthead-actions">
+        <div class="home-nav-actions">
           <button class="nav-btn" type="button" aria-label="拍照" @click="router.push('/photo')">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M4.2 8.2A1.7 1.7 0 0 1 5.9 6.5h2.2l1.3-2h5.2l1.3 2h2.2a1.7 1.7 0 0 1 1.7 1.7v9.1a1.7 1.7 0 0 1-1.7 1.7H5.9a1.7 1.7 0 0 1-1.7-1.7z"></path>
@@ -27,15 +27,11 @@
       </div>
     </header>
 
-    <header class="masthead">
-      <h1 class="masthead-title">{{ greeting }}<small>{{ weekdayText }}</small></h1>
-      <p class="masthead-date">{{ todayLabel }}</p>
-    </header>
-
-    <!-- 今天是个什么日子 -->
+    <!-- 今天这一页：问候、日期、农历和节气收进同一张卡 -->
     <section class="today-panel">
       <div class="today-panel-main">
-        <span class="today-kicker">今天是什么日子</span>
+        <h1 class="today-greeting">{{ greeting }}</h1>
+        <p class="today-date">{{ todayLabel }} · {{ weekdayText }}</p>
         <span class="today-lunar">{{ lunarLine }}</span>
         <span class="today-sub">{{ jieqiText || '今天平平无奇，也挺好' }}</span>
         <div v-if="info?.festivals?.length" class="today-festivals">
@@ -50,9 +46,17 @@
 
     <!-- 内置倒数：新年、周末 -->
     <section class="builtin-grid">
-      <article v-for="item in builtins" :key="item.key" class="builtin-card">
-        <span class="builtin-label">{{ item.label }}</span>
-        <span class="builtin-figure">
+      <article
+        v-for="item in builtins"
+        :key="item.key"
+        class="builtin-card"
+        :class="`is-${item.key}`"
+      >
+        <div class="builtin-head">
+          <span class="builtin-label">{{ item.label }}</span>
+          <span class="builtin-date">{{ formatMonthDay(item.targetDate) }}</span>
+        </div>
+        <div class="builtin-figure">
           <template v-if="item.days === 0">
             <b class="is-word">就是今天</b>
           </template>
@@ -61,8 +65,14 @@
             <b class="is-countdown">{{ item.days }}</b>
             <small>天</small>
           </template>
-        </span>
-        <span class="builtin-date">{{ formatDateShort(item.targetDate) }}</span>
+        </div>
+        <div
+          class="builtin-track"
+          role="img"
+          :aria-label="`${item.key === 'new-year' ? '今年' : '本周'}已过 ${Math.round(item.progress * 100)}%`"
+        >
+          <i :style="{ width: `${Math.round(item.progress * 100)}%` }"></i>
+        </div>
       </article>
     </section>
 
@@ -86,15 +96,16 @@
           <button
             class="event-hit"
             type="button"
-            :aria-label="`${event.title}，${describeCache[event.id].label} ${describeCache[event.id].days} 天，查看这一天`"
+            :aria-label="`${event.title}，${describeCache[event.id].kind === 'today' ? '就是今天' : `${describeCache[event.id].label} ${describeCache[event.id].days} 天`}，查看这一天`"
             @click="openEvent(event)"
           ></button>
-          <div class="event-card-top">
+          <div class="event-card-body">
             <span class="event-title">{{ event.title }}</span>
-            <span class="event-card-side">
-              <span v-if="diaryCounts[event.id]" class="event-diary-badge">{{ diaryCounts[event.id] }} 篇</span>
+            <div class="event-meta">
               <span class="event-date">{{ formatDateShort(event.targetDate) }}</span>
-            </span>
+              <span v-if="diaryCounts[event.id]" class="event-diary-badge">{{ diaryCounts[event.id] }} 篇</span>
+              <span v-if="event.note" class="event-note">{{ event.note }}</span>
+            </div>
           </div>
 
           <div class="event-figure">
@@ -103,12 +114,12 @@
             </template>
             <template v-else>
               <span class="event-verb">{{ describeCache[event.id].label }}</span>
-              <span class="event-number">{{ describeCache[event.id].days }}</span>
-              <span class="event-unit">天</span>
+              <span class="event-figure-num">
+                <span class="event-number">{{ describeCache[event.id].days }}</span>
+                <span class="event-unit">天</span>
+              </span>
             </template>
           </div>
-
-          <p v-if="event.note" class="event-note">{{ event.note }}</p>
         </article>
 
         <button
@@ -201,8 +212,12 @@ const lunarLine = computed(() => {
   const current = info.value;
   if (!current) return '';
   const parts = [current.lunarText];
-  if (current.ganZhiYear) parts.push(current.ganZhiYear);
-  if (current.zodiac) parts.push(`${current.zodiac}年`);
+  // 「丙午年 · 马年」并成「丙午马年」，窄屏也放得下
+  if (current.ganZhiYear && current.zodiac) {
+    parts.push(`${current.ganZhiYear.replace(/年$/, '')}${current.zodiac}年`);
+  } else if (current.ganZhiYear || current.zodiac) {
+    parts.push(current.ganZhiYear || `${current.zodiac}年`);
+  }
   return parts.filter(Boolean).join(' · ');
 });
 
@@ -234,6 +249,11 @@ const visibleEvents = computed(() => (
 const hiddenCount = computed(() => Math.max(0, validEvents.value.length - visibleEvents.value.length));
 
 const hasEvents = computed(() => visibleEvents.value.length > 0);
+
+// 内置卡片地方小，跨年也只显示「1月1日」，年份交给文案去表达
+function formatMonthDay(key) {
+  return formatDateShort(key, key);
+}
 
 function openEvent(event) {
   router.push(`/event/${event.id}`);

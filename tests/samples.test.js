@@ -38,3 +38,16 @@ test('builtInCountdowns 总是给出新年和周末两条', () => {
   assert.equal(items[0].label, '距离新年');
   assert.equal(items[1].days, 3);
 });
+
+test('builtInCountdowns 带 0-1 的进度，当天满格', () => {
+  const items = builtInCountdowns('2026-11-19');
+  for (const item of items) {
+    assert.ok(item.progress > 0 && item.progress < 1, `${item.key} 应在 0-1 之间`);
+  }
+  assert.equal(builtInCountdowns('2027-01-01')[0].progress, 1);
+  assert.equal(builtInCountdowns('2026-11-21')[1].progress, 1);
+});
+
+test('builtInCountdowns 非法日期返回空', () => {
+  assert.deepEqual(builtInCountdowns('2026-02-30'), []);
+});
