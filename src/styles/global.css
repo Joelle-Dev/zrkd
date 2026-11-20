@@ -312,11 +312,12 @@ h1, h2, h3, h4, p {
   padding-bottom: 10px;
 }
 
-/* 写作页顶栏在 flex 流里，不参与滚动；整页锁成视口高度，
-   文档本身不滚，正文区自己滚。 */
+/* 写作页顶栏就在文档流顶部，跟着内容自然滚走。
+   不吸顶、不固定、不做任何视觉视口补偿，所以不会有位置抖动；
+   格式工具放在底部工具条里，键盘弹起时贴着键盘上沿。 */
 .write-page > .write-topbar {
   position: relative;
-  z-index: 12;
+  z-index: 2;
   flex: 0 0 auto;
   /* 负 margin 把顶栏撑满整页宽，免得正文从两侧的留白缝里穿过去 */
   margin: 0 calc(-1 * var(--shell-pad));
@@ -1771,25 +1772,19 @@ h1, h2, h3, h4, p {
   font-weight: 600;
 }
 
-/* 写作页：原生结构——整页锁成「视觉视口」大小，顶栏和正文各就各位，
-   只有正文区自己滚。
-   文档本身不滚，键盘打开时视觉视口怎么变都只是给页面换一次尺寸，
-   滚动过程中顶栏一动不动，也就谈不上抖。
-   --vv-height 由 JS 只在键盘开合、转屏时更新，滚动过程中不写。 */
+/* 写作页：整页回到普通文档滚动。
+   之前的固定/内滚动方案在 iOS 上会吞点按、吞长按选择，
+   跟着视觉视口补偿又会抖；现在文档自己滚，底部工具条是 flex 末项，
+   键盘弹起时随页面变矮自然落在键盘上沿。 */
 .write-page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
   display: flex;
   flex-direction: column;
-  height: var(--vv-height, 100dvh);
+  min-height: 100dvh;
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 0 var(--shell-pad);
+  padding: 0 var(--shell-pad) calc(72px + var(--safe-bottom));
   background: var(--surface);
-  overflow: hidden;
 }
 
 .write-head {
@@ -1863,13 +1858,7 @@ h1, h2, h3, h4, p {
   flex-direction: column;
   gap: 6px;
   flex: 1 1 auto;
-  min-height: 0;
-  padding: 6px 2px calc(24px + var(--safe-bottom));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  /* 滚动容器要自己承接触摸滚动，别让外层抢 */
-  touch-action: pan-y;
+  padding: 6px 2px 16px;
 }
 
 .write-title {
@@ -1958,9 +1947,30 @@ h1, h2, h3, h4, p {
 }
 
 
+/* 底部格式工具条：固定在键盘上沿。
+   位置只在键盘开合时更新一次（--kb-inset），滚动过程中完全不动，
+   所以不会像粘在顶部那样跟着视觉视口抖。 */
+.write-toolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--kb-inset, 0px);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: var(--shell-max);
+  margin: 0 auto;
+  padding: 8px var(--shell-pad) max(8px, calc(var(--safe-bottom) - var(--kb-inset, 0px)));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
 .write-tools {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1px;
   flex: 1;
   min-width: 0;

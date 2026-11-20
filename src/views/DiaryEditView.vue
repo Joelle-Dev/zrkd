@@ -9,56 +9,6 @@
           </svg>
         </button>
 
-        <!-- 格式工具搬到顶层，写作时不用低头看底部 -->
-        <div v-if="!locked" class="write-tools">
-          <button
-            class="write-tool"
-            type="button"
-            :class="{ 'is-active': active.bold }"
-            aria-label="加粗"
-            @mousedown.prevent
-            @click="exec('bold')"
-          ><b>B</b></button>
-          <button
-            class="write-tool"
-            type="button"
-            :class="{ 'is-active': active.italic }"
-            aria-label="斜体"
-            @mousedown.prevent
-            @click="exec('italic')"
-          ><i>I</i></button>
-          <button
-            class="write-tool"
-            type="button"
-            :class="{ 'is-active': active.underline }"
-            aria-label="下划线"
-            @mousedown.prevent
-            @click="exec('underline')"
-          ><u>U</u></button>
-          <button
-            class="write-tool"
-            type="button"
-            :class="{ 'is-active': form.eventId }"
-            aria-label="关联一个日子"
-            aria-controls="write-picker"
-            :aria-expanded="pickerOpen"
-            @mousedown.prevent
-            @click="pickerOpen = !pickerOpen"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
-              <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
-            </svg>
-          </button>
-          <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
-              <circle cx="8.6" cy="10.2" r="1.4"></circle>
-              <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
-            </svg>
-          </button>
-        </div>
-
         <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }} 字</span>
 
         <span v-if="locked" class="write-head-spacer"></span>
@@ -162,6 +112,36 @@
       <div v-if="form.photo" class="write-photo">
         <img :src="form.photo" alt="配图">
         <button v-if="!locked" class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
+      </div>
+    </div>
+
+    <div v-if="!locked" class="write-toolbar">
+      <div class="write-tools">
+        <button class="write-tool" type="button" :class="{ 'is-active': active.bold }" aria-label="加粗" @mousedown.prevent @click="exec('bold')"><b>B</b></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.italic }" aria-label="斜体" @mousedown.prevent @click="exec('italic')"><i>I</i></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.underline }" aria-label="下划线" @mousedown.prevent @click="exec('underline')"><u>U</u></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': form.eventId }"
+          aria-label="关联一个日子"
+          aria-controls="write-picker"
+          :aria-expanded="pickerOpen"
+          @mousedown.prevent
+          @click="pickerOpen = !pickerOpen"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
+            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+          </svg>
+        </button>
+        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
+            <circle cx="8.6" cy="10.2" r="1.4"></circle>
+            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -504,13 +484,12 @@ function onSelectionChange() {
 }
 
 /**
- * 整页锁定成「可见区域」大小：顶栏在 flex 流里，只有正文区自己滚。
- * 键盘弹起时视觉视口变矮，把 vv.height 同步到页面高度，
- * 正文区跟着变矮、底边正好落在键盘上沿。
+ * 底部工具条贴着键盘上沿。
  *
- * 这里刻意不监听视觉视口的 scroll、也不写 offsetTop：
- * 顶栏钉在布局顶部、光标始终在可见区内，iOS 就不会平移视觉视口；
- * 一旦跟着 scroll 每帧补偿，就又会回到「追一帧」的抖动。
+ * 只在键盘开合 / 转屏时算一次键盘高度写进 --kb-inset，
+ * 不监听滚动、不追视觉视口的每一帧，所以顶栏和工具条都不会抖。
+ * 判定方式：window.innerHeight（布局视口）比 visualViewport.height
+ * 多出来的部分就是键盘，再扣掉视觉视口已被平移的 offsetTop。
  */
 let cleanupViewport = null;
 
@@ -518,24 +497,33 @@ function bindViewport() {
   const vv = window.visualViewport;
   const el = page.value;
   if (!vv || !el) return () => {};
-  let lastHeight = -1;
+  let last = -1;
+  let timer = 0;
 
   const apply = () => {
-    const height = vv.height;
-    if (height > 0 && Math.abs(height - lastHeight) >= 0.5) {
-      lastHeight = height;
-      el.style.setProperty('--vv-height', `${height.toFixed(2)}px`);
-    }
+    const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    const next = inset > 80 ? inset : 0;
+    if (next === last) return;
+    last = next;
+    el.style.setProperty('--kb-inset', `${next}px`);
   };
 
-  vv.addEventListener('resize', apply);
-  window.addEventListener('orientationchange', apply);
+  // 键盘动画结束才稳定，收起后再量一次，避免停在中间值
+  const schedule = () => {
+    apply();
+    clearTimeout(timer);
+    timer = setTimeout(apply, 180);
+  };
+
+  vv.addEventListener('resize', schedule);
+  window.addEventListener('orientationchange', schedule);
   apply();
 
   return () => {
-    vv.removeEventListener('resize', apply);
-    window.removeEventListener('orientationchange', apply);
-    el.style.removeProperty('--vv-height');
+    clearTimeout(timer);
+    vv.removeEventListener('resize', schedule);
+    window.removeEventListener('orientationchange', schedule);
+    el.style.removeProperty('--kb-inset');
   };
 }
 
