@@ -4304,17 +4304,37 @@ button.settings-row:active {
   background: var(--surface-tint);
 }
 
-.pk-candidates {
+/* 候选栏固定一行、可横向滑：高度恒定，打字时不会让整块键盘上下跳 */
+.pk-candidates-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: 52px;
   padding: 4px 2px 8px;
   border-bottom: 1px solid var(--line);
 }
 
+.pk-candidates {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.pk-candidates::-webkit-scrollbar {
+  display: none;
+}
+
 .pk-candidate {
+  flex: 0 0 auto;
   min-height: 34px;
   padding: 4px 11px;
   border: 0;
@@ -4332,6 +4352,7 @@ button.settings-row:active {
 }
 
 .pk-syllable {
+  flex: 0 0 auto;
   padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -4349,6 +4370,7 @@ button.settings-row:active {
 }
 
 .pk-empty {
+  flex: 0 0 auto;
   font-size: 12px;
   color: var(--muted-soft);
   letter-spacing: 0.02em;
@@ -4360,9 +4382,9 @@ button.settings-row:active {
 
 .pk-pager {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
   color: var(--muted-soft);
   font-size: 11px;
   font-variant-numeric: tabular-nums;

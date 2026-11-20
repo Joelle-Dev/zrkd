@@ -297,6 +297,7 @@ export function setPinyinEnabled(next) {
   savePinyinEnabled(value);
   syncNativeInputMode();
   if (!value) hidePinyinKeyboard();
+  else warmUpPinyin();
 }
 
 export function setPinyinLayout(next) {

@@ -135,6 +135,15 @@ onMounted(() => {
   events.reload().catch((err) => console.error('加载日子失败', err));
   document.addEventListener('visibilitychange', onVisible);
   installPinyinKeyboard();
+
+  // 内置键盘默认是开的：空闲时提前把引擎拉下来/建好，
+  // 这样点输入框时不会先看到「正在准备输入法」。
+  const warm = () => warmUpPinyin();
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(warm, { timeout: 3000 });
+  } else {
+    window.setTimeout(warm, 1500);
+  }
 });
 
 onUnmounted(() => {

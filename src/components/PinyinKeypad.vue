@@ -23,31 +23,33 @@
             </div>
           </div>
 
-          <div class="pk-candidates" aria-live="polite">
-            <template v-if="state.syllables.length">
+          <div class="pk-candidates-row">
+            <div class="pk-candidates" aria-live="polite">
+              <template v-if="state.syllables.length">
+                <button
+                  v-for="py in state.syllables"
+                  :key="`sy-${py}`"
+                  class="pk-syllable"
+                  :class="{ 'is-active': state.activeSyllable === py }"
+                  type="button"
+                  @click="onSyllable(state.activeSyllable === py ? null : py)"
+                >{{ py }}</button>
+              </template>
+
               <button
-                v-for="py in state.syllables"
-                :key="`sy-${py}`"
-                class="pk-syllable"
-                :class="{ 'is-active': state.activeSyllable === py }"
+                v-for="(candidate, index) in state.candidates"
+                :key="`${candidate.w}-${index}`"
+                class="pk-candidate"
                 type="button"
-                @click="onSyllable(state.activeSyllable === py ? null : py)"
-              >{{ py }}</button>
-            </template>
+                @click="onSelect(index)"
+              >{{ candidate.w }}</button>
 
-            <button
-              v-for="(candidate, index) in state.candidates"
-              :key="`${candidate.w}-${index}`"
-              class="pk-candidate"
-              type="button"
-              @click="onSelect(index)"
-            >{{ candidate.w }}</button>
-
-            <span v-if="state.error" class="pk-empty is-error">{{ state.error }}</span>
-            <span v-else-if="state.loading" class="pk-empty">正在准备输入法…</span>
-            <span v-else-if="!state.candidates.length" class="pk-empty">
-              {{ state.layout === 't9' ? '按 2-9 打拼音' : '打拼音，或切到英文直接打字母' }}
-            </span>
+              <span v-if="state.error" class="pk-empty is-error">{{ state.error }}</span>
+              <span v-else-if="state.loading" class="pk-empty">正在准备输入法…</span>
+              <span v-else-if="!state.candidates.length" class="pk-empty">
+                {{ state.layout === 't9' ? '按 2-9 打拼音' : '打拼音，或切到英文直接打字母' }}
+              </span>
+            </div>
 
             <span v-if="state.pageCount > 1" class="pk-pager">
               <button type="button" aria-label="上一页" @click="onPage(-1)">‹</button>
@@ -161,7 +163,6 @@ import {
   SYMBOL_KEYS,
   t9Hint
 } from '../lib/pinyin/layouts';
-import { haptic } from '../utils/haptics';
 
 const { state, press, select, page, pickSyllable } = usePinyinKeyboard();
 
@@ -186,22 +187,18 @@ function displayLetter(letter) {
 }
 
 function onKey(token) {
-  haptic('light');
   press(token);
 }
 
 function onSelect(index) {
-  haptic('light');
   select(index);
 }
 
 function onPage(delta) {
-  haptic('light');
   page(delta);
 }
 
 function onSyllable(pinyin) {
-  haptic('light');
   pickSyllable(pinyin);
 }
 
