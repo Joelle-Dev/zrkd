@@ -880,15 +880,42 @@ h1, h2, h3, h4, p {
 }
 
 /* 一条细线把「今天几号」和「今天什么日子」分开 */
-.today-lunar {
+.today-lunar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 12px;
   padding-top: 11px;
   border-top: 1px solid var(--line);
+}
+
+.today-lunar {
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
+}
+
+/* 农历旁的「？」，点开有一张释义卡 */
+.lunar-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted-soft);
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.lunar-help:active {
+  background: var(--surface-tint);
+  color: var(--muted);
 }
 
 .today-sub {
@@ -1861,6 +1888,11 @@ h1, h2, h3, h4, p {
   padding: 6px 2px 16px;
 }
 
+/* 右侧工具条是浮层，给正文让出同样的宽度，文字不会钻到按钮底下 */
+.write-page:not(.is-locked) .write-body {
+  padding-right: 46px;
+}
+
 .write-title {
   width: 100%;
   min-height: 40px;
@@ -1947,26 +1979,31 @@ h1, h2, h3, h4, p {
 }
 
 
-/* 底部格式工具条：正文后面的普通内容，跟着整页一起滚。
-   整页由文档滚动，和原生一样的滚动手感；工具条不做任何吸附或固定。 */
+/* 格式工具条：贴在屏幕右侧的竖排浮动条。
+   脱离文档流、位置固定，所以不会随正文滚动，也不受键盘影响；
+   不参与任何视觉视口补偿，自然也就不会抖。
+   右边距跟着内容列算，宽屏上不会飘到屏幕最外缘。 */
 .write-toolbar {
-  flex: 0 0 auto;
+  position: fixed;
+  top: 50%;
+  right: max(6px, calc((100vw - var(--shell-max)) / 2 + 6px));
+  transform: translateY(-50%);
+  z-index: 12;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  margin: 0 calc(-1 * var(--shell-pad));
-  padding: 8px var(--shell-pad) calc(8px + var(--safe-bottom));
-  border-top: 1px solid var(--line);
+  padding: 7px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
   background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .write-tools {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
+  gap: 4px;
 }
 
 .write-tool {
@@ -1976,7 +2013,7 @@ h1, h2, h3, h4, p {
   width: 34px;
   height: 34px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   font-size: 15px;
@@ -3830,6 +3867,90 @@ button.settings-row:active {
 
 .settings-drawer .page {
   padding-bottom: calc(var(--safe-bottom) + 30px);
+}
+
+/* 农历释义卡：从底部滑出的浅色纸片 */
+.almanac-pop.van-popup {
+  max-height: 84dvh;
+  background:
+    var(--grain),
+    var(--surface);
+  background-repeat: repeat, no-repeat;
+  box-shadow: var(--shadow);
+}
+
+.almanac-sheet {
+  padding: 18px 20px calc(var(--safe-bottom) + 20px);
+}
+
+.almanac-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.almanac-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.almanac-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-tint);
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.almanac-list {
+  margin: 0;
+}
+
+.almanac-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.almanac-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.almanac-term {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.almanac-term b {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.almanac-term span {
+  font-size: 11.5px;
+  color: var(--accent-strong);
+  letter-spacing: 0.02em;
+}
+
+.almanac-text {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 
 /* ==========================================================================

@@ -32,7 +32,21 @@
       <div class="today-panel-main">
         <h1 class="today-greeting">{{ greeting }}</h1>
         <p class="today-date">{{ todayLabel }} · {{ weekdayText }}</p>
-        <span class="today-lunar">{{ lunarLine }}</span>
+        <div class="today-lunar-row">
+          <span class="today-lunar">{{ lunarLine }}</span>
+          <button
+            class="lunar-help"
+            type="button"
+            aria-label="这些字是什么意思"
+            @click="almanacOpen = true"
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9.6 9.4a2.5 2.5 0 0 1 4.9.7c0 1.6-2.5 1.7-2.5 3.3"></path>
+              <path d="M12 17h.01"></path>
+            </svg>
+          </button>
+        </div>
         <span class="today-sub">{{ jieqiText || '今天平平无奇，也挺好' }}</span>
         <div v-if="info?.festivals?.length" class="today-festivals">
           <span v-for="item in info.festivals" :key="item" class="festival-pill">{{ item }}</span>
@@ -160,6 +174,30 @@
     >
       <SettingsView v-if="settingsOpen" drawer @close="settingsOpen = false" />
     </van-popup>
+
+    <van-popup
+      v-model:show="almanacOpen"
+      position="bottom"
+      round
+      teleport="body"
+      class="almanac-pop"
+    >
+      <div class="almanac-sheet">
+        <header class="almanac-head">
+          <h2 class="almanac-title">这些字是什么意思</h2>
+          <button class="almanac-close" type="button" aria-label="关闭" @click="almanacOpen = false">×</button>
+        </header>
+        <dl class="almanac-list">
+          <div v-for="item in almanacNotes" :key="item.term" class="almanac-item">
+            <dt class="almanac-term">
+              <b>{{ item.term }}</b>
+              <span v-if="item.value">{{ item.value }}</span>
+            </dt>
+            <dd class="almanac-text">{{ item.text }}</dd>
+          </div>
+        </dl>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -199,6 +237,7 @@ const { diaries } = useDiaries();
 const SettingsView = defineAsyncComponent(() => import('./SettingsView.vue'));
 
 const settingsOpen = ref(false);
+const almanacOpen = ref(false);
 const showAll = ref(false);
 const info = computed(() => dayInfo(todayKey.value));
 
@@ -223,6 +262,42 @@ const lunarLine = computed(() => {
 });
 
 const jieqiText = computed(() => jieqiLine(info.value));
+
+// 「？」里把今天这行历法词逐个讲清楚，带上今天的具体值
+const almanacNotes = computed(() => {
+  const current = info.value;
+  if (!current) return [];
+  const ganZhi = current.ganZhiYear ? current.ganZhiYear.replace(/年$/, '') : '';
+  const jieqiValue = current.jieqi
+    || (current.nextJieqi?.inDays > 0 ? `下一个 ${current.nextJieqi.name}` : '');
+  return [
+    {
+      term: '农历',
+      value: current.lunarText ? `农历${current.lunarText}` : '',
+      text: '按月亮的圆缺排月份，和公历是两套历法，两者日期对不上。'
+    },
+    {
+      term: '干支',
+      value: ganZhi,
+      text: '十个天干配十二个地支，六十年一个循环，用来给农历年份起名。'
+    },
+    {
+      term: '生肖',
+      value: current.zodiac ? `${current.zodiac}年` : '',
+      text: '十二地支各对应一种动物，例如「午」对应马，所以丙午年也叫马年。'
+    },
+    {
+      term: '节气',
+      value: jieqiValue,
+      text: '把太阳一年走过的路分成二十四段，用来标记季节和农时。'
+    },
+    {
+      term: '节日',
+      value: current.festivals?.length ? current.festivals.join('、') : '',
+      text: '传统节日按农历算，阳历节日按公历算，这里合并显示。'
+    }
+  ];
+});
 
 const builtins = computed(() => builtInCountdowns(todayKey.value));
 
