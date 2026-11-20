@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <!-- interactive-widget：Chrome/Android 弹键盘时让布局视口跟着缩，
+       fixed / sticky / 100dvh 直接就是对的；Safari 不支持，靠 visualViewport 兜底。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>指日可待</title>
+  <meta name="description" content="一天一天，等到那天。本地优先的倒数日。">
+  <link rel="canonical" href="https://joelle-dev.github.io/zrkd/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="指日可待">
+  <meta property="og:title" content="指日可待">
+  <meta property="og:description" content="一天一天，等到那天。本地优先的倒数日。">
+  <meta property="og:url" content="https://joelle-dev.github.io/zrkd/">
+  <meta name="theme-color" content="#f4efe4">
+  <meta name="color-scheme" content="light">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="指日可待">
+  <script>
+    (function () {
+      // 刷新后别让浏览器把页面滚回上次的位置：会和启动页收起的动作叠在一起，
+      // 看起来像整页晃了一下。我们自己的路由本来就会把页面放回顶部。
+      try {
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      } catch (err) { /* 隐私模式等场景忽略 */ }
+      window.addEventListener('load', function () {
+        window.scrollTo(0, 0);
+      }, { once: true });
+
+      try {
+        var mode = localStorage.getItem('zrkd:theme') || 'system';
+        var dark = mode === 'dark' ||
+          (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#14110e' : '#f4efe4');
+        var stored = JSON.parse(localStorage.getItem('zrkd:accent-vars') || 'null');
+        var vars = stored && (dark ? stored.dark : stored.light);
+        if (vars) {
+          for (var name in vars) document.documentElement.style.setProperty(name, vars[name]);
+        }
+      } catch (err) { /* 隐私模式下 localStorage 不可用，保持默认浅色 */ }
+    })();
+  </script>
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+
+  <!-- 主屏幕启动图：iOS 打开时先铺这张，避免纯白闪一下 -->
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1320-2868.png"
+        media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1206-2622.png"
+        media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1290-2796.png"
+        media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1179-2556.png"
+        media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1284-2778.png"
+        media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1170-2532.png"
+        media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1125-2436.png"
+        media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1242-2688.png"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-828-1792.png"
+        media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-750-1334.png"
+        media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-640-1136.png"
+        media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-1668-2388.png"
+        media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="./splash/apple-splash-2048-2732.png"
+        media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <style>
+    /* 启动页：Vue 挂载前先亮出「日」，避免白屏 */
+    #boot-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 13px;
+      background: #f4efe4;
+      color: #241f19;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      transition: opacity 0.32s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #boot-splash.is-hiding {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #boot-splash .boot-mark {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 66px;
+      height: 66px;
+      border-radius: 18px;
+      background: linear-gradient(160deg, #fffdf7 0%, #f7f1e3 100%);
+      color: var(--accent-strong, #97382f);
+      font-family: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+      font-size: 34px;
+      font-weight: 600;
+      line-height: 1;
+      box-shadow:
+        inset 0 0 0 2px color-mix(in srgb, var(--accent, #c2564a) 82%, transparent),
+        0 5px 18px rgba(74, 55, 30, 0.14);
+    }
+    #boot-splash .boot-name {
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: 0.12em;
+      color: #423a2f;
+    }
+    #boot-splash .boot-sub {
+      font-size: 11.5px;
+      letter-spacing: 0.08em;
+      color: #776c5b;
+    }
+    [data-theme='dark'] #boot-splash {
+      background: #14110e;
+      color: #f0e8db;
+    }
+    [data-theme='dark'] #boot-splash .boot-mark {
+      background: linear-gradient(160deg, #241f1a 0%, #1e1a16 100%);
+      box-shadow:
+        inset 0 0 0 2px color-mix(in srgb, var(--accent, #cf6d5f) 70%, transparent),
+        0 5px 18px rgba(0, 0, 0, 0.42);
+    }
+    [data-theme='dark'] #boot-splash .boot-name {
+      color: #d8ccba;
+    }
+    [data-theme='dark'] #boot-splash .boot-sub {
+      color: #a29787;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #boot-splash { transition: none; }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index--CX2JTHI.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Bm4J8A1m.css">
+<link rel="manifest" href="./manifest.webmanifest"></head>
+<body>
+  <div id="boot-splash" aria-hidden="true">
+    <div class="boot-mark">日</div>
+    <div class="boot-name">指日可待</div>
+    <div class="boot-sub">一天一天，等到那天</div>
+  </div>
+  <div id="app"></div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 node_modules/
 dist/
-docs/
+# docs/ 允许提交（GitHub Pages 分支部署的发布产物）
 .DS_Store
 *.log
 .env
