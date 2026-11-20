@@ -312,11 +312,11 @@ h1, h2, h3, h4, p {
   padding-bottom: 10px;
 }
 
-/* 写作页顶栏是整页 flex 的第一个子项，天然固定在容器顶部，
-   不参与正文滚动，也不需要任何视觉视口补偿。 */
+/* 写作页顶栏就是页面最上面的一段普通内容，跟着整页一起滚。
+   不吸顶、不固定、不做任何视觉视口补偿，所以不会有位置抖动。 */
 .write-page > .write-topbar {
   position: relative;
-  z-index: 12;
+  z-index: 3;
   flex: 0 0 auto;
   /* 负 margin 把顶栏撑满整页宽，免得正文从两侧的留白缝里穿过去 */
   margin: 0 calc(-1 * var(--shell-pad));
@@ -1777,27 +1777,14 @@ h1, h2, h3, h4, p {
    所以滚动过程中没有任何「追着视口补偿」的动作，也就不会抖。
    --vv-height 只在键盘开合、转屏时更新一次。 */
 .write-page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
   display: flex;
   flex-direction: column;
-  height: var(--vv-height, 100dvh);
+  min-height: 100dvh;
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
   padding: 0 var(--shell-pad);
   background: var(--surface);
-  overflow: hidden;
-}
-
-/* 写作页期间锁住文档本身的滚动：
-   文档不滚，iOS 就不会去平移视觉视口，fixed 布局才能像原生一样稳。 */
-html.is-write-locked,
-html.is-write-locked body {
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
 .write-head {
@@ -1871,12 +1858,7 @@ html.is-write-locked body {
   flex-direction: column;
   gap: 6px;
   flex: 1 1 auto;
-  min-height: 0;
-  padding: 6px 2px 20px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* 不写 -webkit-overflow-scrolling: touch：现代 iOS 默认就是惯性滚动，
-     而这个属性正是以前「吞点击 / 吞长按选择」的元凶。 */
+  padding: 6px 2px 16px;
 }
 
 .write-title {
@@ -1965,12 +1947,9 @@ html.is-write-locked body {
 }
 
 
-/* 底部格式工具条：整页 flex 的最后一个子项，天然贴在容器底部。
-   容器高度 = 可见区域高度，键盘弹起时容器变矮，工具条就自动落在键盘上沿，
-   不需要 fixed，也不需要读键盘高度。 */
+/* 底部格式工具条：正文后面的普通内容，跟着整页一起滚。
+   整页由文档滚动，和原生一样的滚动手感；工具条不做任何吸附或固定。 */
 .write-toolbar {
-  position: relative;
-  z-index: 12;
   flex: 0 0 auto;
   display: flex;
   align-items: center;

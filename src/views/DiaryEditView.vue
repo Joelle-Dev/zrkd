@@ -483,51 +483,6 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
-/**
- * 整页高度跟着「可见区域」走。
- *
- * 整页是一个锁定成可见高度的 flex 容器：顶栏在最上、工具条在最下、
- * 中间正文区自己滚。键盘弹起时视觉视口变矮，这里把 vv.height 同步给
- * 容器，工具条就自动落在键盘上沿——不需要 fixed，也不需要读键盘高度。
- *
- * 只监听 resize（键盘开合、转屏、捏合缩放），不监听 scroll：
- * 内滚动不会平移视觉视口，所以滚动过程中这里不会触发，也就没有抖动。
- */
-let cleanupViewport = null;
-
-function bindViewport() {
-  const vv = window.visualViewport;
-  const el = page.value;
-  if (!vv || !el) return () => {};
-  let lastHeight = -1;
-  let timer = 0;
-
-  const apply = () => {
-    const height = vv.height;
-    if (!(height > 0) || Math.abs(height - lastHeight) < 0.5) return;
-    lastHeight = height;
-    el.style.setProperty('--vv-height', `${height.toFixed(2)}px`);
-  };
-
-  // 键盘收放动画结束时再量一次，避免停在动画中间的高度
-  const schedule = () => {
-    apply();
-    clearTimeout(timer);
-    timer = setTimeout(apply, 180);
-  };
-
-  vv.addEventListener('resize', schedule);
-  window.addEventListener('orientationchange', schedule);
-  apply();
-
-  return () => {
-    clearTimeout(timer);
-    vv.removeEventListener('resize', schedule);
-    window.removeEventListener('orientationchange', schedule);
-    el.style.removeProperty('--vv-height');
-  };
-}
-
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
   if (locked.value) return;
@@ -538,13 +493,10 @@ function onPageHide() {
 
 onMounted(async () => {
   form.date = dateKeyOf();
-  // 写作页自己就是滚动容器，锁住文档滚动，视觉视口就不会被平移
-  document.documentElement.classList.add('is-write-locked');
   window.addEventListener('pagehide', onPageHide);
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
-  cleanupViewport = bindViewport();
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
@@ -563,9 +515,6 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
-  cleanupViewport?.();
-  cleanupViewport = null;
-  document.documentElement.classList.remove('is-write-locked');
   showAccessoryBar();
 });
 </script>
