@@ -1,17 +1,22 @@
 // 「日子」分享卡片：把某一天的倒数画成一张竖版海报，方便存进相册。
 //
 // 布局是纯函数（可单测）；绘制只在浏览器里跑，依赖 canvas。
-// 视觉跟详情页的卡片一致：宣纸底、朱砂印框、白纸小印 + 朱砂「日」，
-// 「还有」用冷蓝、「已经」用暖黄，一眼分清方向。
+// 视觉跟详情页的 .detail-card 票根一致：宣纸底、顶部印章 + 品牌、右侧日期存根、
+// 虚线撕口、左对齐的标题与备注、居中的天数，底部一行日期和农历。
 
 const INK = '#241f19';
 const MUTED = '#6b6050';
-const SOFT = '#8a7f6d';
-const PAPER_TOP = '#fbf6ec';
-const PAPER_BOTTOM = '#efe6d4';
-const SEAL_PAPER = '#fdf9f0';
+const MUTED_SOFT = '#776c5b';
+const PAGE_TOP = '#f4efe4';
+const PAGE_BOTTOM = '#eae2d2';
+const SURFACE = '#fffdf7';
+const SURFACE_SOFT = '#faf6ec';
+const SEAL_PAPER = '#fffdf7';
+const LINE = 'rgba(120, 100, 72, 0.13)';
 const COUNTDOWN = '#3a6da8';
+const COUNTDOWN_INK = '#2f5786';
 const ELAPSED = '#b0791f';
+const ELAPSED_INK = '#8a5d12';
 const DEFAULT_ACCENT = '#c2564a';
 
 const SERIF = '"Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", "Times New Roman", serif';
@@ -19,45 +24,77 @@ const SANS = '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans G
 
 export const SHARE_CARD = Object.freeze({ width: 1080, height: 1350 });
 
-/** 卡片里各元素的位置与字号，全部按画布尺寸推导 */
+/** 卡片里各元素的位置与字号，全部按画布尺寸推导（基准是 375pt 的手机卡面） */
 export function computeCardLayout(width = SHARE_CARD.width, height = SHARE_CARD.height) {
-  const frame = Math.round(Math.min(width, height) * 0.055);
-  const centerX = width / 2;
-  const sealSize = Math.round(width * 0.1);
-  const sealY = Math.round(height * 0.135);
-  const brandY = sealY + sealSize / 2 + Math.round(height * 0.03);
-  const titleSize = Math.round(width * 0.078);
-  const titleY = Math.round(height * 0.315);
-  const noteSize = Math.round(width * 0.032);
-  const noteY = titleY + Math.round(titleSize * 1.9);
-  const numberSize = Math.round(width * 0.2);
-  const figureY = Math.round(height * 0.56);
-  const unitSize = Math.round(numberSize * 0.26);
-  const metaSize = Math.round(width * 0.031);
-  const metaY = Math.round(height * 0.735);
-  const footerSize = Math.round(width * 0.024);
-  const footerY = height - frame - Math.round(height * 0.05);
+  const u = width / 375;
+  const margin = Math.round(Math.min(width, height) * 0.042);
+  const card = {
+    x: margin,
+    y: margin,
+    width: width - margin * 2,
+    height: height - margin * 2,
+    radius: 18 * u,
+    padX: 18 * u,
+    padTop: 15 * u,
+    padBottom: 17 * u
+  };
+
+  const centerX = card.x + card.width / 2;
+  const maxTextWidth = card.width - card.padX * 2;
+
+  const sealSize = Math.round(32 * u);
+  const headerTop = card.y + card.padTop;
+  const headerCenterY = headerTop + sealSize / 2;
+
+  const tearY = headerTop + sealSize + 12 * u;
+  const titleTop = tearY + 11 * u;
+  const titleSize = Math.round(21 * u);
+  const titleLineHeight = titleSize * 1.35;
+  const titleY = titleTop + titleLineHeight * 0.42;
+
+  const noteTop = titleTop + titleLineHeight * 2 + 5 * u;
+  const noteSize = Math.round(12 * u);
+  const noteLineHeight = noteSize * 1.6;
+  const noteY = noteTop + noteLineHeight * 0.42;
+
+  const numberSize = Math.round(58 * u);
+  const unitSize = Math.round(13 * u);
+  const figureY = Math.round(height * 0.57);
+
+  const metaSize = Math.round(11 * u);
+  const lunarSize = Math.round(10 * u);
+  const metaGap = Math.round(3 * u);
+  const metaY = card.y + card.height - card.padBottom - metaSize / 2;
 
   return {
     width,
     height,
-    frame,
+    u,
+    margin,
+    card,
     centerX,
     sealSize,
-    sealY,
-    brandY,
+    headerTop,
+    headerCenterY,
+    sealY: headerCenterY,
+    brandY: headerCenterY,
+    tearY,
     titleSize,
+    titleLineHeight,
+    titleTop,
     titleY,
     noteSize,
+    noteLineHeight,
+    noteTop,
     noteY,
     numberSize,
-    figureY,
     unitSize,
+    figureY,
     metaSize,
+    lunarSize,
+    metaGap,
     metaY,
-    footerSize,
-    footerY,
-    maxTextWidth: width - frame * 3
+    maxTextWidth
   };
 }
 
@@ -80,6 +117,13 @@ function kindColor(kind, accent) {
   return accent || DEFAULT_ACCENT;
 }
 
+// 「还有 / 已经 / 天」这些陪衬字用同方向的深色，跟详情页的 --*-ink 对齐。
+function kindInk(kind, accent) {
+  if (kind === 'past') return ELAPSED_INK;
+  if (kind === 'countdown') return COUNTDOWN_INK;
+  return MUTED;
+}
+
 function setFont(ctx, size, weight, family) {
   ctx.font = `${weight} ${Math.round(size)}px ${family}`;
 }
@@ -100,120 +144,224 @@ function wrapLines(ctx, text, maxWidth, maxLines = 2) {
   if (!chars.length) return [];
   const lines = [];
   let line = '';
+  let truncated = false;
+
   for (const char of chars) {
+    if (char === '\n') {
+      lines.push(line);
+      line = '';
+      if (lines.length >= maxLines) {
+        truncated = true;
+        break;
+      }
+      continue;
+    }
     const next = line + char;
     if (line && ctx.measureText(next).width > maxWidth) {
       lines.push(line);
       line = char;
-      if (lines.length === maxLines - 1) break;
+      if (lines.length >= maxLines) {
+        truncated = true;
+        break;
+      }
     } else {
       line = next;
     }
   }
-  if (line) lines.push(line);
 
-  const consumed = lines.join('').length;
-  if (consumed < chars.length && lines.length) {
+  if (!truncated && line) lines.push(line);
+
+  if (truncated && lines.length) {
     let last = lines[lines.length - 1];
     while (last.length > 1 && ctx.measureText(`${last}…`).width > maxWidth) {
-      last = last.slice(0, -1);
+      last = Array.from(last).slice(0, -1).join('');
     }
     lines[lines.length - 1] = `${last}…`;
   }
   return lines;
 }
 
-function drawSpaced(ctx, text, x, y, spacing) {
+function drawTracked(ctx, text, x, y, spacing, align = 'left') {
   const chars = Array.from(String(text));
+  if (!chars.length) return;
   const widths = chars.map((char) => ctx.measureText(char).width);
   const total = widths.reduce((sum, value) => sum + value, 0) + spacing * Math.max(0, chars.length - 1);
-  let cursor = x - total / 2;
+  let cursor = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
   const previous = ctx.textAlign;
   ctx.textAlign = 'left';
   chars.forEach((char, index) => {
-    ctx.fillText(char, cursor, y);
+    if (char !== ' ') ctx.fillText(char, cursor, y);
     cursor += widths[index] + spacing;
   });
   ctx.textAlign = previous;
 }
 
 function drawBackground(ctx, layout, accent) {
-  const { width, height, frame } = layout;
+  const { width, height } = layout;
 
-  const base = ctx.createLinearGradient(0, 0, 0, height);
-  base.addColorStop(0, PAPER_TOP);
-  base.addColorStop(1, PAPER_BOTTOM);
-  ctx.fillStyle = base;
+  const page = ctx.createLinearGradient(0, 0, 0, height);
+  page.addColorStop(0, PAGE_TOP);
+  page.addColorStop(1, PAGE_BOTTOM);
+  ctx.fillStyle = page;
   ctx.fillRect(0, 0, width, height);
 
-  const glow = ctx.createRadialGradient(width / 2, height * 0.08, 0, width / 2, height * 0.08, width * 0.72);
-  glow.addColorStop(0, alpha(accent, 0.12));
+  const { card } = layout;
+  ctx.save();
+  ctx.shadowColor = 'rgba(74, 55, 30, 0.10)';
+  ctx.shadowBlur = 18 * layout.u;
+  ctx.shadowOffsetY = 4 * layout.u;
+  roundRect(ctx, card.x, card.y, card.width, card.height, card.radius);
+  ctx.fillStyle = SURFACE;
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  roundRect(ctx, card.x, card.y, card.width, card.height, card.radius);
+  ctx.clip();
+
+  const base = ctx.createLinearGradient(0, card.y, 0, card.y + card.height);
+  base.addColorStop(0, SURFACE);
+  base.addColorStop(1, SURFACE_SOFT);
+  ctx.fillStyle = base;
+  ctx.fillRect(card.x, card.y, card.width, card.height);
+
+  const glow = ctx.createRadialGradient(
+    card.x + card.width, card.y, 0,
+    card.x + card.width, card.y, card.width * 0.75
+  );
+  glow.addColorStop(0, alpha(accent, 0.09));
   glow.addColorStop(1, alpha(accent, 0));
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(card.x, card.y, card.width, card.height);
+  ctx.restore();
 
-  roundRect(ctx, frame, frame, width - frame * 2, height - frame * 2, 34);
-  ctx.strokeStyle = alpha(accent, 0.34);
-  ctx.lineWidth = 2;
+  roundRect(ctx, card.x, card.y, card.width, card.height, card.radius);
+  ctx.strokeStyle = LINE;
+  ctx.lineWidth = Math.max(1, layout.u * 0.6);
   ctx.stroke();
 }
 
-function drawSeal(ctx, layout, accent) {
-  const { centerX, sealY, sealSize } = layout;
-  const x = centerX - sealSize / 2;
-  const y = sealY - sealSize / 2;
+function drawHeader(ctx, layout, { accent, monthDay, weekday }) {
+  const { card, sealSize, headerCenterY } = layout;
+  const x = card.x + card.padX;
+  const sealY = headerCenterY - sealSize / 2;
 
-  roundRect(ctx, x, y, sealSize, sealSize, sealSize * 0.24);
+  roundRect(ctx, x, sealY, sealSize, sealSize, sealSize * 0.28);
   ctx.fillStyle = SEAL_PAPER;
   ctx.fill();
-  ctx.strokeStyle = alpha(accent, 0.85);
-  ctx.lineWidth = Math.max(2, sealSize * 0.035);
+  ctx.strokeStyle = alpha(accent, 0.8);
+  ctx.lineWidth = Math.max(1.5, sealSize * 0.047);
   ctx.stroke();
 
   ctx.fillStyle = accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  setFont(ctx, sealSize * 0.56, 600, SERIF);
-  ctx.fillText('日', centerX, sealY + sealSize * 0.02);
+  setFont(ctx, sealSize * 0.53, 600, SERIF);
+  ctx.fillText('日', x + sealSize / 2, headerCenterY + sealSize * 0.02);
+
+  ctx.fillStyle = MUTED_SOFT;
+  ctx.textBaseline = 'middle';
+  setFont(ctx, 9.5 * layout.u, 650, SANS);
+  drawTracked(
+    ctx,
+    '指日可待',
+    x + sealSize + 8 * layout.u,
+    headerCenterY,
+    9.5 * layout.u * 0.24,
+    'left'
+  );
+
+  if (monthDay) {
+    const padY = 4 * layout.u;
+    const padX = 9 * layout.u;
+    const stubDateSize = 14 * layout.u;
+    const stubWeekSize = 8.5 * layout.u;
+
+    ctx.textAlign = 'center';
+    setFont(ctx, stubDateSize, 600, SERIF);
+    const dateWidth = ctx.measureText(monthDay).width;
+    setFont(ctx, stubWeekSize, 500, SANS);
+    const weekWidth = weekday ? ctx.measureText(weekday).width : 0;
+
+    const stubWidth = Math.max(dateWidth, weekWidth) + padX * 2;
+    const stubHeight = stubDateSize * 1.1 + stubWeekSize * 1.1 + padY * 2 + layout.u;
+    const stubX = card.x + card.width - card.padX - stubWidth;
+    const stubY = headerCenterY - stubHeight / 2;
+
+    roundRect(ctx, stubX, stubY, stubWidth, stubHeight, 10 * layout.u);
+    ctx.fillStyle = alpha(accent, 0.12);
+    ctx.fill();
+
+    const dateY = stubY + padY + stubDateSize * 0.55;
+    const weekY = dateY + stubDateSize * 1.1 / 2 + layout.u + stubWeekSize * 0.55;
+
+    ctx.fillStyle = accent;
+    setFont(ctx, stubDateSize, 600, SERIF);
+    ctx.fillText(monthDay, stubX + stubWidth / 2, dateY);
+
+    if (weekday) {
+      ctx.save();
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = accent;
+      setFont(ctx, stubWeekSize, 500, SANS);
+      ctx.fillText(weekday, stubX + stubWidth / 2, weekY);
+      ctx.restore();
+    }
+  }
 }
 
-function drawBrand(ctx, layout) {
-  ctx.fillStyle = MUTED;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  setFont(ctx, layout.width * 0.03, 650, SANS);
-  drawSpaced(ctx, '指日可待', layout.centerX, layout.brandY, layout.width * 0.012);
+function drawTear(ctx, layout, accent) {
+  const { card, tearY } = layout;
+  ctx.save();
+  ctx.beginPath();
+  ctx.setLineDash([6 * layout.u, 5 * layout.u]);
+  ctx.moveTo(card.x + card.padX, tearY);
+  ctx.lineTo(card.x + card.width - card.padX, tearY);
+  ctx.strokeStyle = alpha(accent, 0.24);
+  ctx.lineWidth = 1.5 * layout.u;
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawTitle(ctx, layout, title) {
   if (!title) return;
   setFont(ctx, layout.titleSize, 600, SERIF);
   const lines = wrapLines(ctx, title, layout.maxTextWidth, 2);
-  const lineHeight = layout.titleSize * 1.26;
-  const startY = layout.titleY - ((lines.length - 1) * lineHeight) / 2;
+  const startY = layout.titleY;
   ctx.fillStyle = INK;
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   lines.forEach((line, index) => {
-    drawSpaced(ctx, line, layout.centerX, startY + index * lineHeight, layout.titleSize * 0.05);
+    drawTracked(
+      ctx,
+      line,
+      layout.card.x + layout.card.padX,
+      startY + index * layout.titleLineHeight,
+      layout.titleSize * 0.02,
+      'left'
+    );
   });
 }
 
 function drawNote(ctx, layout, note) {
   if (!note) return;
   setFont(ctx, layout.noteSize, 400, SANS);
-  const lines = wrapLines(ctx, note, layout.maxTextWidth * 0.92, 2);
-  const lineHeight = layout.noteSize * 1.7;
+  const lines = wrapLines(ctx, note, layout.maxTextWidth, 2);
   ctx.fillStyle = MUTED;
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   lines.forEach((line, index) => {
-    ctx.fillText(line, layout.centerX, layout.noteY + index * lineHeight);
+    ctx.fillText(
+      line,
+      layout.card.x + layout.card.padX,
+      layout.noteY + index * layout.noteLineHeight
+    );
   });
 }
 
 function drawFigure(ctx, layout, { label, number, unit, kind, accent }) {
   const color = kindColor(kind, accent);
+  const ink = kindInk(kind, accent);
   const numberText = String(number || '');
   if (!numberText) return;
 
@@ -234,7 +382,7 @@ function drawFigure(ctx, layout, { label, number, unit, kind, accent }) {
   ctx.textBaseline = 'middle';
 
   if (label) {
-    ctx.fillStyle = alpha(color, 0.82);
+    ctx.fillStyle = ink;
     ctx.textAlign = 'center';
     setFont(ctx, sideSize, 500, SANS);
     ctx.fillText(label, startX + labelWidth / 2, layout.figureY + numberSize * 0.2);
@@ -247,7 +395,7 @@ function drawFigure(ctx, layout, { label, number, unit, kind, accent }) {
   ctx.fillText(numberText, numberCenterX, layout.figureY);
 
   if (unit) {
-    ctx.fillStyle = alpha(color, 0.82);
+    ctx.fillStyle = ink;
     ctx.textAlign = 'center';
     setFont(ctx, sideSize, 500, SANS);
     ctx.fillText(unit, numberCenterX + numberWidth / 2 + gap + unitWidth / 2, layout.figureY + numberSize * 0.2);
@@ -255,36 +403,30 @@ function drawFigure(ctx, layout, { label, number, unit, kind, accent }) {
 }
 
 function drawMeta(ctx, layout, { dateText, weekday, lunarText }) {
+  const { metaY, metaSize, lunarSize, metaGap } = layout;
+  const dateLine = [dateText, weekday].filter(Boolean).join(' · ');
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const dateLine = [dateText, weekday].filter(Boolean).join(' · ');
+  const dateY = lunarText ? metaY - lunarSize - metaGap : metaY;
+
   if (dateLine) {
     ctx.fillStyle = MUTED;
-    setFont(ctx, layout.metaSize, 500, SANS);
-    drawSpaced(ctx, dateLine, layout.centerX, layout.metaY, layout.metaSize * 0.12);
+    setFont(ctx, metaSize, 500, SANS);
+    drawSpaced(ctx, dateLine, layout.centerX, dateY, metaSize * 0.05);
   }
 
   if (lunarText) {
-    ctx.fillStyle = SOFT;
-    setFont(ctx, layout.metaSize * 0.88, 400, SANS);
-    ctx.fillText(lunarText, layout.centerX, layout.metaY + layout.metaSize * 1.9);
+    ctx.fillStyle = MUTED_SOFT;
+    setFont(ctx, lunarSize, 400, SANS);
+    ctx.fillText(lunarText, layout.centerX, metaY);
   }
 }
 
-function drawFooter(ctx, layout) {
-  ctx.strokeStyle = 'rgba(120, 100, 72, 0.16)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(layout.centerX - layout.width * 0.18, layout.footerY - layout.footerSize * 2.2);
-  ctx.lineTo(layout.centerX + layout.width * 0.18, layout.footerY - layout.footerSize * 2.2);
-  ctx.stroke();
-
-  ctx.fillStyle = SOFT;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  setFont(ctx, layout.footerSize, 500, SANS);
-  drawSpaced(ctx, '一天一天，等到那天', layout.centerX, layout.footerY, layout.footerSize * 0.22);
+// 保留旧名字，内部仍按居中排布处理日期与农历。
+function drawSpaced(ctx, text, x, y, spacing) {
+  drawTracked(ctx, text, x, y, spacing, 'center');
 }
 
 function safeName(title) {
@@ -313,6 +455,7 @@ export async function renderShareCard({
   kind = 'countdown',
   dateText = '',
   weekday = '',
+  monthDay = '',
   lunarText = '',
   accent = DEFAULT_ACCENT,
   width = SHARE_CARD.width,
@@ -327,13 +470,12 @@ export async function renderShareCard({
   const layout = computeCardLayout(width, height);
 
   drawBackground(ctx, layout, accent);
-  drawSeal(ctx, layout, accent);
-  drawBrand(ctx, layout);
+  drawHeader(ctx, layout, { accent, monthDay, weekday });
+  drawTear(ctx, layout, accent);
   drawTitle(ctx, layout, title);
   drawNote(ctx, layout, note);
   drawFigure(ctx, layout, { label, number, unit, kind, accent });
   drawMeta(ctx, layout, { dateText, weekday, lunarText });
-  drawFooter(ctx, layout);
 
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob((result) => {

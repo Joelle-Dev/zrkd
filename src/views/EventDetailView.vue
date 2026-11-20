@@ -149,6 +149,16 @@ const dateChip = computed(() => {
   };
 });
 
+// 分享卡用跟详情卡完全相同的颜色：这一天的专属色（已按主题夹过明度），
+// 没设专属色时回落到当前主题色。
+const cardAccent = computed(() => {
+  const styled = record.value ? accentStyleOf(record.value.accent) : null;
+  if (styled) return styled['--accent'];
+  if (typeof window === 'undefined') return undefined;
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  return value || undefined;
+});
+
 const dateLine = computed(() => (record.value
   ? `${formatDateCN(record.value.targetDate)} · ${weekdayCN(record.value.targetDate)}`
   : ''));
@@ -188,8 +198,9 @@ async function generate() {
       kind: desc.value.kind,
       dateText: formatDateCN(record.value.targetDate),
       weekday: weekdayCN(record.value.targetDate),
+      monthDay: dateChip.value.md,
       lunarText: lunarLine.value,
-      accent: record.value.accent
+      accent: cardAccent.value
     });
     if (token !== renderToken) return;
     renderedBlob.value = blob;

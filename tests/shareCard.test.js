@@ -13,14 +13,14 @@ test('画布默认是 4:5 竖版', () => {
   assert.ok(SHARE_CARD.height > SHARE_CARD.width);
 });
 
-test('computeCardLayout 元素自上而下排布且不重叠', () => {
+test('computeCardLayout 票根元素自上而下排布且不重叠', () => {
   const layout = computeCardLayout();
-  assert.ok(layout.sealY < layout.brandY);
-  assert.ok(layout.brandY < layout.titleY);
+  assert.ok(layout.card.y < layout.sealY);
+  assert.ok(layout.sealY < layout.tearY);
+  assert.ok(layout.tearY < layout.titleY);
   assert.ok(layout.titleY < layout.figureY);
   assert.ok(layout.figureY < layout.metaY);
-  assert.ok(layout.metaY < layout.footerY);
-  assert.ok(layout.footerY < layout.height);
+  assert.ok(layout.metaY < layout.card.y + layout.card.height);
   assert.ok(layout.maxTextWidth > 0 && layout.maxTextWidth < layout.width);
 });
 
