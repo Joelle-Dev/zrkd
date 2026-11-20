@@ -5,7 +5,11 @@ import {
   escapeHtml,
   htmlToText,
   sanitizeHtml,
-  textToHtml
+  textToHtml,
+  formatStateFromTags,
+  nextFormatAction,
+  unformatHtmlFragment,
+  isFormatTag
 } from '../src/lib/richtext.js';
 import { normalizeDiaryInput, validateDiary } from '../src/lib/diary.js';
 
@@ -111,4 +115,34 @@ test('validateDiary 允许只有标题', () => {
 test('validateDiary 全空时报错', () => {
   assert.equal(validateDiary({ date: '2026-11-19' }).ok, false);
   assert.equal(validateDiary({ date: '2026-11-19', title: '  ', html: '<b></b>' }).ok, false);
+});
+
+test('formatStateFromTags 从祖先标签读出格式状态', () => {
+  assert.deepEqual(formatStateFromTags(['B']), { bold: true, italic: false, underline: false });
+  assert.deepEqual(formatStateFromTags(['b', 'i']), { bold: true, italic: true, underline: false });
+  assert.deepEqual(formatStateFromTags([]), { bold: false, italic: false, underline: false });
+  assert.deepEqual(formatStateFromTags(['DIV', 'SPAN']), { bold: false, italic: false, underline: false });
+});
+
+test('nextFormatAction 已带格式就拆，没带就包', () => {
+  assert.equal(nextFormatAction({ bold: true }, 'bold'), 'unwrap');
+  assert.equal(nextFormatAction({ bold: false }, 'bold'), 'wrap');
+  assert.equal(nextFormatAction({ underline: false }, 'underline'), 'wrap');
+  assert.equal(nextFormatAction({}, 'nope'), 'none');
+});
+
+test('unformatHtmlFragment 拆掉指定格式，保留其它格式', () => {
+  assert.equal(unformatHtmlFragment('<b>粗</b>', 'bold'), '粗');
+  assert.equal(unformatHtmlFragment('<b>a<i>b</i></b>', 'bold'), 'a<i>b</i>');
+  assert.equal(unformatHtmlFragment('<u>a<b>b</b></u>', 'bold'), '<u>ab</u>');
+  assert.equal(unformatHtmlFragment('没有标签', 'bold'), '没有标签');
+  assert.equal(unformatHtmlFragment('<b><b>套两层</b></b>', 'bold'), '套两层');
+});
+
+test('isFormatTag 只认 b/i/u', () => {
+  assert.equal(isFormatTag('B'), true);
+  assert.equal(isFormatTag('u'), true);
+  assert.equal(isFormatTag('I'), true);
+  assert.equal(isFormatTag('div'), false);
+  assert.equal(isFormatTag(''), false);
 });

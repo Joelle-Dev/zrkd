@@ -224,6 +224,46 @@ h1, h2, h3, h4, p {
   padding: 0 var(--shell-pad) 30px;
 }
 
+/* 首页：整页固定在视口里，只有「你在数的日子」列表自己滚 */
+.home-page {
+  height: calc(100dvh - var(--tabbar-height) - 26px);
+  gap: 12px;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.page.home-page > .home-nav {
+  flex: 0 0 auto;
+  margin-bottom: -12px;
+}
+
+.home-page > .today-panel,
+.home-page > .builtin-grid {
+  flex: 0 0 auto;
+}
+
+/* 列表区：标题固定，只有卡片本身在剩余高度里滚动 */
+.home-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.home-list .section-head {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+.home-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
 /* ==========================================================================
    03. 页头与底部导航
    ========================================================================== */
@@ -835,7 +875,7 @@ h1, h2, h3, h4, p {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px 17px 17px;
+  padding: 13px 16px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background:
@@ -863,7 +903,7 @@ h1, h2, h3, h4, p {
 /* 问候语接过原来大标题的位置，标题层只留一处 */
 .today-greeting {
   font-family: var(--font-display);
-  font-size: 25px;
+  font-size: 23px;
   font-weight: 600;
   letter-spacing: 0.015em;
   line-height: 1.2;
@@ -884,8 +924,8 @@ h1, h2, h3, h4, p {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 12px;
-  padding-top: 11px;
+  margin-top: 9px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 
@@ -1814,6 +1854,34 @@ h1, h2, h3, h4, p {
   background: var(--surface);
 }
 
+/* 键盘弹起时：整页锁成可视区域，顶栏 / 正文 / 工具条都变成它的子项。
+   这样 iOS 平移视觉视口时，页面里的东西相对容器定位，不会上下漂。
+   键盘收起后这一段完全不生效，回到上面的普通文档滚动。 */
+.write-page.is-kb-open {
+  position: fixed;
+  top: var(--vv-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--vv-height, 100dvh);
+  /* 必须清掉基础样式的 min-height: 100dvh，否则页面压不回键盘上沿 */
+  min-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* 有键盘期间文档本身不滚（JS 切这个类），避免 iOS 再去平移视觉视口。 */
+html.is-write-kb-lock,
+html.is-write-kb-lock body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.write-page.is-kb-open .write-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .write-head {
   display: flex;
   align-items: center;
@@ -1999,6 +2067,13 @@ h1, h2, h3, h4, p {
   box-shadow: var(--shadow-soft);
 }
 
+/* 键盘打开时工具条改为整页容器内的绝对定位：
+   父级已经是固定容器，它跟着容器走，不再受视觉视口平移影响。 */
+.write-page.is-kb-open .write-toolbar {
+  position: absolute;
+  right: 6px;
+}
+
 .write-tools {
   display: flex;
   flex-direction: column;
@@ -2098,6 +2173,37 @@ h1, h2, h3, h4, p {
 }
 
 /* 构建版本号：手机上用来确认当前跑的是哪一包 */
+/* 「Aa」修饰开关：亮起时说明现在选字加格式、不会弹键盘 */
+.write-format-toggle {
+  flex: 0 0 auto;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.write-format-toggle.is-active {
+  border-color: transparent;
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+/* 修饰模式下正文仍然是「可选中的只读态」 */
+.write-page.is-formatting .write-title,
+.write-page.is-formatting .write-editor {
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .write-build {
   flex: 0 0 auto;
   margin-left: auto;
@@ -2237,7 +2343,7 @@ h1, h2, h3, h4, p {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 10px 12px 11px;
+  padding: 8px 11px 9px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background:
@@ -2288,7 +2394,7 @@ h1, h2, h3, h4, p {
 
 .builtin-figure b {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -2326,7 +2432,7 @@ h1, h2, h3, h4, p {
 .builtin-track {
   position: relative;
   height: 3px;
-  margin-top: 8px;
+  margin-top: 6px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--builtin-tone) 13%, transparent);
   overflow: hidden;
@@ -3965,6 +4071,7 @@ button.settings-row:active {
   --surface: #1e1a16;
   --surface-soft: #241f1a;
   --surface-tint: #29231c;
+
 
   --ink: #f0e8db;
   --ink-soft: #d8ccba;

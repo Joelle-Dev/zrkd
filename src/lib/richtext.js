@@ -126,3 +126,66 @@ export function countWords(text) {
   const words = (value.replace(/[\u4e00-\u9fff\u3400-\u4dbf]/g, ' ').match(/[A-Za-z0-9_'-]+/g) || []).length;
   return cjk + words;
 }
+
+/* ---------- 选区格式：加粗 / 斜体 / 下划线 ---------- */
+
+/** 格式按钮 → 实际使用的标签名 */
+export const FORMAT_TAGS = Object.freeze({
+  bold: 'b',
+  italic: 'i',
+  underline: 'u'
+});
+
+const FORMAT_KEYS = Object.keys(FORMAT_TAGS);
+const TAG_SET = new Set(Object.values(FORMAT_TAGS).map((tag) => tag.toUpperCase()));
+
+function isFormatTagName(name) {
+  return TAG_SET.has(String(name || '').toUpperCase());
+}
+
+/**
+ * 从选区起点的祖先链里读出当前格式状态。
+ * @param {string[]} tagNames 从选区起点元素往上收集的标签名（不含外层 root）
+ * @returns {{ bold: boolean, italic: boolean, underline: boolean }}
+ */
+export function formatStateFromTags(tagNames) {
+  const upper = (tagNames || []).map((name) => String(name || '').toUpperCase());
+  const state = { bold: false, italic: false, underline: false };
+  for (const key of FORMAT_KEYS) {
+    const tag = FORMAT_TAGS[key].toUpperCase();
+    state[key] = upper.includes(tag);
+  }
+  return state;
+}
+
+/**
+ * 点一次格式按钮，应该包一层还是拆掉？
+ * 已全部带上该格式 → 拆掉；否则 → 包上（部分带也算包）。
+ */
+export function nextFormatAction(state, key) {
+  if (!FORMAT_KEYS.includes(key)) return 'none';
+  return state && state[key] ? 'unwrap' : 'wrap';
+}
+
+/**
+ * 把一段 HTML 片段里指定格式的标签拆平，用来「取消格式」。
+ * 跨节点选区不好精确删除标签时，这是最稳的做法：只递归自己这层。
+ */
+export function unformatHtmlFragment(html, key) {
+  const tag = FORMAT_TAGS[key];
+  if (!tag) return String(html || '');
+  const source = String(html || '');
+  const pair = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+  let previous;
+  let result = source;
+  do {
+    previous = result;
+    result = result.replace(pair, '$1');
+  } while (result !== previous);
+  return result;
+}
+
+/** 判断一个标签名是否属于格式标签（b/i/u） */
+export function isFormatTag(tagName) {
+  return isFormatTagName(tagName);
+}

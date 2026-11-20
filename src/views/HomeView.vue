@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page home-page">
     <header class="home-nav">
       <div class="home-nav-row">
         <button class="nav-btn" type="button" aria-label="我的" @click="openSettings">
@@ -90,81 +90,83 @@
       </article>
     </section>
 
-    <!-- 倒数日列表 -->
-    <section>
+    <!-- 倒数日列表：整页唯一会滚的区域 -->
+    <section class="home-list">
       <div class="section-head">
         <h2 class="section-title">你在数的日子</h2>
         <span v-if="validEvents.length" class="section-meta">{{ validEvents.length }} 个</span>
       </div>
 
-      <LoadingState v-if="loading && !ready" text="日历翻得正起劲…" />
+      <div class="home-scroll">
+        <LoadingState v-if="loading && !ready" text="日历翻得正起劲…" />
 
-      <div v-else-if="hasEvents" class="event-grid">
-        <article
-          v-for="event in visibleEvents"
-          :key="event.id"
-          class="event-card"
-          :class="`is-${describeCache[event.id].kind}`"
-          :style="accentStyleOf(event.accent)"
-        >
-          <button
-            class="event-hit"
-            type="button"
-            :aria-label="`${event.title}，${describeCache[event.id].kind === 'today' ? '就是今天' : `${describeCache[event.id].label} ${describeCache[event.id].days} 天`}，查看这一天`"
-            @click="openEvent(event)"
-          ></button>
-          <div class="event-card-body">
-            <span class="event-title">{{ event.title }}</span>
-            <div class="event-meta">
-              <span class="event-date">{{ formatDateShort(describeCache[event.id].occurrenceKey || event.targetDate) }}</span>
-              <span v-if="event.repeat === 'yearly'" class="event-repeat-badge">每年</span>
-              <span v-if="diaryCounts[event.id]" class="event-diary-badge">{{ diaryCounts[event.id] }} 篇</span>
-              <span v-if="event.note" class="event-note">{{ event.note }}</span>
+        <div v-else-if="hasEvents" class="event-grid">
+          <article
+            v-for="event in visibleEvents"
+            :key="event.id"
+            class="event-card"
+            :class="`is-${describeCache[event.id].kind}`"
+            :style="accentStyleOf(event.accent)"
+          >
+            <button
+              class="event-hit"
+              type="button"
+              :aria-label="`${event.title}，${describeCache[event.id].kind === 'today' ? '就是今天' : `${describeCache[event.id].label} ${describeCache[event.id].days} 天`}，查看这一天`"
+              @click="openEvent(event)"
+            ></button>
+            <div class="event-card-body">
+              <span class="event-title">{{ event.title }}</span>
+              <div class="event-meta">
+                <span class="event-date">{{ formatDateShort(describeCache[event.id].occurrenceKey || event.targetDate) }}</span>
+                <span v-if="event.repeat === 'yearly'" class="event-repeat-badge">每年</span>
+                <span v-if="diaryCounts[event.id]" class="event-diary-badge">{{ diaryCounts[event.id] }} 篇</span>
+                <span v-if="event.note" class="event-note">{{ event.note }}</span>
+              </div>
             </div>
-          </div>
 
-          <div class="event-figure">
-            <template v-if="describeCache[event.id].kind === 'today'">
-              <span class="event-number is-word">就是今天</span>
-            </template>
-            <template v-else>
-              <span class="event-verb">{{ describeCache[event.id].label }}</span>
-              <span class="event-figure-num">
-                <span class="event-number">{{ describeCache[event.id].days }}</span>
-                <span class="event-unit">天</span>
-              </span>
-            </template>
-          </div>
-        </article>
+            <div class="event-figure">
+              <template v-if="describeCache[event.id].kind === 'today'">
+                <span class="event-number is-word">就是今天</span>
+              </template>
+              <template v-else>
+                <span class="event-verb">{{ describeCache[event.id].label }}</span>
+                <span class="event-figure-num">
+                  <span class="event-number">{{ describeCache[event.id].days }}</span>
+                  <span class="event-unit">天</span>
+                </span>
+              </template>
+            </div>
+          </article>
 
-        <button
-          v-if="hiddenCount > 0"
-          class="secondary-btn"
-          type="button"
-          @click="showAll = !showAll"
-        >
-          {{ showAll ? '收起一些' : `底下还压着 ${hiddenCount} 个` }}
-        </button>
-      </div>
+          <button
+            v-if="hiddenCount > 0"
+            class="secondary-btn"
+            type="button"
+            @click="showAll = !showAll"
+          >
+            {{ showAll ? '收起一些' : `底下还压着 ${hiddenCount} 个` }}
+          </button>
+        </div>
 
-      <div v-else-if="ready" class="empty-hint">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="4" y="5.4" width="16" height="15" rx="2.4"></rect>
-          <path d="M8 3.6v3.4M16 3.6v3.4M4 10.2h16"></path>
-        </svg>
-        <strong>这里空空如也</strong>
-        <span>生日、纪念日、考试、发工资……<br>未来的往前数，过去的往后数</span>
-        <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="router.push('/event/new')">
-          先加一个
-        </button>
+        <div v-else-if="ready" class="empty-hint">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="5.4" width="16" height="15" rx="2.4"></rect>
+            <path d="M8 3.6v3.4M16 3.6v3.4M4 10.2h16"></path>
+          </svg>
+          <strong>这里空空如也</strong>
+          <span>生日、纪念日、考试、发工资……<br>未来的往前数，过去的往后数</span>
+          <button class="primary-btn" type="button" style="margin-top: 12px; max-width: 200px;" @click="router.push('/event/new')">
+            先加一个
+          </button>
+        </div>
+
+        <footer class="page-footer">
+          <span>指日可待</span>
+          <span>·</span>
+          <span>日子只住在你这台设备里</span>
+        </footer>
       </div>
     </section>
-
-    <footer class="page-footer">
-      <span>指日可待</span>
-      <span>·</span>
-      <span>日子只住在你这台设备里</span>
-    </footer>
 
     <van-popup
       v-model:show="settingsOpen"
