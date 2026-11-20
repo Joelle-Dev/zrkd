@@ -21,7 +21,6 @@
         v-model="query"
         class="search-input"
         type="search"
-        :inputmode="pinyinState.enabled ? 'none' : null"
         placeholder="翻翻都写过啥"
         aria-label="搜索日记"
       >
@@ -112,7 +111,6 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useDiaries } from '../composables/useDiaries';
-import { pinyinState } from '../composables/usePinyinKeyboard';
 import { useEvents } from '../composables/useEvents';
 import { groupDiariesByDate, moodOf } from '../lib/diary';
 import { markdownToHtml } from '../lib/richtext';

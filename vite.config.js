@@ -124,26 +124,12 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,json,webmanifest}'],
           // iOS 主屏幕启动图只在「添加到主屏幕」开屏时由系统读，
           // 运行时用不到，不进 SW 缓存，省 344KB 安装体积。
-          // 拼音引擎也进预缓存：宁可多下 1.4MB，也不要第一次打字时等它。
-          // Workbox 默认单文件上限是 2MB，引擎打包后 3.27MB，这里放宽。
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           globIgnores: ['**/splash/**'],
           cleanupOutdatedCaches: true,
           navigateFallbackDenylist: [/^\/api\//]
         }
       })
     ],
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            // 拼音引擎单独成块：只有打开键盘时才加载
-            if (id.includes('@startsi/pinyin-core')) return 'pinyin-core';
-            return undefined;
-          }
-        }
-      }
-    },
     server: {
       port: 5175,
       open: false,

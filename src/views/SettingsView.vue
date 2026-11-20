@@ -95,45 +95,6 @@
 
     <section class="settings-group">
       <div class="section-head">
-        <h2 class="section-title">输入</h2>
-      </div>
-
-      <div
-        class="settings-row"
-        role="switch"
-        :aria-checked="pinyinEnabled"
-        tabindex="0"
-        @click="togglePinyin()"
-        @keydown.enter.prevent="togglePinyin()"
-        @keydown.space.prevent="togglePinyin()"
-      >
-        <span class="settings-main">
-          <span class="settings-label">内置拼音键盘</span>
-          <span class="settings-desc">九宫格 / 26 键，不再弹系统键盘</span>
-        </span>
-        <span class="settings-side" @click.stop>
-          <van-switch :model-value="pinyinEnabled" size="20" @update:model-value="togglePinyin" />
-        </span>
-      </div>
-
-      <div v-if="pinyinEnabled" class="settings-row settings-row-stack">
-        <span class="settings-main settings-main-inline">
-          <span class="settings-label">默认布局</span>
-        </span>
-        <div class="segmented settings-segmented">
-          <button
-            v-for="layout in pinyinLayouts"
-            :key="layout.key"
-            type="button"
-            :class="{ 'is-active': pinyinState.layout === layout.key }"
-            @click="choosePinyinLayout(layout.key)"
-          >{{ layout.label }}</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="settings-group">
-      <div class="section-head">
         <h2 class="section-title">内容</h2>
       </div>
 
@@ -244,12 +205,6 @@ import { getStorageUsage, formatBytes } from '../lib/storage';
 import { useEvents } from '../composables/useEvents';
 import { useDiaries } from '../composables/useDiaries';
 import { usePwaInstall } from '../composables/usePwaInstall';
-import {
-  pinyinState,
-  setPinyinEnabled,
-  setPinyinLayout
-} from '../composables/usePinyinKeyboard';
-import { PINYIN_LAYOUTS } from '../lib/pinyin/prefs';
 import { makeGoBack } from '../utils/back';
 import { BUILD_VERSION } from '../lib/build';
 
@@ -272,8 +227,6 @@ const { standalone, isIos, promptInstall } = usePwaInstall();
 
 const themeOptions = THEME_OPTIONS;
 const accentPresets = ACCENT_PRESETS;
-const pinyinLayouts = PINYIN_LAYOUTS;
-const pinyinEnabled = computed(() => pinyinState.enabled);
 const historyOnline = ref(true);
 const storageUsage = ref(0);
 const backupInput = ref(null);
@@ -316,17 +269,6 @@ const buildLabel = computed(() => {
 
 function setTheme(mode) {
   setThemeMode(mode);
-}
-
-function togglePinyin(value) {
-  const next = typeof value === 'boolean' ? value : !pinyinState.enabled;
-  setPinyinEnabled(next);
-  showToast(next ? '内置键盘开了，系统键盘不会再弹' : '内置键盘关了，换回系统键盘');
-}
-
-function choosePinyinLayout(key) {
-  setPinyinLayout(key);
-  showToast(key === 't9' ? '默认用九宫格' : '默认用 26 键');
 }
 
 async function toggleHistory(value) {

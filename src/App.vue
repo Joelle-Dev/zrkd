@@ -31,7 +31,6 @@
       </button>
     </nav>
 
-    <PinyinKeypad />
   </div>
 </template>
 
@@ -40,13 +39,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { requestPersistence } from './lib/storage';
 import { useEvents } from './composables/useEvents';
-import PinyinKeypad from './components/PinyinKeypad.vue';
-import {
-  installPinyinKeyboard,
-  uninstallPinyinKeyboard,
-  hidePinyinKeyboard,
-  warmUpPinyin
-} from './composables/usePinyinKeyboard';
 
 const route = useRoute();
 const router = useRouter();
@@ -67,19 +59,6 @@ router.afterEach((to, from) => {
   const toImmersive = Boolean(to.meta.immersive);
   const fromImmersive = Boolean(from.meta.immersive);
   noTransition.value = toImmersive !== fromImmersive;
-});
-
-// 有输入框的页面：进页面就悄悄把输入法引擎拉下来，点输入框时不用等
-const PINYIN_WARMUP_ROUTES = new Set([
-  'diary-new',
-  'diary-entry',
-  'event-new',
-  'event-edit'
-]);
-
-router.afterEach((to) => {
-  hidePinyinKeyboard({ blur: false });
-  if (PINYIN_WARMUP_ROUTES.has(String(to.name || ''))) warmUpPinyin();
 });
 
 // 三个 tab 页缓存起来：从详情/编辑返回时不再整页重建，
@@ -134,20 +113,9 @@ onMounted(() => {
   requestPersistence().catch(() => {});
   events.reload().catch((err) => console.error('加载日子失败', err));
   document.addEventListener('visibilitychange', onVisible);
-  installPinyinKeyboard();
-
-  // 内置键盘默认是开的：空闲时提前把引擎拉下来/建好，
-  // 这样点输入框时不会先看到「正在准备输入法」。
-  const warm = () => warmUpPinyin();
-  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(warm, { timeout: 3000 });
-  } else {
-    window.setTimeout(warm, 1500);
-  }
 });
 
 onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisible);
-  uninstallPinyinKeyboard();
 });
 </script>

@@ -1,5 +1,6 @@
 <template>
   <div ref="page" class="write-page" :class="{ 'is-locked': locked }">
+    <!-- 顶部：返回、字数、编辑/删除、保存状态；日期和心情也收在这里 -->
     <div class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
@@ -9,10 +10,8 @@
         </button>
 
         <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }} 字</span>
-
         <span v-if="locked" class="write-head-spacer"></span>
 
-        <!-- 打开旧日记先锁定，点这里才进入编辑 -->
         <button v-if="locked && isEditing" class="write-edit" type="button" @click="unlock">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4.4 19.6h4l9.6-9.6a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4.4 15.6z"></path>
@@ -47,13 +46,50 @@
         <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
         <span class="write-build">{{ buildVersion }}</span>
       </div>
+    </div>
 
-      <!--
-        格式按钮：在选区两端插 Markdown 符号（纯字符串操作）。
-        用 mousedown.prevent 保住焦点，键盘完全不中断，
-        加粗也能走系统原生 undo。
-      -->
-      <div v-if="!locked" class="write-tools">
+    <div class="write-body">
+      <h1 v-if="locked" class="write-title-readonly">{{ form.title }}</h1>
+      <input
+        v-else
+        ref="titleEl"
+        v-model="form.title"
+        class="write-title-input"
+        type="text"
+        maxlength="60"
+        placeholder="标题"
+        autocomplete="off"
+        autocapitalize="off"
+        @input="scheduleSave"
+        @keydown.enter.prevent="focusBody"
+      >
+
+      <textarea
+        v-if="!locked"
+        ref="editor"
+        v-model="bodyText"
+        class="write-textarea"
+        placeholder="随便写点什么…（选中文字点下方 B / I / U 就能加格式）"
+        wrap="soft"
+        @input="onBodyInput"
+        @keyup="syncActiveMarks"
+        @mouseup="syncActiveMarks"
+        @select="syncActiveMarks"
+      ></textarea>
+
+      <div v-else class="write-readonly">
+        <div class="write-readonly-inner" v-html="previewHtml"></div>
+      </div>
+
+      <div v-if="form.photo" class="write-photo">
+        <img :src="form.photo" alt="配图">
+        <button v-if="!locked" class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
+      </div>
+    </div>
+
+    <!-- 底部工具条：没有键盘时贴底，系统键盘弹起时跟着浮到键盘上方 -->
+    <div v-if="!locked" ref="toolbar" class="write-toolbar">
+      <div class="write-toolbar-inner">
         <button
           class="write-tool"
           type="button"
@@ -101,17 +137,17 @@
           </svg>
         </button>
         <span class="write-tools-hint">{{ markHint }}</span>
+        <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9.5 6 6 6-6"></path>
+          </svg>
+        </button>
       </div>
+    </div>
 
-      <!-- 关联日子：贴着顶栏往下展开 -->
-      <Transition name="picker-drop">
-        <div
-          v-if="pickerOpen"
-          id="write-picker"
-          class="write-picker"
-          role="dialog"
-          aria-label="关联到某个日子"
-        >
+    <Transition name="picker-drop">
+      <div v-if="pickerOpen" class="write-picker-wrap">
+        <div id="write-picker" class="write-picker" role="dialog" aria-label="关联到某个日子">
           <div class="write-picker-head">
             <span class="write-picker-title">关联到某个日子</span>
             <button class="write-picker-close" type="button" aria-label="收起" @mousedown.prevent @click="pickerOpen = false">×</button>
@@ -130,57 +166,9 @@
             <span v-if="!events.length" class="write-picker-empty">还没建过日子</span>
           </div>
         </div>
-      </Transition>
-    </div>
-
+      </div>
+    </Transition>
     <div v-if="pickerOpen" class="write-picker-scrim" aria-hidden="true" @click="pickerOpen = false"></div>
-
-    <div class="write-body">
-      <!-- 标题：编辑态是原生 input，锁定时是纯文字 -->
-      <h1 v-if="locked" class="write-title-readonly">{{ form.title }}</h1>
-      <input
-        v-else
-        ref="titleEl"
-        v-model="form.title"
-        class="write-title-input"
-        type="text"
-        maxlength="60"
-        :inputmode="pinyinState.enabled ? 'none' : null"
-        placeholder="标题"
-        autocomplete="off"
-        autocapitalize="off"
-        @input="scheduleSave"
-        @keydown.enter.prevent="focusBody"
-      >
-
-      <!--
-        正文始终是一个原生 textarea：键盘行为跟系统输入框一致，
-        加粗只是在选区两端插 ** 符号，不切模式、不换 DOM。
-      -->
-      <textarea
-        v-if="!locked"
-        ref="editor"
-        v-model="bodyText"
-        class="write-textarea"
-        :inputmode="pinyinState.enabled ? 'none' : null"
-        placeholder="随便写点什么…（选中文字点 B / I / U 就能加格式）"
-        wrap="soft"
-        @input="onBodyInput"
-        @keyup="syncActiveMarks"
-        @mouseup="syncActiveMarks"
-        @select="syncActiveMarks"
-      ></textarea>
-
-      <!-- 锁定态：渲染好的富文本，可长按选中，不弹键盘 -->
-      <div v-else class="write-readonly">
-        <div class="write-readonly-inner" v-html="previewHtml"></div>
-      </div>
-
-      <div v-if="form.photo" class="write-photo">
-        <img :src="form.photo" alt="配图">
-        <button v-if="!locked" class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
-      </div>
-    </div>
 
     <input ref="libraryInput" class="sr-only" type="file" accept="image/*" @change="onPick">
 
@@ -195,7 +183,6 @@ import { showConfirmDialog, showToast } from 'vant';
 import DatePicker from '../components/DatePicker.vue';
 import { MOODS, getDiary, removeDiary, saveDiary } from '../lib/diary';
 import { useDiaries } from '../composables/useDiaries';
-import { pinyinState } from '../composables/usePinyinKeyboard';
 import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import { activeMarksAt, countWords, markdownToHtml, toggleMark } from '../lib/richtext';
@@ -215,6 +202,7 @@ const moods = MOODS;
 const buildVersion = BUILD_VERSION;
 
 const page = ref(null);
+const toolbar = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
 const libraryInput = ref(null);
@@ -296,6 +284,11 @@ function unlock() {
   locked.value = false;
   saveState.value = 'idle';
   haptic('light');
+  nextTick(() => {
+    measureToolbar();
+    editor.value?.focus();
+    syncKeyboardOffset();
+  });
 }
 
 function openDate() {
@@ -520,6 +513,64 @@ async function confirmDelete() {
   }
 }
 
+/* ---------- 底部工具条：跟随系统键盘 ---------- */
+
+let cleanupViewport = null;
+
+function measureToolbar() {
+  const el = toolbar.value;
+  if (!el) return;
+  const height = Math.ceil(el.getBoundingClientRect().height);
+  if (height > 0) {
+    document.documentElement.style.setProperty('--write-toolbar-h', `${height}px`);
+  }
+}
+
+/**
+ * 系统键盘弹起时，视觉视口会缩小。
+ * iOS 不改布局视口，offset = innerHeight - 视觉视口高度 - 视觉视口偏移；
+ * Android 开了 interactive-widget=resizes-content 时布局视口也会缩，offset 自然接近 0。
+ */
+function syncKeyboardOffset() {
+  const vv = window.visualViewport;
+  const root = document.documentElement;
+  if (!vv) {
+    root.style.setProperty('--write-kb-offset', '0px');
+    return;
+  }
+  const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  root.style.setProperty('--write-kb-offset', `${Math.round(offset)}px`);
+  measureToolbar();
+}
+
+function hideKeyboard() {
+  if (editor.value) editor.value.blur();
+  if (titleEl.value) titleEl.value.blur();
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
+function bindViewport() {
+  const vv = window.visualViewport;
+  if (vv) {
+    vv.addEventListener('resize', syncKeyboardOffset);
+    vv.addEventListener('scroll', syncKeyboardOffset);
+  }
+  window.addEventListener('resize', syncKeyboardOffset);
+  window.addEventListener('orientationchange', syncKeyboardOffset);
+  syncKeyboardOffset();
+
+  return () => {
+    if (vv) {
+      vv.removeEventListener('resize', syncKeyboardOffset);
+      vv.removeEventListener('scroll', syncKeyboardOffset);
+    }
+    window.removeEventListener('resize', syncKeyboardOffset);
+    window.removeEventListener('orientationchange', syncKeyboardOffset);
+    document.documentElement.style.removeProperty('--write-kb-offset');
+    document.documentElement.style.removeProperty('--write-toolbar-h');
+  };
+}
+
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
   if (locked.value) return;
@@ -531,6 +582,7 @@ function onPageHide() {
 onMounted(async () => {
   form.date = dateKeyOf();
   window.addEventListener('pagehide', onPageHide);
+  cleanupViewport = bindViewport();
   hideAccessoryBar();
   await load();
   await nextTick();
@@ -543,14 +595,19 @@ onMounted(async () => {
     // 新日记直接进入可写状态
     locked.value = false;
     await nextTick();
+    measureToolbar();
     editor.value?.focus();
   }
+  await nextTick();
+  measureToolbar();
   resizeEditor();
   syncActiveMarks();
 });
 
 onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
+  cleanupViewport?.();
+  cleanupViewport = null;
   clearTimeout(markTimer);
   showAccessoryBar();
 });
