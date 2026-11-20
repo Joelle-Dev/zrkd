@@ -484,12 +484,14 @@ function onSelectionChange() {
 }
 
 /**
- * 底部工具条贴着键盘上沿。
+ * 整页高度跟着「可见区域」走。
  *
- * 只在键盘开合 / 转屏时算一次键盘高度写进 --kb-inset，
- * 不监听滚动、不追视觉视口的每一帧，所以顶栏和工具条都不会抖。
- * 判定方式：window.innerHeight（布局视口）比 visualViewport.height
- * 多出来的部分就是键盘，再扣掉视觉视口已被平移的 offsetTop。
+ * 整页是一个锁定成可见高度的 flex 容器：顶栏在最上、工具条在最下、
+ * 中间正文区自己滚。键盘弹起时视觉视口变矮，这里把 vv.height 同步给
+ * 容器，工具条就自动落在键盘上沿——不需要 fixed，也不需要读键盘高度。
+ *
+ * 只监听 resize（键盘开合、转屏、捏合缩放），不监听 scroll：
+ * 内滚动不会平移视觉视口，所以滚动过程中这里不会触发，也就没有抖动。
  */
 let cleanupViewport = null;
 
@@ -497,18 +499,17 @@ function bindViewport() {
   const vv = window.visualViewport;
   const el = page.value;
   if (!vv || !el) return () => {};
-  let last = -1;
+  let lastHeight = -1;
   let timer = 0;
 
   const apply = () => {
-    const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-    const next = inset > 80 ? inset : 0;
-    if (next === last) return;
-    last = next;
-    el.style.setProperty('--kb-inset', `${next}px`);
+    const height = vv.height;
+    if (!(height > 0) || Math.abs(height - lastHeight) < 0.5) return;
+    lastHeight = height;
+    el.style.setProperty('--vv-height', `${height.toFixed(2)}px`);
   };
 
-  // 键盘动画结束才稳定，收起后再量一次，避免停在中间值
+  // 键盘收放动画结束时再量一次，避免停在动画中间的高度
   const schedule = () => {
     apply();
     clearTimeout(timer);
@@ -523,7 +524,7 @@ function bindViewport() {
     clearTimeout(timer);
     vv.removeEventListener('resize', schedule);
     window.removeEventListener('orientationchange', schedule);
-    el.style.removeProperty('--kb-inset');
+    el.style.removeProperty('--vv-height');
   };
 }
 
@@ -537,6 +538,8 @@ function onPageHide() {
 
 onMounted(async () => {
   form.date = dateKeyOf();
+  // 写作页自己就是滚动容器，锁住文档滚动，视觉视口就不会被平移
+  document.documentElement.classList.add('is-write-locked');
   window.addEventListener('pagehide', onPageHide);
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
@@ -562,6 +565,7 @@ onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
   cleanupViewport?.();
   cleanupViewport = null;
+  document.documentElement.classList.remove('is-write-locked');
   showAccessoryBar();
 });
 </script>

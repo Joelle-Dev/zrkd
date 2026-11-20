@@ -312,12 +312,11 @@ h1, h2, h3, h4, p {
   padding-bottom: 10px;
 }
 
-/* 写作页顶栏就在文档流顶部，跟着内容自然滚走。
-   不吸顶、不固定、不做任何视觉视口补偿，所以不会有位置抖动；
-   格式工具放在底部工具条里，键盘弹起时贴着键盘上沿。 */
+/* 写作页顶栏是整页 flex 的第一个子项，天然固定在容器顶部，
+   不参与正文滚动，也不需要任何视觉视口补偿。 */
 .write-page > .write-topbar {
   position: relative;
-  z-index: 2;
+  z-index: 12;
   flex: 0 0 auto;
   /* 负 margin 把顶栏撑满整页宽，免得正文从两侧的留白缝里穿过去 */
   margin: 0 calc(-1 * var(--shell-pad));
@@ -1772,19 +1771,33 @@ h1, h2, h3, h4, p {
   font-weight: 600;
 }
 
-/* 写作页：整页回到普通文档滚动。
-   之前的固定/内滚动方案在 iOS 上会吞点按、吞长按选择，
-   跟着视觉视口补偿又会抖；现在文档自己滚，底部工具条是 flex 末项，
-   键盘弹起时随页面变矮自然落在键盘上沿。 */
+/* 写作页：整页锁定成「可见区域」大小，顶栏 / 正文 / 工具条都是它的
+   flex 子项，只有正文区自己滚。
+   内滚动时 iOS 不会平移视觉视口（offsetTop 保持 0），
+   所以滚动过程中没有任何「追着视口补偿」的动作，也就不会抖。
+   --vv-height 只在键盘开合、转屏时更新一次。 */
 .write-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: var(--vv-height, 100dvh);
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 0 var(--shell-pad) calc(72px + var(--safe-bottom));
+  padding: 0 var(--shell-pad);
   background: var(--surface);
+  overflow: hidden;
+}
+
+/* 写作页期间锁住文档本身的滚动：
+   文档不滚，iOS 就不会去平移视觉视口，fixed 布局才能像原生一样稳。 */
+html.is-write-locked,
+html.is-write-locked body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .write-head {
@@ -1858,7 +1871,12 @@ h1, h2, h3, h4, p {
   flex-direction: column;
   gap: 6px;
   flex: 1 1 auto;
-  padding: 6px 2px 16px;
+  min-height: 0;
+  padding: 6px 2px 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 不写 -webkit-overflow-scrolling: touch：现代 iOS 默认就是惯性滚动，
+     而这个属性正是以前「吞点击 / 吞长按选择」的元凶。 */
 }
 
 .write-title {
@@ -1947,22 +1965,18 @@ h1, h2, h3, h4, p {
 }
 
 
-/* 底部格式工具条：固定在键盘上沿。
-   位置只在键盘开合时更新一次（--kb-inset），滚动过程中完全不动，
-   所以不会像粘在顶部那样跟着视觉视口抖。 */
+/* 底部格式工具条：整页 flex 的最后一个子项，天然贴在容器底部。
+   容器高度 = 可见区域高度，键盘弹起时容器变矮，工具条就自动落在键盘上沿，
+   不需要 fixed，也不需要读键盘高度。 */
 .write-toolbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--kb-inset, 0px);
+  position: relative;
   z-index: 12;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  max-width: var(--shell-max);
-  margin: 0 auto;
-  padding: 8px var(--shell-pad) max(8px, calc(var(--safe-bottom) - var(--kb-inset, 0px)));
+  margin: 0 calc(-1 * var(--shell-pad));
+  padding: 8px var(--shell-pad) calc(8px + var(--safe-bottom));
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
