@@ -2,7 +2,7 @@
   <div
     ref="page"
     class="write-page"
-    :class="{ 'is-locked': locked, 'is-kb-open': keyboardOpen, 'is-formatting': formatting }"
+    :class="{ 'is-locked': locked, 'is-formatting': formatting }"
   >
     <!-- 顶部设置栏固定成原生导航栏：格式、日期、心情、关联，写到哪儿都够得着 -->
     <div class="write-topbar">
@@ -61,6 +61,35 @@
           @click="toggleFormatting"
         >Aa</button>
         <span class="write-build">{{ buildVersion }}</span>
+      </div>
+
+      <!-- 格式按钮全放顶部：加粗 / 斜体 / 下划线 / 关联 / 插图 -->
+      <div v-if="!locked" class="write-tools">
+        <button class="write-tool" type="button" :class="{ 'is-active': active.bold }" aria-label="加粗" @mousedown.prevent @click="toggleFormat('bold')"><b>B</b></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.italic }" aria-label="斜体" @mousedown.prevent @click="toggleFormat('italic')"><i>I</i></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.underline }" aria-label="下划线" @mousedown.prevent @click="toggleFormat('underline')"><u>U</u></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': form.eventId }"
+          aria-label="关联一个日子"
+          aria-controls="write-picker"
+          :aria-expanded="pickerOpen"
+          @mousedown.prevent
+          @click="pickerOpen = !pickerOpen"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
+            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+          </svg>
+        </button>
+        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
+            <circle cx="8.6" cy="10.2" r="1.4"></circle>
+            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
+          </svg>
+        </button>
       </div>
 
       <!-- 关联日子：贴着吸顶栏往下展开，不和底部键盘抢位置 -->
@@ -129,36 +158,6 @@
       </div>
     </div>
 
-    <div v-if="!locked" class="write-toolbar">
-      <div class="write-tools">
-        <button class="write-tool" type="button" :class="{ 'is-active': active.bold }" aria-label="加粗" @mousedown.prevent @click="toggleFormat('bold')"><b>B</b></button>
-        <button class="write-tool" type="button" :class="{ 'is-active': active.italic }" aria-label="斜体" @mousedown.prevent @click="toggleFormat('italic')"><i>I</i></button>
-        <button class="write-tool" type="button" :class="{ 'is-active': active.underline }" aria-label="下划线" @mousedown.prevent @click="toggleFormat('underline')"><u>U</u></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': form.eventId }"
-          aria-label="关联一个日子"
-          aria-controls="write-picker"
-          :aria-expanded="pickerOpen"
-          @mousedown.prevent
-          @click="pickerOpen = !pickerOpen"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
-            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
-          </svg>
-        </button>
-        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
-            <circle cx="8.6" cy="10.2" r="1.4"></circle>
-            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
-
     <input ref="libraryInput" class="sr-only" type="file" accept="image/*" @change="onPick">
 
     <DatePicker v-model="form.date" v-model:show="dateOpen" />
@@ -216,8 +215,6 @@ const locked = ref(Boolean(route.params.id));
 // 修饰模式：进入后不再可输入（不弹键盘），但文字仍能长按选中再加格式。
 // 打完字点「Aa」进来选字加粗，结束后再点一次回到输入。
 const formatting = ref(false);
-// 键盘是否弹起：只用于切换「内滚动」布局，不做逐帧补偿
-const keyboardOpen = ref(false);
 
 const editable = computed(() => !locked.value && !formatting.value);
 
@@ -306,7 +303,8 @@ async function onPick(event) {
   }
 }
 
-// 只缓存「属于正文」的选区，修饰模式里反复点按钮时用它还原
+// 缓存的选区：修饰模式下点按钮时，系统可能先把选区收成光标，
+// 所以只在「有实际选中的文字」时才更新，绝不拿折叠选区覆盖它。
 let savedRange = null;
 
 function rangeInEditor() {
@@ -317,15 +315,25 @@ function rangeInEditor() {
   return el.contains(range.commonAncestorContainer) ? range : null;
 }
 
+function rangeUsable(range) {
+  return Boolean(
+    range &&
+    !range.collapsed &&
+    editor.value?.contains(range.commonAncestorContainer)
+  );
+}
+
+// 只有真正选中了一段文字才记下来；点按钮导致的折叠选区会把好选区冲掉，
+// 所以这里按键选与折叠两种情况分开处理。
 function cacheSelection() {
   const range = rangeInEditor();
-  if (range) savedRange = range.cloneRange();
+  if (rangeUsable(range)) savedRange = range.cloneRange();
 }
 
 function activeRange() {
   const current = rangeInEditor();
-  if (current && !current.collapsed) return current;
-  if (savedRange && editor.value?.contains(savedRange.commonAncestorContainer)) return savedRange;
+  if (rangeUsable(current)) return current;
+  if (rangeUsable(savedRange)) return savedRange;
   return current;
 }
 
@@ -663,8 +671,10 @@ async function confirmDelete() {
 }
 
 function onSelectionChange() {
-  if (!rangeInEditor()) return;
-  cacheSelection();
+  const range = rangeInEditor();
+  if (!range) return;
+  // 折叠（只是光标）时保留上一次的有效选区，避免误清
+  if (rangeUsable(range)) savedRange = range.cloneRange();
   syncActive();
 }
 
@@ -678,72 +688,6 @@ function onSelectionChange() {
  * 只在 resize / 转屏时算一次，绝不监听 scroll：滚动过程中不做任何补偿。
  * 键盘收起就完全回到普通文档滚动，手感和首页一致。
  */
-// 有键盘时锁住文档自身滚动：页面已经是固定容器，文档再滚只会让 iOS
-// 去平移视觉视口，反而制造漂移。
-//
-// 两种布局之间切换时要把滚动位置接上，否则正文会跳回顶部：
-//   文档滚动 S  ↔  正文区滚动 S
-// 两种布局里同一段文字落在屏幕上的位置才一致。
-watch(keyboardOpen, async (open) => {
-  const root = document.documentElement;
-  if (open) {
-    const offset = Math.max(0, Math.round(window.scrollY || 0));
-    root.classList.add('is-write-kb-lock');
-    await nextTick();
-    if (bodyEl.value) bodyEl.value.scrollTop = offset;
-    return;
-  }
-  const offset = Math.max(0, Math.round(bodyEl.value?.scrollTop || 0));
-  root.classList.remove('is-write-kb-lock');
-  await nextTick();
-  window.scrollTo(0, offset);
-});
-
-let cleanupViewport = null;
-
-function bindViewport() {
-  const vv = window.visualViewport;
-  const el = page.value;
-  if (!vv || !el) return () => {};
-  let lastHeight = -1;
-  let lastOpen = false;
-  let timer = 0;
-
-  const apply = () => {
-    const height = vv.height;
-    if (!(height > 0)) return;
-    const open = window.innerHeight - height - vv.offsetTop > 120;
-    if (open) {
-      el.style.setProperty('--vv-height', `${height.toFixed(2)}px`);
-      el.style.setProperty('--vv-top', `${Math.max(0, vv.offsetTop).toFixed(2)}px`);
-    }
-    if (open !== lastOpen) {
-      lastOpen = open;
-      keyboardOpen.value = open;
-    }
-    if (Math.abs(height - lastHeight) >= 0.5) lastHeight = height;
-  };
-
-  // 键盘动画结束才稳定，收放后再量一次，避免停在动画中间
-  const schedule = () => {
-    apply();
-    clearTimeout(timer);
-    timer = setTimeout(apply, 200);
-  };
-
-  vv.addEventListener('resize', schedule);
-  window.addEventListener('orientationchange', schedule);
-  apply();
-
-  return () => {
-    clearTimeout(timer);
-    vv.removeEventListener('resize', schedule);
-    window.removeEventListener('orientationchange', schedule);
-    el.style.removeProperty('--vv-height');
-    el.style.removeProperty('--vv-top');
-  };
-}
-
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
   if (locked.value) return;
@@ -758,7 +702,6 @@ onMounted(async () => {
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
-  cleanupViewport = bindViewport();
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
@@ -777,9 +720,6 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
-  cleanupViewport?.();
-  cleanupViewport = null;
-  document.documentElement.classList.remove('is-write-kb-lock');
   showAccessoryBar();
 });
 </script>

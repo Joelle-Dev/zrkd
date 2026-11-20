@@ -118,6 +118,20 @@
 
     <section class="settings-group">
       <div class="section-head">
+        <h2 class="section-title">工具</h2>
+      </div>
+
+      <button class="settings-row" type="button" @click="openCalculator">
+        <span class="settings-main">
+          <span class="settings-label">日期计算器</span>
+          <span class="settings-desc">算两个日子差几天，或往后推日期</span>
+        </span>
+        <span class="settings-side">打开</span>
+      </button>
+    </section>
+
+    <section class="settings-group">
+      <div class="section-head">
         <h2 class="section-title">数据</h2>
       </div>
 
@@ -194,12 +208,18 @@ import { usePwaInstall } from '../composables/usePwaInstall';
 import { makeGoBack } from '../utils/back';
 import { BUILD_VERSION } from '../lib/build';
 
-defineProps({
+const props = defineProps({
   drawer: { type: Boolean, default: false }
 });
 const emit = defineEmits(['close']);
 const router = useRouter();
 const goBack = makeGoBack(router);
+
+/** 抽屉里点进去时先把抽屉关掉，免得它盖在新页面上 */
+function openCalculator() {
+  if (props.drawer) emit('close');
+  router.push('/calculator');
+}
 
 const { events, reload: reloadEvents } = useEvents();
 const { diaries, reload: reloadDiaries } = useDiaries();

@@ -237,8 +237,7 @@ h1, h2, h3, h4, p {
   margin-bottom: -12px;
 }
 
-.home-page > .today-panel,
-.home-page > .builtin-grid {
+.home-page > .today-panel {
   flex: 0 0 auto;
 }
 
@@ -1854,34 +1853,6 @@ h1, h2, h3, h4, p {
   background: var(--surface);
 }
 
-/* 键盘弹起时：整页锁成可视区域，顶栏 / 正文 / 工具条都变成它的子项。
-   这样 iOS 平移视觉视口时，页面里的东西相对容器定位，不会上下漂。
-   键盘收起后这一段完全不生效，回到上面的普通文档滚动。 */
-.write-page.is-kb-open {
-  position: fixed;
-  top: var(--vv-top, 0px);
-  left: 0;
-  right: 0;
-  height: var(--vv-height, 100dvh);
-  /* 必须清掉基础样式的 min-height: 100dvh，否则页面压不回键盘上沿 */
-  min-height: 0;
-  margin: 0 auto;
-  overflow: hidden;
-}
-
-/* 有键盘期间文档本身不滚（JS 切这个类），避免 iOS 再去平移视觉视口。 */
-html.is-write-kb-lock,
-html.is-write-kb-lock body {
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
-.write-page.is-kb-open .write-body {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .write-head {
   display: flex;
   align-items: center;
@@ -1894,8 +1865,7 @@ html.is-write-kb-lock body {
   align-items: center;
   gap: 2px;
   flex-wrap: wrap;
-  padding: 2px 0 10px;
-  border-bottom: 1px solid var(--line);
+  padding: 2px 0 8px;
 }
 
 .write-icon {
@@ -1954,11 +1924,6 @@ html.is-write-kb-lock body {
   gap: 6px;
   flex: 1 1 auto;
   padding: 6px 2px 16px;
-}
-
-/* 右侧工具条是浮层，给正文让出同样的宽度，文字不会钻到按钮底下 */
-.write-page:not(.is-locked) .write-body {
-  padding-right: 46px;
 }
 
 .write-title {
@@ -2047,38 +2012,16 @@ html.is-write-kb-lock body {
 }
 
 
-/* 格式工具条：贴在屏幕右侧的竖排浮动条。
-   脱离文档流、位置固定，所以不会随正文滚动，也不受键盘影响；
-   不参与任何视觉视口补偿，自然也就不会抖。
-   右边距跟着内容列算，宽屏上不会飘到屏幕最外缘。 */
-.write-toolbar {
-  position: fixed;
-  top: 50%;
-  right: max(6px, calc((100vw - var(--shell-max)) / 2 + 6px));
-  transform: translateY(-50%);
-  z-index: 12;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 7px 5px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: var(--shadow-soft);
-}
-
-/* 键盘打开时工具条改为整页容器内的绝对定位：
-   父级已经是固定容器，它跟着容器走，不再受视觉视口平移影响。 */
-.write-page.is-kb-open .write-toolbar {
-  position: absolute;
-  right: 6px;
-}
-
+/* 格式按钮全部放在顶部，横排一行。
+   不做任何固定/吸顶/浮层：页面就是普通文档滚动，按钮跟着头部一起走，
+   也就不存在和键盘、视觉视口较劲的问题。 */
 .write-tools {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0 10px;
+  border-bottom: 1px solid var(--line);
 }
 
 .write-tool {
@@ -2086,14 +2029,14 @@ html.is-write-kb-lock body {
   align-items: center;
   justify-content: center;
   width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
   color: var(--muted);
-  font-size: 15px;
+  font-size: 14px;
   font-style: normal;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
 .write-tool.is-active {
@@ -2331,11 +2274,18 @@ html.is-write-kb-lock body {
   transform: translateY(-8px) scaleY(0.96);
 }
 
-/* 内置倒数：新年、周末。两块小卡，底部一条进度尺，走到哪儿一目了然 */
-.builtin-grid {
+/* 内置倒数：新年、周末。一条虚线框里并排两格，底部进度尺走到哪儿一目了然 */
+.builtin-block {
+  margin-bottom: 10px;
+}
+
+.builtin-strip {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  overflow: hidden;
 }
 
 .builtin-card {
@@ -2343,14 +2293,13 @@ html.is-write-kb-lock body {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 8px 11px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  padding: 10px 13px 11px;
   background:
-    radial-gradient(120% 110% at 100% 0%, color-mix(in srgb, var(--builtin-tone) 8%, transparent) 0%, transparent 64%),
-    var(--surface);
-  box-shadow: var(--shadow-hair);
-  overflow: hidden;
+    radial-gradient(120% 110% at 100% 0%, color-mix(in srgb, var(--builtin-tone) 6%, transparent) 0%, transparent 64%);
+}
+
+.builtin-card + .builtin-card {
+  border-left: 1px dashed var(--line-strong);
 }
 
 .builtin-card.is-new-year {
@@ -2369,10 +2318,10 @@ html.is-write-kb-lock body {
 }
 
 .builtin-label {
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.12em;
-  color: var(--muted-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2389,12 +2338,12 @@ html.is-write-kb-lock body {
   display: flex;
   align-items: baseline;
   gap: 3px;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .builtin-figure b {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.05;
   letter-spacing: -0.02em;
@@ -2413,7 +2362,7 @@ html.is-write-kb-lock body {
 }
 
 .builtin-figure .figure-verb {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--builtin-tone);
   letter-spacing: 0.04em;
@@ -2421,7 +2370,7 @@ html.is-write-kb-lock body {
 }
 
 .builtin-figure small {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--builtin-tone);
   letter-spacing: 0.05em;
@@ -2432,7 +2381,7 @@ html.is-write-kb-lock body {
 .builtin-track {
   position: relative;
   height: 3px;
-  margin-top: 6px;
+  margin-top: 7px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--builtin-tone) 13%, transparent);
   overflow: hidden;

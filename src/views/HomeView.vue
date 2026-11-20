@@ -58,39 +58,7 @@
       </div>
     </section>
 
-    <!-- 内置倒数：新年、周末 -->
-    <section class="builtin-grid">
-      <article
-        v-for="item in builtins"
-        :key="item.key"
-        class="builtin-card"
-        :class="`is-${item.key}`"
-      >
-        <div class="builtin-head">
-          <span class="builtin-label">{{ item.label }}</span>
-          <span class="builtin-date">{{ formatMonthDay(item.targetDate) }}</span>
-        </div>
-        <div class="builtin-figure">
-          <template v-if="item.days === 0">
-            <b class="is-word">就是今天</b>
-          </template>
-          <template v-else>
-            <span class="figure-verb">还有</span>
-            <b class="is-countdown">{{ item.days }}</b>
-            <small>天</small>
-          </template>
-        </div>
-        <div
-          class="builtin-track"
-          role="img"
-          :aria-label="`${item.key === 'new-year' ? '今年' : '本周'}已过 ${Math.round(item.progress * 100)}%`"
-        >
-          <i :style="{ width: `${Math.round(item.progress * 100)}%` }"></i>
-        </div>
-      </article>
-    </section>
-
-    <!-- 倒数日列表：整页唯一会滚的区域 -->
+    <!-- 倒数日列表：整页唯一会滚的区域，内置倒数挂在最上面 -->
     <section class="home-list">
       <div class="section-head">
         <h2 class="section-title">你在数的日子</h2>
@@ -98,6 +66,40 @@
       </div>
 
       <div class="home-scroll">
+        <!-- 内置倒数：新年、周末。跟着列表滚，但排在用户日子之前 -->
+        <div v-if="builtins.length" class="builtin-block">
+          <div class="builtin-strip">
+            <article
+              v-for="item in builtins"
+              :key="item.key"
+              class="builtin-card"
+              :class="`is-${item.key}`"
+            >
+              <div class="builtin-head">
+                <span class="builtin-label">{{ item.label }}</span>
+                <span class="builtin-date">{{ formatMonthDay(item.targetDate) }}</span>
+              </div>
+              <div class="builtin-figure">
+                <template v-if="item.days === 0">
+                  <b class="is-word">就是今天</b>
+                </template>
+                <template v-else>
+                  <span class="figure-verb">还有</span>
+                  <b class="is-countdown">{{ item.days }}</b>
+                  <small>天</small>
+                </template>
+              </div>
+              <div
+                class="builtin-track"
+                role="img"
+                :aria-label="`${item.key === 'new-year' ? '今年' : '本周'}已过 ${Math.round(item.progress * 100)}%`"
+              >
+                <i :style="{ width: `${Math.round(item.progress * 100)}%` }"></i>
+              </div>
+            </article>
+          </div>
+        </div>
+
         <LoadingState v-if="loading && !ready" text="日历翻得正起劲…" />
 
         <div v-else-if="hasEvents" class="event-grid">

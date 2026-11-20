@@ -53,6 +53,12 @@ const routes = [
     component: () => import('../views/PhotoView.vue')
   },
   {
+    path: '/calculator',
+    name: 'calculator',
+    meta: { immersive: true },
+    component: () => import('../views/CalculatorView.vue')
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue')
