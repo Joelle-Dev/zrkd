@@ -124,12 +124,34 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,json,webmanifest}'],
           // iOS 主屏幕启动图只在「添加到主屏幕」开屏时由系统读，
           // 运行时用不到，不进 SW 缓存，省 344KB 安装体积。
-          globIgnores: ['**/splash/**'],
+          // 拼音引擎 3MB+，也不进安装包，第一次打开键盘再下载并缓存。
+          globIgnores: ['**/splash/**', '**/pinyin-core-*.js'],
           cleanupOutdatedCaches: true,
-          navigateFallbackDenylist: [/^\/api\//]
+          navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              urlPattern: /pinyin-core-[^/]+\.js$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'pinyin-core',
+                expiration: { maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 365 }
+              }
+            }
+          ]
         }
       })
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            // 拼音引擎单独成块：只有打开键盘时才加载
+            if (id.includes('@startsi/pinyin-core')) return 'pinyin-core';
+            return undefined;
+          }
+        }
+      }
+    },
     server: {
       port: 5175,
       open: false,

@@ -22,6 +22,13 @@
 - 往前 / 往后推：按天、周、月、年推，月底自动贴合（1 月 31 日加一个月落在 2 月最后一天）
 - 推算结果可以一键「记成日子」，直接带着日期进编辑页
 
+**内置拼音键盘**（我的 → 输入）
+
+- 九宫格 / 26 键两种布局，切换后记在本机
+- 开启后，标题、正文、搜索都改用自绘键盘，不再弹系统键盘，也不会出现 iOS 那条「上下箭头 + 完成」
+- 拼音引擎完全本地运行（`@startsi/pinyin-core`，MIT）：首次打开键盘懒加载约 1.4MB（gzip）并缓存，图片和文字都不上传
+- 桌面端默认关闭（仍用系统键盘），手机 / 原生 App 默认开启；不想用可以在设置里关掉
+
 **外观**
 
 - 浅色 / 深色 / 跟随系统
@@ -121,7 +128,7 @@ npm run android    # 构建 + 同步 + 打开 Android Studio
 
 ## 技术栈
 
-Vue 3 + Vant 4 + Vue Router + Vite 5 + vite-plugin-pwa，数据存储使用 IndexedDB，农历计算使用 lunar-javascript（MIT）。
+Vue 3 + Vant 4 + Vue Router + Vite 5 + vite-plugin-pwa，数据存储使用 IndexedDB，农历计算使用 lunar-javascript（MIT），拼音输入使用 @startsi/pinyin-core（MIT）。
 
 水印合成直接走 Canvas 2D，不依赖 html-to-image 之类的 DOM 截图库。
 

@@ -36,6 +36,7 @@
             class="line-input"
             type="text"
             maxlength="40"
+            :inputmode="pinyinState.enabled ? 'none' : null"
             placeholder="给这天起个名，比如「发工资」"
             autocomplete="off"
             aria-label="叫什么"
@@ -100,6 +101,7 @@
             v-model="form.note"
             class="line-textarea"
             maxlength="120"
+            :inputmode="pinyinState.enabled ? 'none' : null"
             placeholder="写句只有你们懂的（可不写）"
             aria-label="一句话"
           ></textarea>
@@ -162,6 +164,7 @@ import DatePicker from '../components/DatePicker.vue';
 import { ACCENTS } from '../lib/constants';
 import { getEvent, removeEvent, saveEvent } from '../lib/events';
 import { useEvents } from '../composables/useEvents';
+import { pinyinState } from '../composables/usePinyinKeyboard';
 import {
   REPEAT_OPTIONS,
   dateKeyFromParts,

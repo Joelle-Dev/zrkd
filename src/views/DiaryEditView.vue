@@ -145,6 +145,7 @@
         class="write-title-input"
         type="text"
         maxlength="60"
+        :inputmode="pinyinState.enabled ? 'none' : null"
         placeholder="标题"
         autocomplete="off"
         autocapitalize="off"
@@ -161,6 +162,7 @@
         ref="editor"
         v-model="bodyText"
         class="write-textarea"
+        :inputmode="pinyinState.enabled ? 'none' : null"
         placeholder="随便写点什么…（选中文字点 B / I / U 就能加格式）"
         wrap="soft"
         @input="onBodyInput"
@@ -193,6 +195,7 @@ import { showConfirmDialog, showToast } from 'vant';
 import DatePicker from '../components/DatePicker.vue';
 import { MOODS, getDiary, removeDiary, saveDiary } from '../lib/diary';
 import { useDiaries } from '../composables/useDiaries';
+import { pinyinState } from '../composables/usePinyinKeyboard';
 import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import { activeMarksAt, countWords, markdownToHtml, toggleMark } from '../lib/richtext';

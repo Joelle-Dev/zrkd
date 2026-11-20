@@ -99,6 +99,7 @@
               type="text"
               inputmode="numeric"
               maxlength="5"
+              data-native-keyboard
               :value="amountText"
               aria-label="数量"
               @input="onAmountInput"
