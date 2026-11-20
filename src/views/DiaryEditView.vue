@@ -1,7 +1,7 @@
 <template>
   <div ref="page" class="write-page" :class="{ 'is-locked': locked }">
     <!-- 顶部设置栏固定成原生导航栏：格式、日期、心情、关联，写到哪儿都够得着 -->
-    <div ref="topbar" class="write-topbar">
+    <div class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -197,7 +197,6 @@ const moods = MOODS;
 const buildVersion = BUILD_VERSION;
 
 const page = ref(null);
-const topbar = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
 const libraryInput = ref(null);
@@ -504,55 +503,39 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
-// 顶栏固定后不在文档流里，量出它的实际高度（含安全区），
-// 给正文留出同样的上边距。只在尺寸变化时更新，滚动时不碰 DOM。
-let topbarObserver = null;
-
-function syncTopbarHeight() {
-  const height = topbar.value?.offsetHeight;
-  if (height) page.value?.style.setProperty('--write-topbar-h', `${height}px`);
-}
-
 /**
- * iOS 弹键盘时滚的是视觉视口（visualViewport），fixed 元素不会跟着走，
- * 会被顶出屏幕——这就是「有键盘时顶部不固定」。把 offsetTop 写进
- * --vv-top，让固定顶栏反向平移同样的距离，屏幕上就钉住了。
+ * 整页锁定成「可见区域」大小：顶栏在 flex 流里，只有正文区自己滚。
+ * 键盘弹起时视觉视口变矮，把 vv.height 同步到页面高度，
+ * 正文区跟着变矮、底边正好落在键盘上沿。
  *
- * 关键是要「同步」写：以前用 requestAnimationFrame 推迟一帧，
- * iOS 先把它顶走、下一帧才被拉回来，看起来就是上下抖。
- * visualViewport 的 scroll 事件在绘制前触发，直接写样式能跟同一帧合成。
- * 只平移、不改 top，fixed 也不参与文档流，不会和滚动互相较劲。
- * Android 弹键盘是缩小布局视口（interactive-widget=resizes-content），
- * offsetTop 恒为 0，这段逻辑自然什么都不做。
+ * 这里刻意不监听视觉视口的 scroll、也不写 offsetTop：
+ * 顶栏钉在布局顶部、光标始终在可见区内，iOS 就不会平移视觉视口；
+ * 一旦跟着 scroll 每帧补偿，就又会回到「追一帧」的抖动。
  */
 let cleanupViewport = null;
 
 function bindViewport() {
   const vv = window.visualViewport;
-  const el = topbar.value;
+  const el = page.value;
   if (!vv || !el) return () => {};
-  let last = 0;
+  let lastHeight = -1;
 
   const apply = () => {
-    // 用亚像素值而不是取整：iOS 滚动时 offsetTop 是小数，
-    // 取整会让顶栏在相邻整数之间来回跳 1px，看起来就是抖。
-    const offset = Math.max(0, vv.offsetTop);
-    if (Math.abs(offset - last) < 0.05) return;
-    last = offset;
-    if (offset > 0.05) el.style.setProperty('--vv-top', `${offset.toFixed(3)}px`);
-    else el.style.removeProperty('--vv-top');
+    const height = vv.height;
+    if (height > 0 && Math.abs(height - lastHeight) >= 0.5) {
+      lastHeight = height;
+      el.style.setProperty('--vv-height', `${height.toFixed(2)}px`);
+    }
   };
 
   vv.addEventListener('resize', apply);
-  vv.addEventListener('scroll', apply);
   window.addEventListener('orientationchange', apply);
   apply();
 
   return () => {
     vv.removeEventListener('resize', apply);
-    vv.removeEventListener('scroll', apply);
     window.removeEventListener('orientationchange', apply);
-    el.style.removeProperty('--vv-top');
+    el.style.removeProperty('--vv-height');
   };
 }
 
@@ -566,11 +549,6 @@ function onPageHide() {
 
 onMounted(async () => {
   form.date = dateKeyOf();
-  syncTopbarHeight();
-  if (typeof ResizeObserver !== 'undefined' && topbar.value) {
-    topbarObserver = new ResizeObserver(syncTopbarHeight);
-    topbarObserver.observe(topbar.value);
-  }
   window.addEventListener('pagehide', onPageHide);
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
@@ -594,8 +572,6 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
-  topbarObserver?.disconnect();
-  topbarObserver = null;
   cleanupViewport?.();
   cleanupViewport = null;
   showAccessoryBar();

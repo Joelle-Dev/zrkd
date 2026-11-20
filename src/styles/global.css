@@ -312,31 +312,16 @@ h1, h2, h3, h4, p {
   padding-bottom: 10px;
 }
 
-/* 写作页顶栏固定成原生导航栏：文档怎么滚它都不动。
-   宽度跟正文列对齐，手机上就是整屏宽；高度由 JS 量出来写进 --write-topbar-h，
-   给正文留出同样的上边距。 */
+/* 写作页顶栏在 flex 流里，不参与滚动；整页锁成视口高度，
+   文档本身不滚，正文区自己滚。 */
 .write-page > .write-topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  margin: 0 auto;
+  position: relative;
   z-index: 12;
-  width: 100%;
-  max-width: var(--shell-max);
+  flex: 0 0 auto;
+  /* 负 margin 把顶栏撑满整页宽，免得正文从两侧的留白缝里穿过去 */
+  margin: 0 calc(-1 * var(--shell-pad));
   padding: calc(var(--safe-top) + 8px) var(--shell-pad) 0;
   background: var(--surface);
-  /* iOS 弹键盘时视觉视口会往下滚，fixed 元素会被顶出屏幕；
-     用 --vv-top 做一层平移补偿（3D 平移单独提层，避免每帧重绘整条栏），
-     fixed 不参与文档流，不会和滚动互相较劲。 */
-  transform: translate3d(0, var(--vv-top, 0px), 0);
-  will-change: transform;
-}
-
-/* 浏览器把光标滚进视野时，给固定顶栏留出空间，别被压住 */
-.write-title,
-.write-editor {
-  scroll-margin-top: calc(var(--write-topbar-h, calc(var(--safe-top) + 96px)) + 8px);
 }
 
 /* 首页头部 = 导航条：左「我的」、中标题、右操作 */
@@ -1786,21 +1771,25 @@ h1, h2, h3, h4, p {
   font-weight: 600;
 }
 
-/* 写作页：正文走正常文档滚动，顶栏单独固定在上方。
-   之前整页 fixed + 内部滚动，iOS 会吞点按/长按选择、光标滚动时整页抖；
-   现在正文仍是文档滚动，只是把顶栏从滚动流里拿出来，原生式布局。 */
+/* 写作页：原生结构——整页锁成「视觉视口」大小，顶栏和正文各就各位，
+   只有正文区自己滚。
+   文档本身不滚，键盘打开时视觉视口怎么变都只是给页面换一次尺寸，
+   滚动过程中顶栏一动不动，也就谈不上抖。
+   --vv-height 由 JS 只在键盘开合、转屏时更新，滚动过程中不写。 */
 .write-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: var(--vv-height, 100dvh);
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding:
-    var(--write-topbar-h, calc(var(--safe-top) + 96px))
-    var(--shell-pad)
-    calc(28px + var(--safe-bottom));
+  padding: 0 var(--shell-pad);
   background: var(--surface);
+  overflow: hidden;
 }
 
 .write-head {
@@ -1874,7 +1863,13 @@ h1, h2, h3, h4, p {
   flex-direction: column;
   gap: 6px;
   flex: 1 1 auto;
-  padding: 6px 2px 24px;
+  min-height: 0;
+  padding: 6px 2px calc(24px + var(--safe-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* 滚动容器要自己承接触摸滚动，别让外层抢 */
+  touch-action: pan-y;
 }
 
 .write-title {
