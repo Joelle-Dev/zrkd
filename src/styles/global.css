@@ -1926,12 +1926,35 @@ h1, h2, h3, h4, p {
   padding: 6px 2px 16px;
 }
 
-.write-title {
+/* 标题：编辑态是原生 input，锁定时是纯文字 */
+.write-title-input {
   width: 100%;
   min-height: 40px;
   padding: 6px 0;
   border: 0;
   background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.write-title-input:focus {
+  outline: none;
+}
+
+.write-title-input::placeholder {
+  color: var(--placeholder);
+  font-weight: 500;
+}
+
+.write-title-readonly {
+  margin: 0;
+  padding: 6px 0;
   color: var(--ink);
   font-family: var(--font-display);
   font-size: 24px;
@@ -1944,38 +1967,55 @@ h1, h2, h3, h4, p {
   user-select: text;
 }
 
-.write-title:empty::before {
-  content: attr(data-placeholder);
-  color: var(--placeholder);
-  font-weight: 500;
-  pointer-events: none;
+/* 正文：编辑态是原生 textarea，键盘行为跟系统输入框一致，不抖不闪 */
+.write-textarea {
+  display: block;
+  width: 100%;
+  min-height: 40dvh;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 15.5px;
+  line-height: 1.85;
+  resize: none;
+  overflow: hidden;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
-.write-title:focus,
-.write-editor:focus {
+.write-textarea:focus {
   outline: none;
 }
 
-.write-editor {
+.write-textarea::placeholder {
+  color: var(--placeholder);
+}
+
+/* 修饰态 / 锁定态：只读渲染，可长按选中，但没有任何可编辑元素 */
+.write-readonly {
   min-height: 40dvh;
   padding: 4px 0;
   color: var(--ink-soft);
   font-size: 15.5px;
   line-height: 1.85;
-  white-space: pre-wrap;
-  word-break: break-word;
   -webkit-user-select: text;
   user-select: text;
 }
 
-.write-editor:empty::before {
+.write-readonly.is-empty::before {
   content: attr(data-placeholder);
   color: var(--placeholder);
-  pointer-events: none;
 }
 
-.write-editor b,
-.write-editor strong {
+.write-readonly-inner {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.write-readonly b,
+.write-readonly strong {
   font-weight: 700;
   color: var(--ink);
 }
@@ -2048,6 +2088,34 @@ h1, h2, h3, h4, p {
   background: var(--surface-tint);
 }
 
+/* 文字型工具按钮（Aa 修饰 / 完成） */
+.write-tool-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.write-tool-text:active {
+  background: var(--accent-tint);
+}
+
+/* 修饰态的操作提示，说明当前选中了多少字 */
+.write-tools-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted-soft);
+  white-space: nowrap;
+}
+
 
 .write-link {
   max-width: 120px;
@@ -2094,17 +2162,10 @@ h1, h2, h3, h4, p {
   opacity: 1;
 }
 
-.write-page.is-locked .write-title,
-.write-page.is-locked .write-editor {
+.write-page.is-locked .write-readonly {
   cursor: default;
-  caret-color: transparent;
   -webkit-user-select: text;
   user-select: text;
-}
-
-.write-page.is-locked .write-title:focus,
-.write-page.is-locked .write-editor:focus {
-  outline: none;
 }
 
 .write-count {
@@ -2116,37 +2177,6 @@ h1, h2, h3, h4, p {
 }
 
 /* 构建版本号：手机上用来确认当前跑的是哪一包 */
-/* 「Aa」修饰开关：亮起时说明现在选字加格式、不会弹键盘 */
-.write-format-toggle {
-  flex: 0 0 auto;
-  min-width: 30px;
-  height: 26px;
-  padding: 0 7px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--muted);
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
-}
-
-.write-format-toggle.is-active {
-  border-color: transparent;
-  background: var(--accent-tint);
-  color: var(--accent-strong);
-}
-
-/* 修饰模式下正文仍然是「可选中的只读态」 */
-.write-page.is-formatting .write-title,
-.write-page.is-formatting .write-editor {
-  cursor: text;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 .write-build {
   flex: 0 0 auto;
   margin-left: auto;

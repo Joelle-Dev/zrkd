@@ -6,10 +6,15 @@ import {
   htmlToText,
   sanitizeHtml,
   textToHtml,
-  formatStateFromTags,
-  nextFormatAction,
-  unformatHtmlFragment,
-  isFormatTag
+  htmlToSegments,
+  segmentsToHtml,
+  segmentsToText,
+  textToSegments,
+  mergeSegments,
+  applyFormat,
+  formatRangeState,
+  reconcileSegments,
+  sliceSegments
 } from '../src/lib/richtext.js';
 import { normalizeDiaryInput, validateDiary } from '../src/lib/diary.js';
 
@@ -117,32 +122,95 @@ test('validateDiary 全空时报错', () => {
   assert.equal(validateDiary({ date: '2026-11-19', title: '  ', html: '<b></b>' }).ok, false);
 });
 
-test('formatStateFromTags 从祖先标签读出格式状态', () => {
-  assert.deepEqual(formatStateFromTags(['B']), { bold: true, italic: false, underline: false });
-  assert.deepEqual(formatStateFromTags(['b', 'i']), { bold: true, italic: true, underline: false });
-  assert.deepEqual(formatStateFromTags([]), { bold: false, italic: false, underline: false });
-  assert.deepEqual(formatStateFromTags(['DIV', 'SPAN']), { bold: false, italic: false, underline: false });
+/* ---------- segments：文本 + 格式的纯数据表示 ---------- */
+
+test('htmlToSegments 解析加粗/斜体/下划线与换行', () => {
+  assert.deepEqual(htmlToSegments('<b>粗</b>普通'), [
+    { text: '粗', bold: true, italic: false, underline: false },
+    { text: '普通', bold: false, italic: false, underline: false }
+  ]);
+  assert.deepEqual(htmlToSegments('<i>斜</i><u>下</u>'), [
+    { text: '斜', bold: false, italic: true, underline: false },
+    { text: '下', bold: false, italic: false, underline: true }
+  ]);
+  assert.deepEqual(htmlToSegments('第一行<br>第二行'), [
+    { text: '第一行\n第二行', bold: false, italic: false, underline: false }
+  ]);
 });
 
-test('nextFormatAction 已带格式就拆，没带就包', () => {
-  assert.equal(nextFormatAction({ bold: true }, 'bold'), 'unwrap');
-  assert.equal(nextFormatAction({ bold: false }, 'bold'), 'wrap');
-  assert.equal(nextFormatAction({ underline: false }, 'underline'), 'wrap');
-  assert.equal(nextFormatAction({}, 'nope'), 'none');
+test('htmlToSegments 兼容 strong/em 与段落换行，丢弃非法标签', () => {
+  assert.deepEqual(htmlToSegments('<strong>粗</strong>'), [
+    { text: '粗', bold: true, italic: false, underline: false }
+  ]);
+  assert.deepEqual(htmlToSegments('<em>斜</em>'), [
+    { text: '斜', bold: false, italic: true, underline: false }
+  ]);
+  assert.deepEqual(htmlToSegments('<p>一段</p><p>二段</p>'), [
+    { text: '一段\n二段', bold: false, italic: false, underline: false }
+  ]);
+  assert.deepEqual(htmlToSegments('<span>纯文字</span>'), [
+    { text: '纯文字', bold: false, italic: false, underline: false }
+  ]);
 });
 
-test('unformatHtmlFragment 拆掉指定格式，保留其它格式', () => {
-  assert.equal(unformatHtmlFragment('<b>粗</b>', 'bold'), '粗');
-  assert.equal(unformatHtmlFragment('<b>a<i>b</i></b>', 'bold'), 'a<i>b</i>');
-  assert.equal(unformatHtmlFragment('<u>a<b>b</b></u>', 'bold'), '<u>ab</u>');
-  assert.equal(unformatHtmlFragment('没有标签', 'bold'), '没有标签');
-  assert.equal(unformatHtmlFragment('<b><b>套两层</b></b>', 'bold'), '套两层');
+test('segmentsToHtml 与 htmlToSegments 互为往返', () => {
+  const segments = [
+    { text: '今天', bold: true, italic: false, underline: false },
+    { text: '很好\n', bold: false, italic: false, underline: false },
+    { text: '结束', bold: false, italic: true, underline: false }
+  ];
+  const html = segmentsToHtml(segments);
+  assert.equal(html, '<b>今天</b>很好<br><i>结束</i>');
+  assert.deepEqual(htmlToSegments(html), [
+    { text: '今天', bold: true, italic: false, underline: false },
+    { text: '很好\n', bold: false, italic: false, underline: false },
+    { text: '结束', bold: false, italic: true, underline: false }
+  ]);
 });
 
-test('isFormatTag 只认 b/i/u', () => {
-  assert.equal(isFormatTag('B'), true);
-  assert.equal(isFormatTag('u'), true);
-  assert.equal(isFormatTag('I'), true);
-  assert.equal(isFormatTag('div'), false);
-  assert.equal(isFormatTag(''), false);
+test('segmentsToHtml 转义尖括号', () => {
+  assert.equal(segmentsToHtml([{ text: '<a>', bold: false, italic: false, underline: false }]), '&lt;a&gt;');
+  assert.equal(htmlToSegments('&lt;a&gt;')[0].text, '<a>');
+});
+
+test('applyFormat 只改选中区间，前后格式不动', () => {
+  const base = htmlToSegments('今天很好');
+  const result = applyFormat(base, 2, 4, 'bold', 'toggle');
+  assert.equal(segmentsToHtml(result), '今天<b>很好</b>');
+});
+
+test('applyFormat 选中段内一部分时切成前中后三段', () => {
+  const base = htmlToSegments('<b>今天很好</b>');
+  const result = applyFormat(base, 2, 4, 'bold', 'toggle');
+  assert.equal(segmentsToHtml(result), '<b>今天</b>很好');
+});
+
+test('formatRangeState 只有全部带上才算 true', () => {
+  const base = htmlToSegments('<b>今天</b>很好');
+  assert.equal(formatRangeState(base, 0, 2).bold, true);
+  assert.equal(formatRangeState(base, 0, 4).bold, false);
+});
+
+test('reconcileSegments 保留未改动文字的格式', () => {
+  const base = htmlToSegments('<b>粗体</b>普通');
+  const next = reconcileSegments(base, '粗体普通多写几个字');
+  assert.equal(segmentsToHtml(next), '<b>粗体</b>普通多写几个字');
+});
+
+test('reconcileSegments 在加粗文字后继续输入沿用加粗', () => {
+  const base = htmlToSegments('<b>粗体</b>');
+  const next = reconcileSegments(base, '粗体追加');
+  assert.equal(segmentsToHtml(next), '<b>粗体追加</b>');
+});
+
+test('reconcileSegments 删除中间文字后两侧仍保留各自格式', () => {
+  const base = htmlToSegments('<b>前</b>中<i>后</i>');
+  const next = reconcileSegments(base, '前后');
+  assert.equal(segmentsToHtml(next), '<b>前</b><i>后</i>');
+});
+
+test('sliceSegments 按纯文本偏移取子段', () => {
+  const base = htmlToSegments('<b>今天</b>很好');
+  assert.equal(segmentsToText(sliceSegments(base, 1, 3)), '天很');
+  assert.equal(segmentsToHtml(sliceSegments(base, 1, 3)), '<b>天</b>很');
 });

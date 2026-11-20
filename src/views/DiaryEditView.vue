@@ -1,10 +1,5 @@
 <template>
-  <div
-    ref="page"
-    class="write-page"
-    :class="{ 'is-locked': locked, 'is-formatting': formatting }"
-  >
-    <!-- 顶部设置栏固定成原生导航栏：格式、日期、心情、关联，写到哪儿都够得着 -->
+  <div ref="page" class="write-page" :class="{ 'is-locked': locked }">
     <div class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
@@ -50,25 +45,17 @@
           @click="toggleMood(mood.key)"
         >{{ mood.emoji }}</button>
         <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
-        <button
-          v-if="!locked"
-          class="write-format-toggle"
-          type="button"
-          :class="{ 'is-active': formatting }"
-          :aria-pressed="formatting"
-          aria-label="修饰文字（选中后加粗、斜体、下划线）"
-          @mousedown.prevent
-          @touchstart="releaseEditing"
-          @click="toggleFormatting"
-        >Aa</button>
         <span class="write-build">{{ buildVersion }}</span>
       </div>
 
-      <!-- 格式按钮全放顶部：加粗 / 斜体 / 下划线 / 关联 / 插图 -->
-      <div v-if="!locked" class="write-tools">
-        <button class="write-tool" type="button" :class="{ 'is-active': active.bold }" aria-label="加粗" @mousedown.prevent @touchstart="releaseEditing" @click="toggleFormat('bold')"><b>B</b></button>
-        <button class="write-tool" type="button" :class="{ 'is-active': active.italic }" aria-label="斜体" @mousedown.prevent @touchstart="releaseEditing" @click="toggleFormat('italic')"><i>I</i></button>
-        <button class="write-tool" type="button" :class="{ 'is-active': active.underline }" aria-label="下划线" @mousedown.prevent @touchstart="releaseEditing" @click="toggleFormat('underline')"><u>U</u></button>
+      <!--
+        工具行分两套，绝不同时出现：
+          · 打字态：Aa 修饰 / 关联日子 / 插图片
+          · 修饰态：B / I / U / 完成
+        修饰态里页面上没有任何可编辑元素，所以长按选字、点加粗都不会弹键盘。
+      -->
+      <div v-if="!locked && !formatting" class="write-tools">
+        <button class="write-tool-text" type="button" @mousedown.prevent @click="enterFormatting">Aa 修饰</button>
         <button
           class="write-tool"
           type="button"
@@ -77,7 +64,6 @@
           aria-controls="write-picker"
           :aria-expanded="pickerOpen"
           @mousedown.prevent
-          @touchstart="releaseEditing"
           @click="pickerOpen = !pickerOpen"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -85,7 +71,7 @@
             <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
           </svg>
         </button>
-        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @touchstart="releaseEditing" @click="openLibrary">
+        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
             <circle cx="8.6" cy="10.2" r="1.4"></circle>
@@ -94,7 +80,36 @@
         </button>
       </div>
 
-      <!-- 关联日子：贴着吸顶栏往下展开，不和底部键盘抢位置 -->
+      <div v-if="!locked && formatting" class="write-tools">
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': activeFormat.bold }"
+          aria-label="加粗"
+          @mousedown.prevent
+          @click="toggleFormat('bold')"
+        ><b>B</b></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': activeFormat.italic }"
+          aria-label="斜体"
+          @mousedown.prevent
+          @click="toggleFormat('italic')"
+        ><i>I</i></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': activeFormat.underline }"
+          aria-label="下划线"
+          @mousedown.prevent
+          @click="toggleFormat('underline')"
+        ><u>U</u></button>
+        <button class="write-tool-text" type="button" @mousedown.prevent @click="exitFormatting">完成</button>
+        <span class="write-tools-hint">{{ selectionHint }}</span>
+      </div>
+
+      <!-- 关联日子：贴着顶栏往下展开 -->
       <Transition name="picker-drop">
         <div
           v-if="pickerOpen"
@@ -126,33 +141,47 @@
 
     <div v-if="pickerOpen" class="write-picker-scrim" aria-hidden="true" @click="pickerOpen = false"></div>
 
-    <div ref="bodyEl" class="write-body">
-      <div
+    <div class="write-body">
+      <!-- 标题：锁定态只读文字，编辑态是原生输入框 -->
+      <h1 v-if="locked" class="write-title-readonly">{{ form.title }}</h1>
+      <input
+        v-else
         ref="titleEl"
-        class="write-title"
-        :contenteditable="editable"
-        :tabindex="editable ? 0 : -1"
-        role="textbox"
-        aria-label="标题"
-        data-placeholder="标题"
-        @input="onTitleInput"
-        @keydown.enter.prevent="focusEditor"
-        @paste="onPaste"
-      ></div>
+        v-model="form.title"
+        class="write-title-input"
+        type="text"
+        maxlength="60"
+        placeholder="标题"
+        autocomplete="off"
+        autocapitalize="off"
+        @input="scheduleSave"
+        @keydown.enter.prevent="focusBody"
+      >
+
+      <!--
+        正文只有两副面孔，永远不同时存在：
+          · 编辑态：原生 <textarea>，键盘行为跟系统输入框一致，不抖不闪；
+          · 修饰/锁定态：只读 div，可长按选中，但没有任何可编辑元素 → 不弹键盘。
+      -->
+      <textarea
+        v-if="!locked && !formatting"
+        ref="editor"
+        v-model="bodyText"
+        class="write-textarea"
+        placeholder="随便写点什么…"
+        wrap="soft"
+        @input="onBodyInput"
+      ></textarea>
 
       <div
-        ref="editor"
-        class="write-editor"
-        :contenteditable="editable"
-        :tabindex="editable ? 0 : -1"
-        role="textbox"
-        aria-multiline="true"
-        aria-label="正文"
+        v-else
+        ref="reader"
+        class="write-readonly"
+        :class="{ 'is-empty': !readonlyHtml }"
         data-placeholder="随便写点什么…"
-        @input="onInput"
-        @keydown="onKeydown"
-        @paste="onPaste"
-      ></div>
+      >
+        <div ref="readerInner" class="write-readonly-inner" v-html="readonlyHtml"></div>
+      </div>
 
       <div v-if="form.photo" class="write-photo">
         <img :src="form.photo" alt="配图">
@@ -176,12 +205,13 @@ import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import {
-  FORMAT_TAGS,
+  applyFormat,
   countWords,
-  formatStateFromTags,
-  nextFormatAction,
-  sanitizeHtml,
-  textToHtml
+  formatRangeState,
+  htmlToSegments,
+  reconcileSegments,
+  segmentsToHtml,
+  segmentsToText
 } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
 import { hideAccessoryBar, showAccessoryBar } from '../utils/keyboard';
@@ -199,14 +229,14 @@ const moods = MOODS;
 const buildVersion = BUILD_VERSION;
 
 const page = ref(null);
-const bodyEl = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
+const reader = ref(null);
+const readerInner = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
 const pickerOpen = ref(false);
 const dateOpen = ref(false);
-const wordCount = ref(0);
 const original = ref(null);
 const saveState = ref('idle'); // idle | pending | saving | saved | error
 const recordId = ref('');
@@ -214,11 +244,16 @@ const recordId = ref('');
 // 打开旧日记默认锁定，只能看；点右上角「编辑」才解锁输入
 const locked = ref(Boolean(route.params.id));
 
-// 修饰模式：进入后不再可输入（不弹键盘），但文字仍能长按选中再加格式。
-// 打完字点「Aa」进来选字加粗，结束后再点一次回到输入。
+// 修饰态：正文换成只读渲染，页面上没有可编辑元素，长按选字不会弹键盘
 const formatting = ref(false);
 
-const editable = computed(() => !locked.value && !formatting.value);
+// 正文数据：segments 是唯一真相，bodyText 只是 textarea 里的纯文本视图
+const segments = ref([]);
+const bodyText = ref('');
+
+// 修饰态里当前选中的纯文本区间，用来判断按钮高亮
+const activeFormat = reactive({ bold: false, italic: false, underline: false });
+const selectedRange = ref(null); // { start, end }
 
 const SAVE_DELAY = 700;
 let saveTimer = null;
@@ -232,8 +267,6 @@ const saveLabel = computed(() => {
   return '';
 });
 
-const active = reactive({ bold: false, italic: false, underline: false });
-
 const form = reactive({
   date: '',
   title: '',
@@ -245,6 +278,19 @@ const form = reactive({
 const isEditing = computed(() => Boolean(route.params.id));
 
 const events = computed(() => sorted.value.filter((event) => event.targetDate));
+
+const readonlyHtml = computed(() => segmentsToHtml(segments.value));
+
+const wordCount = computed(() => {
+  const text = formatting.value || locked.value ? segmentsToText(segments.value) : bodyText.value;
+  return countWords(text);
+});
+
+const selectionHint = computed(() => {
+  const range = selectedRange.value;
+  if (!range || range.start === range.end) return '长按选中一段，再点 B / I / U';
+  return `已选中 ${range.end - range.start} 个字`;
+});
 
 const dateLabel = computed(() => {
   const parts = parseDateKey(form.date);
@@ -305,262 +351,222 @@ async function onPick(event) {
   }
 }
 
-// 缓存的选区：修饰模式下点按钮时，系统可能先把选区收成光标，
-// 所以只在「有实际选中的文字」时才更新，绝不拿折叠选区覆盖它。
-let savedRange = null;
-
-function rangeInEditor() {
-  const el = editor.value;
-  const sel = typeof document !== 'undefined' ? document.getSelection?.() : null;
-  if (!el || !sel || !sel.rangeCount) return null;
-  const range = sel.getRangeAt(0);
-  return el.contains(range.commonAncestorContainer) ? range : null;
-}
-
-function rangeUsable(range) {
-  return Boolean(
-    range &&
-    !range.collapsed &&
-    editor.value?.contains(range.commonAncestorContainer)
-  );
-}
-
-// 只有真正选中了一段文字才记下来；点按钮导致的折叠选区会把好选区冲掉，
-// 所以这里按键选与折叠两种情况分开处理。
-function cacheSelection() {
-  const range = rangeInEditor();
-  if (rangeUsable(range)) savedRange = range.cloneRange();
-}
-
-function activeRange() {
-  const current = rangeInEditor();
-  if (rangeUsable(current)) return current;
-  if (rangeUsable(savedRange)) return savedRange;
-  return current;
-}
-
-// 选区起点往上收集标签名（不含正文根节点），用来判断该包还是该拆
-function ancestorTagNames(node) {
-  const names = [];
-  const root = editor.value;
-  let current = node;
-  while (current && current !== root) {
-    if (current.nodeType === Node.ELEMENT_NODE) names.push(current.tagName);
-    current = current.parentNode;
-  }
-  return names;
-}
-
-function syncActive() {
-  const range = activeRange();
-  if (!range) {
-    active.bold = active.italic = active.underline = false;
-    return;
-  }
-  const state = formatStateFromTags(ancestorTagNames(range.startContainer));
-  active.bold = state.bold;
-  active.italic = state.italic;
-  active.underline = state.underline;
-}
-
-function refreshCount() {
-  const text = editor.value?.innerText || '';
-  wordCount.value = countWords(text);
-}
-
-function onTitleInput() {
-  const text = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trimStart();
-  form.title = text.slice(0, 60);
-}
-
-// 标题里敲回车就跳到正文，别在标题里换行
-function focusEditor() {
+function focusBody() {
   editor.value?.focus();
 }
 
-function onInput() {
-  refreshCount();
-  syncActive();
+/* ---------- textarea 自动增高 ---------- */
+
+function resizeEditor() {
+  const el = editor.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+
+function onBodyInput() {
+  segments.value = reconcileSegments(segments.value, bodyText.value);
+  resizeEditor();
   scheduleSave();
 }
 
-function onKeydown(event) {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
-    event.preventDefault();
-    if (editable.value) toggleFormat('bold');
-  }
+/* ---------- 修饰态 ---------- */
+
+/**
+ * 进入修饰态。
+ *
+ * 只要把 textarea 从 DOM 里换掉（v-if），键盘自然收起，
+ * 不需要 blur 技巧、不需要清选区、不需要跟视觉视口较劲。
+ */
+async function enterFormatting() {
+  if (locked.value || formatting.value) return;
+  segments.value = reconcileSegments(segments.value, bodyText.value);
+  selectedRange.value = null;
+  activeFormat.bold = false;
+  activeFormat.italic = false;
+  activeFormat.underline = false;
+  formatting.value = true;
+  haptic('light');
+  await nextTick();
+  resizeReader();
 }
 
-function onGlobalKeydown(event) {
-  if (event.key === 'Escape' && pickerOpen.value) pickerOpen.value = false;
+async function exitFormatting() {
+  if (!formatting.value) return;
+  bodyText.value = segmentsToText(segments.value);
+  formatting.value = false;
+  selectedRange.value = null;
+  haptic('light');
+  await nextTick();
+  resizeEditor();
 }
 
-// 粘贴只留纯文本，避免把网页样式带进来
-function onPaste(event) {
-  event.preventDefault();
-  const text = event.clipboardData?.getData('text/plain') || '';
-  if (!text) return;
-  document.execCommand('insertText', false, text);
+// 只读区没有滚动条，高度跟着内容走，页面整体滚
+function resizeReader() {
+  const el = reader.value;
+  if (el) el.style.height = 'auto';
 }
 
-function selectRange(range) {
+/* ---------- 纯读区里的选区 ⇄ 纯文本偏移 ---------- */
+
+function nodeLength(node) {
+  if (!node) return 0;
+  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue.length;
+  if (node.nodeName === 'BR') return 1;
+  let sum = 0;
+  for (const child of node.childNodes) sum += nodeLength(child);
+  return sum;
+}
+
+/** DOM 位置 → 纯文本偏移（<br> 记作一个换行） */
+function offsetOfPoint(root, targetNode, targetOffset) {
+  let total = 0;
+  let found = null;
+
+  const visit = (node) => {
+    if (found !== null) return;
+    if (node === targetNode) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        found = total + targetOffset;
+        return;
+      }
+      let count = 0;
+      for (let i = 0; i < targetOffset && i < node.childNodes.length; i += 1) {
+        count += nodeLength(node.childNodes[i]);
+      }
+      found = total + count;
+      return;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+      total += node.nodeValue.length;
+      return;
+    }
+    if (node.nodeName === 'BR') {
+      total += 1;
+      return;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      for (const child of node.childNodes) {
+        visit(child);
+        if (found !== null) return;
+      }
+    }
+  };
+
+  visit(root);
+  return found;
+}
+
+/** 纯文本偏移 → DOM 位置 */
+function pointAtOffset(root, target) {
+  let total = 0;
+  let result = null;
+
+  const visit = (node) => {
+    if (result) return;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const len = node.nodeValue.length;
+      if (target <= total + len) {
+        result = { node, offset: target - total };
+        return;
+      }
+      total += len;
+      return;
+    }
+    if (node.nodeName === 'BR') {
+      if (target <= total) {
+        const parent = node.parentNode;
+        result = { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, node) };
+        return;
+      }
+      total += 1;
+      return;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      for (const child of node.childNodes) {
+        visit(child);
+        if (result) return;
+      }
+    }
+  };
+
+  visit(root);
+  return result || { node: root, offset: root.childNodes.length };
+}
+
+function readSelection() {
+  const root = readerInner.value;
   const sel = document.getSelection?.();
-  if (!sel) return;
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-/**
- * 给选区包一层格式标签，返回包好后的新区间。
- * 动的是克隆出来的 range，绝不回写 document.getSelection()：
- * 在 iOS 上给可编辑内容重设选区会重新唤起键盘。
- */
-function wrapSelection(range, key) {
-  const tag = FORMAT_TAGS[key];
-  const wrapper = document.createElement(tag);
-  const work = range.cloneRange();
-  try {
-    wrapper.appendChild(work.extractContents());
-    work.insertNode(wrapper);
-  } catch (err) {
-    return null;
-  }
-  const next = document.createRange();
-  next.selectNodeContents(wrapper);
-  return next;
-}
-
-function closestFormatAncestor(node, tag) {
-  const root = editor.value;
-  let current = node;
-  if (current && current.nodeType !== Node.ELEMENT_NODE) current = current.parentElement;
-  while (current && current !== root) {
-    if (current.nodeType === Node.ELEMENT_NODE && current.tagName.toLowerCase() === tag) return current;
-    current = current.parentElement;
-  }
-  return null;
-}
-
-function withFormatTag(tag, content) {
-  // 只留下真正有内容的半截；空的（只剩光标边界）直接丢掉，避免留空标签
-  const hasText = String(content.textContent || '').length > 0;
-  const hasNode = content.querySelector ? Boolean(content.querySelector('br,img')) : false;
-  if (!hasText && !hasNode) return null;
-  const wrapper = document.createElement(tag);
-  wrapper.appendChild(content);
-  return wrapper;
-}
-
-/**
- * 取消选区里的某种格式。
- *
- * 选区往往只是格式标签里的一小段，直接删标签会把整段都变掉；
- * 这里把外层格式标签切成「前 / 选中 / 后」三截：前后各包一层保留原格式，
- * 中间裸着插回去，再重新选中中间那段，方便接着操作。
- */
-function unwrapSelection(range, key) {
-  const tag = FORMAT_TAGS[key];
-  const target = closestFormatAncestor(range.startContainer, tag);
-  if (!target) return null;
-
-  // 起止都落在格式标签「内部」，避免 cloneContents 把外层标签本身也克隆出来
-  const beforeRange = document.createRange();
-  beforeRange.setStart(target, 0);
-  beforeRange.setEnd(range.startContainer, range.startOffset);
-
-  const afterRange = document.createRange();
-  afterRange.setStart(range.endContainer, range.endOffset);
-  afterRange.setEnd(target, target.childNodes.length);
-
-  const beforePart = withFormatTag(tag, beforeRange.cloneContents());
-  const afterPart = withFormatTag(tag, afterRange.cloneContents());
-  const middleNodes = Array.from(range.cloneContents().childNodes);
-
-  const fragment = document.createDocumentFragment();
-  if (beforePart) fragment.appendChild(beforePart);
-  middleNodes.forEach((node) => fragment.appendChild(node));
-  if (afterPart) fragment.appendChild(afterPart);
-
-  target.replaceWith(fragment);
-
-  if (!middleNodes.length) return null;
-  const next = document.createRange();
-  next.setStartBefore(middleNodes[0]);
-  next.setEndAfter(middleNodes[middleNodes.length - 1]);
-  return next;
-}
-
-/**
- * 加粗 / 斜体 / 下划线。
- *
- * 刻意不调用 focus()、也不走 execCommand：
- * 两者都会把键盘重新拉起来。这里直接对缓存好的选区做 DOM 包裹，
- * 所以「打完字再修饰」全程不会弹键盘。
- */
-function toggleFormat(key) {
-  if (locked.value) return;
-  const range = activeRange();
-  if (!range) {
-    showToast('先把要修饰的文字选中');
+  if (!root || !sel || !sel.rangeCount) {
+    selectedRange.value = null;
+    activeFormat.bold = false;
+    activeFormat.italic = false;
+    activeFormat.underline = false;
     return;
   }
-  if (range.collapsed) {
-    showToast('先选中一段文字');
+  const range = sel.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) {
+    selectedRange.value = null;
+    return;
+  }
+  const start = offsetOfPoint(root, range.startContainer, range.startOffset);
+  const end = offsetOfPoint(root, range.endContainer, range.endOffset);
+  if (start === null || end === null) return;
+
+  const from = Math.min(start, end);
+  const to = Math.max(start, end);
+  selectedRange.value = { start: from, end: to };
+
+  if (from === to) {
+    activeFormat.bold = false;
+    activeFormat.italic = false;
+    activeFormat.underline = false;
+    return;
+  }
+  Object.assign(activeFormat, formatRangeState(segments.value, from, to));
+}
+
+function restoreSelection(range) {
+  const root = readerInner.value;
+  if (!root || !range || range.start === range.end) return;
+  try {
+    const startPoint = pointAtOffset(root, range.start);
+    const endPoint = pointAtOffset(root, range.end);
+    const next = document.createRange();
+    next.setStart(startPoint.node, startPoint.offset);
+    next.setEnd(endPoint.node, endPoint.offset);
+    const sel = document.getSelection?.();
+    sel?.removeAllRanges();
+    sel?.addRange(next);
+  } catch (err) {
+    // 选区还原失败不影响内容，忽略
+  }
+}
+
+/**
+ * 给选中区间加/去格式。
+ *
+ * 只改数据、重渲染，然后按纯文本偏移把选区还原。
+ * 只读区没有可编辑元素，所以重设选区不会唤起键盘。
+ */
+async function toggleFormat(key) {
+  const range = selectedRange.value;
+  if (!range || range.start === range.end) {
+    showToast('先长按选中一段文字');
     haptic('warning');
     return;
   }
-  const state = formatStateFromTags(ancestorTagNames(range.startContainer));
-  const action = nextFormatAction(state, key);
-  const next = action === 'unwrap' ? unwrapSelection(range, key) : wrapSelection(range, key);
-  if (!next) return;
-  savedRange = next.cloneRange();
-  // 修饰模式下不把选区写回文档：重设选区会让 iOS 重新弹出键盘。
-  // 打字模式里本来就聚焦着，保持选区方便连续操作。
-  if (!formatting.value) selectRange(next);
-  refreshCount();
-  syncActive();
+  segments.value = applyFormat(segments.value, range.start, range.end, key, 'toggle');
+  haptic('light');
+  await nextTick();
+  restoreSelection(range);
+  readSelection();
   scheduleSave();
-  haptic('light');
 }
 
-/**
- * 在点按的同步调用栈里收起编辑态。
- *
- * iOS 只认用户手势当帧的动作：一旦 await 过就不再允许收起键盘。
- * 真正管用的是 removeAllRanges()，单靠 blur() 在 iOS 上常常无效。
- * 这里不 preventDefault，按钮的 click 照常触发；
- * 选区先缓存在 savedRange 里，清掉文档选区不影响后续加格式。
- */
-function releaseEditing() {
-  // 只在修饰模式下收键盘；打字模式点 B/I/U 要保持键盘和焦点不中断
-  if (locked.value || !formatting.value) return;
-  editor.value?.blur?.();
-  titleEl.value?.blur?.();
-  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-  document.getSelection?.()?.removeAllRanges?.();
-}
-
-/**
- * 进出修饰模式。
- *
- * 进入时同步把 contenteditable 关掉（不等 nextTick，否则已脱离手势），
- * 让 iOS 没有可恢复的编辑会话；退出时只切回可输入，不自动 focus。
- */
-function toggleFormatting() {
-  if (locked.value) return;
-  if (formatting.value) {
-    formatting.value = false;
-    haptic('light');
-    return;
-  }
-
-  cacheSelection();
-  formatting.value = true;
-
-  titleEl.value?.setAttribute('contenteditable', 'false');
-  editor.value?.setAttribute('contenteditable', 'false');
-  releaseEditing();
-  haptic('light');
+function onSelectionChange() {
+  if (!formatting.value || locked.value) return;
+  readSelection();
 }
 
 // 结构性的改动（日期、心情、配图、关联）直接触发保存
@@ -571,8 +577,8 @@ watch(form, () => {
 // 与 saveDiary 的校验保持一致：标题、正文、配图三者有其一才落库。
 // 只点心情不产生记录，避免出现空白日记。
 function hasContent() {
-  const title = (titleEl.value?.innerText || '').trim();
-  const text = (editor.value?.innerText || '').trim();
+  const title = String(form.title || '').trim();
+  const text = segmentsToText(segments.value).trim();
   return Boolean(title || text || form.photo);
 }
 
@@ -604,15 +610,18 @@ async function flushSave() {
     return;
   }
 
+  // 打字态下先把 textarea 的最新文字并进 segments
+  if (!formatting.value) {
+    segments.value = reconcileSegments(segments.value, bodyText.value);
+  }
+
   saving.value = true;
   saveState.value = 'saving';
   try {
-    const html = sanitizeHtml(editor.value?.innerHTML || '');
-    const title = (titleEl.value?.innerText || '').replace(/\n+/g, ' ').trim();
     const saved = await saveDiary({
       ...form,
-      title,
-      html,
+      title: String(form.title || '').replace(/\n+/g, ' ').trim(),
+      html: segmentsToHtml(segments.value),
       id: recordId.value || undefined
     }, original.value || (recordId.value ? { id: recordId.value } : null));
 
@@ -656,12 +665,12 @@ async function load() {
     form.mood = record.mood || '';
     form.photo = record.photo || '';
     form.eventId = record.eventId || '';
+    segments.value = record.html
+      ? htmlToSegments(record.html)
+      : htmlToSegments(record.text || '');
+    bodyText.value = segmentsToText(segments.value);
     await nextTick();
-    if (titleEl.value) titleEl.value.innerText = record.title || '';
-    if (editor.value) {
-      editor.value.innerHTML = record.html || textToHtml(record.text);
-      refreshCount();
-    }
+    resizeEditor();
   } catch (err) {
     showToast('没打开，再敲一次门');
   }
@@ -692,24 +701,6 @@ async function confirmDelete() {
   }
 }
 
-function onSelectionChange() {
-  const range = rangeInEditor();
-  if (!range) return;
-  // 折叠（只是光标）时保留上一次的有效选区，避免误清
-  if (rangeUsable(range)) savedRange = range.cloneRange();
-  syncActive();
-}
-
-/**
- * 键盘开合时把页面切成「锁定可视区域」的内滚动结构。
- *
- * 有键盘时，右侧工具条和顶栏如果保持 fixed / 文档流，iOS 平移视觉视口
- * 就会让它们上下漂。所以键盘一开，整页 fix 到可见区域，顶栏和工具条
- * 变成这个固定容器的子项——它们相对容器定位，视觉视口怎么平移都不动。
- *
- * 只在 resize / 转屏时算一次，绝不监听 scroll：滚动过程中不做任何补偿。
- * 键盘收起就完全回到普通文档滚动，手感和首页一致。
- */
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
   if (locked.value) return;
@@ -721,10 +712,10 @@ function onPageHide() {
 onMounted(async () => {
   form.date = dateKeyOf();
   window.addEventListener('pagehide', onPageHide);
-  await load();
   document.addEventListener('selectionchange', onSelectionChange);
-  window.addEventListener('keydown', onGlobalKeydown);
   hideAccessoryBar();
+  await load();
+  await nextTick();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
     const presetEvent = String(route.query.event || '');
@@ -736,11 +727,11 @@ onMounted(async () => {
     await nextTick();
     editor.value?.focus();
   }
+  resizeEditor();
 });
 
 onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
-  window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
   showAccessoryBar();
 });
