@@ -317,9 +317,6 @@ h1, h2, h3, h4, p {
 .write-page > .write-topbar {
   position: sticky;
   top: 0;
-  /* 键盘/缩放带来的视觉视口偏移只做平移，不改 sticky 的 top：
-     top 一变，吸顶栏会在「吸住 / 回到文档流」之间反复跳，滚动时就频闪。 */
-  transform: translateY(var(--vv-top, 0px));
   z-index: 12;
   flex: 0 0 auto;
   margin: 0 calc(-1 * var(--shell-pad));
@@ -1776,7 +1773,7 @@ h1, h2, h3, h4, p {
      3. 每次 visualViewport 一变就重排整页，光标进文字时和浏览器
         的「滚到可见位置」互相较劲，整页会抖。
    现在页面随内容自然增长、由文档滚动，问题都不存在；
-   顶栏只 sticky，键盘弹起时用 --vv-top 补一点偏移即可。 */
+   顶栏只做纯 sticky，不跟 visualViewport 做逐帧补偿。 */
 .write-page {
   display: flex;
   flex-direction: column;
