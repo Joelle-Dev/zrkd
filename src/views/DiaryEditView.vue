@@ -58,6 +58,7 @@
           :aria-pressed="formatting"
           aria-label="修饰文字（选中后加粗、斜体、下划线）"
           @mousedown.prevent
+          @touchstart="releaseEditing"
           @click="toggleFormatting"
         >Aa</button>
         <span class="write-build">{{ buildVersion }}</span>
@@ -65,9 +66,9 @@
 
       <!-- 格式按钮全放顶部：加粗 / 斜体 / 下划线 / 关联 / 插图 -->
       <div v-if="!locked" class="write-tools">
-        <button class="write-tool" type="button" :class="{ 'is-active': active.bold }" aria-label="加粗" @mousedown.prevent @click="toggleFormat('bold')"><b>B</b></button>
-        <button class="write-tool" type="button" :class="{ 'is-active': active.italic }" aria-label="斜体" @mousedown.prevent @click="toggleFormat('italic')"><i>I</i></button>
-        <button class="write-tool" type="button" :class="{ 'is-active': active.underline }" aria-label="下划线" @mousedown.prevent @click="toggleFormat('underline')"><u>U</u></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.bold }" aria-label="加粗" @mousedown.prevent @touchstart="releaseEditing" @click="toggleFormat('bold')"><b>B</b></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.italic }" aria-label="斜体" @mousedown.prevent @touchstart="releaseEditing" @click="toggleFormat('italic')"><i>I</i></button>
+        <button class="write-tool" type="button" :class="{ 'is-active': active.underline }" aria-label="下划线" @mousedown.prevent @touchstart="releaseEditing" @click="toggleFormat('underline')"><u>U</u></button>
         <button
           class="write-tool"
           type="button"
@@ -76,6 +77,7 @@
           aria-controls="write-picker"
           :aria-expanded="pickerOpen"
           @mousedown.prevent
+          @touchstart="releaseEditing"
           @click="pickerOpen = !pickerOpen"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -83,7 +85,7 @@
             <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
           </svg>
         </button>
-        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @touchstart="releaseEditing" @click="openLibrary">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
             <circle cx="8.6" cy="10.2" r="1.4"></circle>
@@ -408,19 +410,23 @@ function selectRange(range) {
   sel.addRange(range);
 }
 
-/** 给选区包一层格式标签，返回包好后的新区间 */
+/**
+ * 给选区包一层格式标签，返回包好后的新区间。
+ * 动的是克隆出来的 range，绝不回写 document.getSelection()：
+ * 在 iOS 上给可编辑内容重设选区会重新唤起键盘。
+ */
 function wrapSelection(range, key) {
   const tag = FORMAT_TAGS[key];
   const wrapper = document.createElement(tag);
+  const work = range.cloneRange();
   try {
-    wrapper.appendChild(range.extractContents());
-    range.insertNode(wrapper);
+    wrapper.appendChild(work.extractContents());
+    work.insertNode(wrapper);
   } catch (err) {
     return null;
   }
   const next = document.createRange();
   next.selectNodeContents(wrapper);
-  selectRange(next);
   return next;
 }
 
@@ -481,7 +487,6 @@ function unwrapSelection(range, key) {
   const next = document.createRange();
   next.setStartBefore(middleNodes[0]);
   next.setEndAfter(middleNodes[middleNodes.length - 1]);
-  selectRange(next);
   return next;
 }
 
@@ -509,36 +514,53 @@ function toggleFormat(key) {
   const next = action === 'unwrap' ? unwrapSelection(range, key) : wrapSelection(range, key);
   if (!next) return;
   savedRange = next.cloneRange();
+  // 修饰模式下不把选区写回文档：重设选区会让 iOS 重新弹出键盘。
+  // 打字模式里本来就聚焦着，保持选区方便连续操作。
+  if (!formatting.value) selectRange(next);
   refreshCount();
   syncActive();
   scheduleSave();
   haptic('light');
 }
 
-/** 进出修饰模式：进入时收起键盘，选中文字只做格式、不再输入 */
+/**
+ * 在点按的同步调用栈里收起编辑态。
+ *
+ * iOS 只认用户手势当帧的动作：一旦 await 过就不再允许收起键盘。
+ * 真正管用的是 removeAllRanges()，单靠 blur() 在 iOS 上常常无效。
+ * 这里不 preventDefault，按钮的 click 照常触发；
+ * 选区先缓存在 savedRange 里，清掉文档选区不影响后续加格式。
+ */
+function releaseEditing() {
+  // 只在修饰模式下收键盘；打字模式点 B/I/U 要保持键盘和焦点不中断
+  if (locked.value || !formatting.value) return;
+  editor.value?.blur?.();
+  titleEl.value?.blur?.();
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  document.getSelection?.()?.removeAllRanges?.();
+}
+
+/**
+ * 进出修饰模式。
+ *
+ * 进入时同步把 contenteditable 关掉（不等 nextTick，否则已脱离手势），
+ * 让 iOS 没有可恢复的编辑会话；退出时只切回可输入，不自动 focus。
+ */
 function toggleFormatting() {
   if (locked.value) return;
   if (formatting.value) {
     formatting.value = false;
     haptic('light');
-    const range = savedRange;
-    nextTick(() => {
-      if (range && editor.value?.contains(range.commonAncestorContainer)) {
-        editor.value.focus();
-        selectRange(range);
-      }
-    });
     return;
   }
+
   cacheSelection();
   formatting.value = true;
-  const activeEl = document.activeElement;
-  if (activeEl instanceof HTMLElement) activeEl.blur();
+
+  titleEl.value?.setAttribute('contenteditable', 'false');
+  editor.value?.setAttribute('contenteditable', 'false');
+  releaseEditing();
   haptic('light');
-  nextTick(() => {
-    if (!savedRange) return;
-    if (editor.value?.contains(savedRange.commonAncestorContainer)) selectRange(savedRange);
-  });
 }
 
 // 结构性的改动（日期、心情、配图、关联）直接触发保存

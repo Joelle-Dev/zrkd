@@ -167,7 +167,8 @@ import {
   dateKeyFromParts,
   formatDateCN,
   weekdayCN,
-  describeEvent
+  describeEvent,
+  isValidDateKey
 } from '../lib/countdown';
 import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
@@ -366,5 +367,15 @@ watch(() => route.params.id, async () => {
   await load();
 });
 
-onMounted(load);
+onMounted(() => {
+  // 从日期计算器带过来的日期，直接填进表单
+  if (!isEditing.value) {
+    const preset = String(route.query.date || '');
+    if (isValidDateKey(preset)) {
+      form.targetDate = preset;
+      dirty.value = false;
+    }
+  }
+  load();
+});
 </script>

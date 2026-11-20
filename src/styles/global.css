@@ -4009,6 +4009,200 @@ button.settings-row:active {
 }
 
 /* ==========================================================================
+   08b. 日期计算器
+   ========================================================================== */
+
+.calc-modes {
+  width: 100%;
+}
+
+.calc-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.calc-date-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+}
+
+.calc-date-row:active {
+  background: var(--surface-tint);
+}
+
+.calc-date-kicker {
+  flex: 0 0 auto;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted-soft);
+}
+
+.calc-date-main {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calc-date-week {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--muted-soft);
+}
+
+.calc-date-row > svg {
+  flex: 0 0 auto;
+  color: var(--muted-soft);
+}
+
+.calc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 16px;
+}
+
+/* 相差天数：一个大数字居中 */
+.calc-figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+
+.calc-verb {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.calc-number {
+  font-family: var(--font-display);
+  font-size: 46px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.calc-phrase {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.calc-facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.calc-fact {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-tint);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 往后推：方向 + 数量 + 单位 */
+.calc-direction {
+  display: flex;
+  gap: 8px;
+}
+
+.calc-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calc-amount {
+  width: 84px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-amount:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.calc-units {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* 推算结果 */
+.calc-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  text-align: center;
+}
+
+.calc-result-kicker {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--muted-soft);
+}
+
+.calc-result-date {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-result-week {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.calc-result-rel {
+  font-size: 11.5px;
+  color: var(--accent-strong);
+}
+
+/* ==========================================================================
    09. 深色主题
    ========================================================================== */
 
