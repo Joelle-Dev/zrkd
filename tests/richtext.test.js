@@ -6,15 +6,10 @@ import {
   htmlToText,
   sanitizeHtml,
   textToHtml,
-  htmlToSegments,
-  segmentsToHtml,
-  segmentsToText,
-  textToSegments,
-  mergeSegments,
-  applyFormat,
-  formatRangeState,
-  reconcileSegments,
-  sliceSegments
+  markdownToHtml,
+  toggleMark,
+  activeMarksAt,
+  htmlToMarkdown
 } from '../src/lib/richtext.js';
 import { normalizeDiaryInput, validateDiary } from '../src/lib/diary.js';
 
@@ -122,95 +117,60 @@ test('validateDiary 全空时报错', () => {
   assert.equal(validateDiary({ date: '2026-11-19', title: '  ', html: '<b></b>' }).ok, false);
 });
 
-/* ---------- segments：文本 + 格式的纯数据表示 ---------- */
+/* ---------- Markdown-lite ---------- */
 
-test('htmlToSegments 解析加粗/斜体/下划线与换行', () => {
-  assert.deepEqual(htmlToSegments('<b>粗</b>普通'), [
-    { text: '粗', bold: true, italic: false, underline: false },
-    { text: '普通', bold: false, italic: false, underline: false }
-  ]);
-  assert.deepEqual(htmlToSegments('<i>斜</i><u>下</u>'), [
-    { text: '斜', bold: false, italic: true, underline: false },
-    { text: '下', bold: false, italic: false, underline: true }
-  ]);
-  assert.deepEqual(htmlToSegments('第一行<br>第二行'), [
-    { text: '第一行\n第二行', bold: false, italic: false, underline: false }
-  ]);
+test('markdownToHtml 渲染加粗 / 斜体 / 下划线', () => {
+  assert.equal(markdownToHtml('**粗**'), '<b>粗</b>');
+  assert.equal(markdownToHtml('*斜*'), '<i>斜</i>');
+  assert.equal(markdownToHtml('__下__'), '<u>下</u>');
+  assert.equal(markdownToHtml('**粗**和*斜*还有__下__'), '<b>粗</b>和<i>斜</i>还有<u>下</u>');
 });
 
-test('htmlToSegments 兼容 strong/em 与段落换行，丢弃非法标签', () => {
-  assert.deepEqual(htmlToSegments('<strong>粗</strong>'), [
-    { text: '粗', bold: true, italic: false, underline: false }
-  ]);
-  assert.deepEqual(htmlToSegments('<em>斜</em>'), [
-    { text: '斜', bold: false, italic: true, underline: false }
-  ]);
-  assert.deepEqual(htmlToSegments('<p>一段</p><p>二段</p>'), [
-    { text: '一段\n二段', bold: false, italic: false, underline: false }
-  ]);
-  assert.deepEqual(htmlToSegments('<span>纯文字</span>'), [
-    { text: '纯文字', bold: false, italic: false, underline: false }
-  ]);
+test('markdownToHtml 保留换行并转义 HTML', () => {
+  assert.equal(markdownToHtml('第一行\n第二行'), '第一行<br>第二行');
+  assert.equal(markdownToHtml('<script>x</script>'), '&lt;script&gt;x&lt;/script&gt;');
 });
 
-test('segmentsToHtml 与 htmlToSegments 互为往返', () => {
-  const segments = [
-    { text: '今天', bold: true, italic: false, underline: false },
-    { text: '很好\n', bold: false, italic: false, underline: false },
-    { text: '结束', bold: false, italic: true, underline: false }
-  ];
-  const html = segmentsToHtml(segments);
-  assert.equal(html, '<b>今天</b>很好<br><i>结束</i>');
-  assert.deepEqual(htmlToSegments(html), [
-    { text: '今天', bold: true, italic: false, underline: false },
-    { text: '很好\n', bold: false, italic: false, underline: false },
-    { text: '结束', bold: false, italic: true, underline: false }
-  ]);
+test('markdownToHtml 嵌套格式', () => {
+  assert.equal(markdownToHtml('**粗*又斜*粗**'), '<b>粗<i>又斜</i>粗</b>');
 });
 
-test('segmentsToHtml 转义尖括号', () => {
-  assert.equal(segmentsToHtml([{ text: '<a>', bold: false, italic: false, underline: false }]), '&lt;a&gt;');
-  assert.equal(htmlToSegments('&lt;a&gt;')[0].text, '<a>');
+test('markdownToHtml 未闭合的符号原样保留', () => {
+  assert.equal(markdownToHtml('**没闭合'), '**没闭合');
 });
 
-test('applyFormat 只改选中区间，前后格式不动', () => {
-  const base = htmlToSegments('今天很好');
-  const result = applyFormat(base, 2, 4, 'bold', 'toggle');
-  assert.equal(segmentsToHtml(result), '今天<b>很好</b>');
+test('toggleMark 选中文字加符号', () => {
+  assert.deepEqual(toggleMark('今天很好', 2, 4, 'bold'), {
+    text: '今天**很好**', start: 4, end: 6
+  });
+  assert.deepEqual(toggleMark('今天很好', 2, 4, 'italic'), {
+    text: '今天*很好*', start: 3, end: 5
+  });
 });
 
-test('applyFormat 选中段内一部分时切成前中后三段', () => {
-  const base = htmlToSegments('<b>今天很好</b>');
-  const result = applyFormat(base, 2, 4, 'bold', 'toggle');
-  assert.equal(segmentsToHtml(result), '<b>今天</b>很好');
+test('toggleMark 再点一次去掉符号', () => {
+  assert.deepEqual(toggleMark('今天**很好**', 4, 6, 'bold'), {
+    text: '今天很好', start: 2, end: 4
+  });
 });
 
-test('formatRangeState 只有全部带上才算 true', () => {
-  const base = htmlToSegments('<b>今天</b>很好');
-  assert.equal(formatRangeState(base, 0, 2).bold, true);
-  assert.equal(formatRangeState(base, 0, 4).bold, false);
+test('toggleMark 选中范围包含符号时也能去掉', () => {
+  assert.deepEqual(toggleMark('今天**很好**', 2, 8, 'bold'), {
+    text: '今天很好', start: 2, end: 4
+  });
 });
 
-test('reconcileSegments 保留未改动文字的格式', () => {
-  const base = htmlToSegments('<b>粗体</b>普通');
-  const next = reconcileSegments(base, '粗体普通多写几个字');
-  assert.equal(segmentsToHtml(next), '<b>粗体</b>普通多写几个字');
+test('activeMarksAt 判断光标是否在格式内', () => {
+  const text = '**今天很好**';
+  assert.equal(activeMarksAt(text, 0, 0).bold, false);
+  assert.equal(activeMarksAt(text, 3, 3).bold, true);
+  assert.equal(activeMarksAt(text, 3, 5).bold, true);
+  assert.equal(activeMarksAt('今天很好', 1, 3).bold, false);
 });
 
-test('reconcileSegments 在加粗文字后继续输入沿用加粗', () => {
-  const base = htmlToSegments('<b>粗体</b>');
-  const next = reconcileSegments(base, '粗体追加');
-  assert.equal(segmentsToHtml(next), '<b>粗体追加</b>');
-});
-
-test('reconcileSegments 删除中间文字后两侧仍保留各自格式', () => {
-  const base = htmlToSegments('<b>前</b>中<i>后</i>');
-  const next = reconcileSegments(base, '前后');
-  assert.equal(segmentsToHtml(next), '<b>前</b><i>后</i>');
-});
-
-test('sliceSegments 按纯文本偏移取子段', () => {
-  const base = htmlToSegments('<b>今天</b>很好');
-  assert.equal(segmentsToText(sliceSegments(base, 1, 3)), '天很');
-  assert.equal(segmentsToHtml(sliceSegments(base, 1, 3)), '<b>天</b>很');
+test('htmlToMarkdown 把旧 HTML 转回 Markdown', () => {
+  assert.equal(htmlToMarkdown('<b>粗</b>普通'), '**粗**普通');
+  assert.equal(htmlToMarkdown('<strong>粗</strong>'), '**粗**');
+  assert.equal(htmlToMarkdown('<i>斜</i><u>下</u>'), '*斜*__下__');
+  assert.equal(htmlToMarkdown('<p>一段</p><p>二段</p>'), '一段\n二段');
 });

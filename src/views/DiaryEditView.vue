@@ -49,13 +49,35 @@
       </div>
 
       <!--
-        工具行分两套，绝不同时出现：
-          · 打字态：Aa 修饰 / 关联日子 / 插图片
-          · 修饰态：B / I / U / 完成
-        修饰态里页面上没有任何可编辑元素，所以长按选字、点加粗都不会弹键盘。
+        格式按钮：在选区两端插 Markdown 符号（纯字符串操作）。
+        用 mousedown.prevent 保住焦点，键盘完全不中断，
+        加粗也能走系统原生 undo。
       -->
-      <div v-if="!locked && !formatting" class="write-tools">
-        <button class="write-tool-text" type="button" @mousedown.prevent @click="enterFormatting">Aa 修饰</button>
+      <div v-if="!locked" class="write-tools">
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': activeFormat.bold }"
+          aria-label="加粗"
+          @mousedown.prevent
+          @click="applyMark('bold')"
+        ><b>B</b></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': activeFormat.italic }"
+          aria-label="斜体"
+          @mousedown.prevent
+          @click="applyMark('italic')"
+        ><i>I</i></button>
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': activeFormat.underline }"
+          aria-label="下划线"
+          @mousedown.prevent
+          @click="applyMark('underline')"
+        ><u>U</u></button>
         <button
           class="write-tool"
           type="button"
@@ -78,35 +100,7 @@
             <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
           </svg>
         </button>
-      </div>
-
-      <div v-if="!locked && formatting" class="write-tools">
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': activeFormat.bold }"
-          aria-label="加粗"
-          @mousedown.prevent
-          @click="toggleFormat('bold')"
-        ><b>B</b></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': activeFormat.italic }"
-          aria-label="斜体"
-          @mousedown.prevent
-          @click="toggleFormat('italic')"
-        ><i>I</i></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': activeFormat.underline }"
-          aria-label="下划线"
-          @mousedown.prevent
-          @click="toggleFormat('underline')"
-        ><u>U</u></button>
-        <button class="write-tool-text" type="button" @mousedown.prevent @click="exitFormatting">完成</button>
-        <span class="write-tools-hint">{{ selectionHint }}</span>
+        <span class="write-tools-hint">{{ markHint }}</span>
       </div>
 
       <!-- 关联日子：贴着顶栏往下展开 -->
@@ -142,7 +136,7 @@
     <div v-if="pickerOpen" class="write-picker-scrim" aria-hidden="true" @click="pickerOpen = false"></div>
 
     <div class="write-body">
-      <!-- 标题：锁定态只读文字，编辑态是原生输入框 -->
+      <!-- 标题：编辑态是原生 input，锁定时是纯文字 -->
       <h1 v-if="locked" class="write-title-readonly">{{ form.title }}</h1>
       <input
         v-else
@@ -159,28 +153,25 @@
       >
 
       <!--
-        正文只有两副面孔，永远不同时存在：
-          · 编辑态：原生 <textarea>，键盘行为跟系统输入框一致，不抖不闪；
-          · 修饰/锁定态：只读 div，可长按选中，但没有任何可编辑元素 → 不弹键盘。
+        正文始终是一个原生 textarea：键盘行为跟系统输入框一致，
+        加粗只是在选区两端插 ** 符号，不切模式、不换 DOM。
       -->
       <textarea
-        v-if="!locked && !formatting"
+        v-if="!locked"
         ref="editor"
         v-model="bodyText"
         class="write-textarea"
-        placeholder="随便写点什么…"
+        placeholder="随便写点什么…（选中文字点 B / I / U 就能加格式）"
         wrap="soft"
         @input="onBodyInput"
+        @keyup="syncActiveMarks"
+        @mouseup="syncActiveMarks"
+        @select="syncActiveMarks"
       ></textarea>
 
-      <div
-        v-else
-        ref="reader"
-        class="write-readonly"
-        :class="{ 'is-empty': !readonlyHtml }"
-        data-placeholder="随便写点什么…"
-      >
-        <div ref="readerInner" class="write-readonly-inner" v-html="readonlyHtml"></div>
+      <!-- 锁定态：渲染好的富文本，可长按选中，不弹键盘 -->
+      <div v-else class="write-readonly">
+        <div class="write-readonly-inner" v-html="previewHtml"></div>
       </div>
 
       <div v-if="form.photo" class="write-photo">
@@ -204,15 +195,7 @@ import { MOODS, getDiary, removeDiary, saveDiary } from '../lib/diary';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
-import {
-  applyFormat,
-  countWords,
-  formatRangeState,
-  htmlToSegments,
-  reconcileSegments,
-  segmentsToHtml,
-  segmentsToText
-} from '../lib/richtext';
+import { activeMarksAt, countWords, markdownToHtml, toggleMark } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
 import { hideAccessoryBar, showAccessoryBar } from '../utils/keyboard';
 import { BUILD_VERSION } from '../lib/build';
@@ -231,8 +214,6 @@ const buildVersion = BUILD_VERSION;
 const page = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
-const reader = ref(null);
-const readerInner = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
 const pickerOpen = ref(false);
@@ -244,20 +225,17 @@ const recordId = ref('');
 // 打开旧日记默认锁定，只能看；点右上角「编辑」才解锁输入
 const locked = ref(Boolean(route.params.id));
 
-// 修饰态：正文换成只读渲染，页面上没有可编辑元素，长按选字不会弹键盘
-const formatting = ref(false);
-
-// 正文数据：segments 是唯一真相，bodyText 只是 textarea 里的纯文本视图
-const segments = ref([]);
+// 正文就是这段 Markdown 原文；textarea 里直接编它
 const bodyText = ref('');
 
-// 修饰态里当前选中的纯文本区间，用来判断按钮高亮
+// 当前光标/选区所处的格式，只用来点亮按钮
 const activeFormat = reactive({ bold: false, italic: false, underline: false });
-const selectedRange = ref(null); // { start, end }
+const hasSelection = ref(false);
 
 const SAVE_DELAY = 700;
 let saveTimer = null;
 let leaving = false;
+let markTimer = null;
 
 const saveLabel = computed(() => {
   if (saveState.value === 'saving') return '正往本子里塞';
@@ -279,18 +257,11 @@ const isEditing = computed(() => Boolean(route.params.id));
 
 const events = computed(() => sorted.value.filter((event) => event.targetDate));
 
-const readonlyHtml = computed(() => segmentsToHtml(segments.value));
+const previewHtml = computed(() => markdownToHtml(bodyText.value));
 
-const wordCount = computed(() => {
-  const text = formatting.value || locked.value ? segmentsToText(segments.value) : bodyText.value;
-  return countWords(text);
-});
+const wordCount = computed(() => countWords(bodyText.value.replace(/\*\*|__|\*/g, '')));
 
-const selectionHint = computed(() => {
-  const range = selectedRange.value;
-  if (!range || range.start === range.end) return '长按选中一段，再点 B / I / U';
-  return `已选中 ${range.end - range.start} 个字`;
-});
+const markHint = computed(() => (hasSelection.value ? '点 B / I / U 加格式' : '选中文字再加格式'));
 
 const dateLabel = computed(() => {
   const parts = parseDateKey(form.date);
@@ -365,208 +336,61 @@ function resizeEditor() {
 }
 
 function onBodyInput() {
-  segments.value = reconcileSegments(segments.value, bodyText.value);
   resizeEditor();
+  syncActiveMarks();
   scheduleSave();
 }
 
-/* ---------- 修饰态 ---------- */
+/* ---------- 格式按钮：只改字符串，不碰焦点 ---------- */
 
 /**
- * 进入修饰态。
- *
- * 只要把 textarea 从 DOM 里换掉（v-if），键盘自然收起，
- * 不需要 blur 技巧、不需要清选区、不需要跟视觉视口较劲。
+ * 按钮高亮：看 textarea 的选区落在哪些符号之间。
+ * 选区变化走 keyup / mouseup / select，不监听全局 selectionchange，
+ * 避免和别的页面（如日期面板）抢事件。
  */
-async function enterFormatting() {
-  if (locked.value || formatting.value) return;
-  segments.value = reconcileSegments(segments.value, bodyText.value);
-  selectedRange.value = null;
-  activeFormat.bold = false;
-  activeFormat.italic = false;
-  activeFormat.underline = false;
-  formatting.value = true;
-  haptic('light');
-  await nextTick();
-  resizeReader();
-}
-
-async function exitFormatting() {
-  if (!formatting.value) return;
-  bodyText.value = segmentsToText(segments.value);
-  formatting.value = false;
-  selectedRange.value = null;
-  haptic('light');
-  await nextTick();
-  resizeEditor();
-}
-
-// 只读区没有滚动条，高度跟着内容走，页面整体滚
-function resizeReader() {
-  const el = reader.value;
-  if (el) el.style.height = 'auto';
-}
-
-/* ---------- 纯读区里的选区 ⇄ 纯文本偏移 ---------- */
-
-function nodeLength(node) {
-  if (!node) return 0;
-  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue.length;
-  if (node.nodeName === 'BR') return 1;
-  let sum = 0;
-  for (const child of node.childNodes) sum += nodeLength(child);
-  return sum;
-}
-
-/** DOM 位置 → 纯文本偏移（<br> 记作一个换行） */
-function offsetOfPoint(root, targetNode, targetOffset) {
-  let total = 0;
-  let found = null;
-
-  const visit = (node) => {
-    if (found !== null) return;
-    if (node === targetNode) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        found = total + targetOffset;
-        return;
-      }
-      let count = 0;
-      for (let i = 0; i < targetOffset && i < node.childNodes.length; i += 1) {
-        count += nodeLength(node.childNodes[i]);
-      }
-      found = total + count;
-      return;
-    }
-    if (node.nodeType === Node.TEXT_NODE) {
-      total += node.nodeValue.length;
-      return;
-    }
-    if (node.nodeName === 'BR') {
-      total += 1;
-      return;
-    }
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      for (const child of node.childNodes) {
-        visit(child);
-        if (found !== null) return;
-      }
-    }
-  };
-
-  visit(root);
-  return found;
-}
-
-/** 纯文本偏移 → DOM 位置 */
-function pointAtOffset(root, target) {
-  let total = 0;
-  let result = null;
-
-  const visit = (node) => {
-    if (result) return;
-    if (node.nodeType === Node.TEXT_NODE) {
-      const len = node.nodeValue.length;
-      if (target <= total + len) {
-        result = { node, offset: target - total };
-        return;
-      }
-      total += len;
-      return;
-    }
-    if (node.nodeName === 'BR') {
-      if (target <= total) {
-        const parent = node.parentNode;
-        result = { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, node) };
-        return;
-      }
-      total += 1;
-      return;
-    }
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      for (const child of node.childNodes) {
-        visit(child);
-        if (result) return;
-      }
-    }
-  };
-
-  visit(root);
-  return result || { node: root, offset: root.childNodes.length };
-}
-
-function readSelection() {
-  const root = readerInner.value;
-  const sel = document.getSelection?.();
-  if (!root || !sel || !sel.rangeCount) {
-    selectedRange.value = null;
-    activeFormat.bold = false;
-    activeFormat.italic = false;
-    activeFormat.underline = false;
-    return;
-  }
-  const range = sel.getRangeAt(0);
-  if (!root.contains(range.commonAncestorContainer)) {
-    selectedRange.value = null;
-    return;
-  }
-  const start = offsetOfPoint(root, range.startContainer, range.startOffset);
-  const end = offsetOfPoint(root, range.endContainer, range.endOffset);
-  if (start === null || end === null) return;
-
-  const from = Math.min(start, end);
-  const to = Math.max(start, end);
-  selectedRange.value = { start: from, end: to };
-
-  if (from === to) {
-    activeFormat.bold = false;
-    activeFormat.italic = false;
-    activeFormat.underline = false;
-    return;
-  }
-  Object.assign(activeFormat, formatRangeState(segments.value, from, to));
-}
-
-function restoreSelection(range) {
-  const root = readerInner.value;
-  if (!root || !range || range.start === range.end) return;
-  try {
-    const startPoint = pointAtOffset(root, range.start);
-    const endPoint = pointAtOffset(root, range.end);
-    const next = document.createRange();
-    next.setStart(startPoint.node, startPoint.offset);
-    next.setEnd(endPoint.node, endPoint.offset);
-    const sel = document.getSelection?.();
-    sel?.removeAllRanges();
-    sel?.addRange(next);
-  } catch (err) {
-    // 选区还原失败不影响内容，忽略
-  }
+function syncActiveMarks() {
+  const el = editor.value;
+  if (!el || locked.value) return;
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  hasSelection.value = end > start;
+  const state = activeMarksAt(bodyText.value, start, end);
+  activeFormat.bold = state.bold;
+  activeFormat.italic = state.italic;
+  activeFormat.underline = state.underline;
 }
 
 /**
- * 给选中区间加/去格式。
+ * 给选中文字加 / 去 Markdown 符号。
  *
- * 只改数据、重渲染，然后按纯文本偏移把选区还原。
- * 只读区没有可编辑元素，所以重设选区不会唤起键盘。
+ * 这是纯字符串操作：算出新文本、写回 textarea、再把选区调整到正确位置。
+ * textarea 的焦点一直没离开，所以键盘不会收、不会闪、不会重开；
+ * 内容变化也进浏览器原生 undo 栈，加粗可以自己撤掉。
  */
-async function toggleFormat(key) {
-  const range = selectedRange.value;
-  if (!range || range.start === range.end) {
-    showToast('先长按选中一段文字');
+function applyMark(key) {
+  const el = editor.value;
+  if (!el || locked.value) return;
+
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  if (end <= start) {
+    showToast('先选中要修饰的文字');
     haptic('warning');
     return;
   }
-  segments.value = applyFormat(segments.value, range.start, range.end, key, 'toggle');
-  haptic('light');
-  await nextTick();
-  restoreSelection(range);
-  readSelection();
-  scheduleSave();
-}
 
-function onSelectionChange() {
-  if (!formatting.value || locked.value) return;
-  readSelection();
+  const result = toggleMark(bodyText.value, start, end, key);
+  if (result.text === bodyText.value) return;
+
+  bodyText.value = result.text;
+  nextTick(() => {
+    resizeEditor();
+    el.focus();
+    el.setSelectionRange(result.start, result.end);
+    syncActiveMarks();
+  });
+  haptic('light');
+  scheduleSave();
 }
 
 // 结构性的改动（日期、心情、配图、关联）直接触发保存
@@ -578,7 +402,7 @@ watch(form, () => {
 // 只点心情不产生记录，避免出现空白日记。
 function hasContent() {
   const title = String(form.title || '').trim();
-  const text = segmentsToText(segments.value).trim();
+  const text = bodyText.value.replace(/\*\*|__|\*/g, '').trim();
   return Boolean(title || text || form.photo);
 }
 
@@ -610,18 +434,13 @@ async function flushSave() {
     return;
   }
 
-  // 打字态下先把 textarea 的最新文字并进 segments
-  if (!formatting.value) {
-    segments.value = reconcileSegments(segments.value, bodyText.value);
-  }
-
   saving.value = true;
   saveState.value = 'saving';
   try {
     const saved = await saveDiary({
       ...form,
       title: String(form.title || '').replace(/\n+/g, ' ').trim(),
-      html: segmentsToHtml(segments.value),
+      body: bodyText.value,
       id: recordId.value || undefined
     }, original.value || (recordId.value ? { id: recordId.value } : null));
 
@@ -665,10 +484,7 @@ async function load() {
     form.mood = record.mood || '';
     form.photo = record.photo || '';
     form.eventId = record.eventId || '';
-    segments.value = record.html
-      ? htmlToSegments(record.html)
-      : htmlToSegments(record.text || '');
-    bodyText.value = segmentsToText(segments.value);
+    bodyText.value = record.body || '';
     await nextTick();
     resizeEditor();
   } catch (err) {
@@ -712,7 +528,6 @@ function onPageHide() {
 onMounted(async () => {
   form.date = dateKeyOf();
   window.addEventListener('pagehide', onPageHide);
-  document.addEventListener('selectionchange', onSelectionChange);
   hideAccessoryBar();
   await load();
   await nextTick();
@@ -728,11 +543,12 @@ onMounted(async () => {
     editor.value?.focus();
   }
   resizeEditor();
+  syncActiveMarks();
 });
 
 onUnmounted(() => {
-  document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('pagehide', onPageHide);
+  clearTimeout(markTimer);
   showAccessoryBar();
 });
 </script>

@@ -66,7 +66,7 @@
 
               <h2 v-if="item.title" class="tl-title">{{ item.title }}</h2>
 
-              <div v-if="item.html || item.text" class="tl-body" v-html="previewHtml(item)"></div>
+              <div v-if="item.body || item.html || item.text" class="tl-body" v-html="previewHtml(item)"></div>
 
               <img v-if="item.photo" class="tl-thumb" :src="item.photo" alt="配图">
             </div>
@@ -113,7 +113,7 @@ import LoadingState from '../components/LoadingState.vue';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { groupDiariesByDate, moodOf } from '../lib/diary';
-import { sanitizeHtml, textToHtml } from '../lib/richtext';
+import { markdownToHtml } from '../lib/richtext';
 import { accentStyleOf } from '../utils/theme';
 import { dateKeyOf, formatDateCN, formatDateDot, parseDateKey, weekdayCN } from '../lib/countdown';
 
@@ -162,9 +162,10 @@ function groupLabel(date) {
   return `${formatDateCN(date)} ${weekdayCN(date)}`;
 }
 
-// 列表里的正文同样要过滤，避免老数据里混进不该有的标签
+// 列表摘要按 Markdown 渲染（markdownToHtml 内部已做 HTML 转义）
 function previewHtml(item) {
-  return sanitizeHtml(item.html || textToHtml(item.text));
+  if (item.body) return markdownToHtml(item.body);
+  return item.html || '';
 }
 
 function timeOf(ts) {

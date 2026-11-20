@@ -6,7 +6,7 @@
 import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
 import { dateKeyOf, isValidDateKey } from './countdown.js';
 import { uid } from './id.js';
-import { htmlToText, sanitizeHtml, textToHtml } from './richtext.js';
+import { htmlToMarkdown, markdownToHtml, sanitizeHtml } from './richtext.js';
 
 export const MOODS = Object.freeze([
   { key: 'happy', emoji: '😊', label: '开心' },
@@ -33,20 +33,28 @@ export function normalizeDiaryInput(input = {}) {
     ? input.photo.slice(0, PHOTO_MAX_CHARS)
     : '';
 
-  // 兼容旧数据：没有 html 字段时，把纯文本按换行转成 HTML
-  const rawHtml = typeof input.html === 'string' && input.html
-    ? input.html
-    : textToHtml(input.text);
-  const html = sanitizeHtml(rawHtml).slice(0, TEXT_MAX * 8);
-  const text = htmlToText(html).slice(0, TEXT_MAX);
-  // 正文被截断时，html 也要跟着收敛，避免存下看不到的内容
-  const safeHtml = text.length >= TEXT_MAX ? textToHtml(text) : html;
+  // 正文以 Markdown 原文为准（body）；此前的历史数据只有 html / text，读入时迁移一次。
+  let body = '';
+  if (typeof input.body === 'string') {
+    body = input.body;
+  } else if (typeof input.html === 'string' && input.html) {
+    body = htmlToMarkdown(input.html);
+  } else if (typeof input.text === 'string') {
+    body = input.text;
+  }
+  body = body.replace(/\r\n/g, '\n').replace(/^\s+/, '').replace(/\s+$/, '').slice(0, TEXT_MAX);
+
+  // 预览用 html 由 Markdown 派生，保证列表页和详情页看到的格式一致
+  const html = sanitizeHtml(markdownToHtml(body)).slice(0, TEXT_MAX * 8);
+  // 纯文字（去掉修饰符号）用于搜索和列表摘要
+  const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').slice(0, TEXT_MAX).trim();
 
   return {
     date,
     title: String(input.title || '').trim().slice(0, TITLE_MAX),
+    body,
     text,
-    html: safeHtml,
+    html,
     mood,
     photo,
     eventId: String(input.eventId || '').trim().slice(0, 60)
@@ -55,7 +63,7 @@ export function normalizeDiaryInput(input = {}) {
 
 export function validateDiary(input) {
   const value = normalizeDiaryInput(input);
-  if (!value.text && !value.title && !value.photo) {
+  if (!value.text.trim() && !value.title && !value.photo) {
     return { ok: false, error: '写两句吧，或者扔张照片进来' };
   }
   if (!isValidDateKey(value.date)) return { ok: false, error: '日期有点离谱，检查下' };

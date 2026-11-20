@@ -127,256 +127,268 @@ export function countWords(text) {
   return cjk + words;
 }
 
-
 /* ==========================================================================
-   富文本的「纯数据」表示
+   正文的 Markdown-lite
    --------------------------------------------------------------------------
-   正文用 segments 表示：一段一段的纯文字 + 三个格式开关。
-   = [ { text: '今天很好', bold: false, italic: false, underline: false } ]
+   只支持行内三种修饰，符号少、规则死，用字符串就能完成：
+       **加粗**    *斜体*    __下划线__
 
-   这样就不需要 contenteditable：
-     · 打字时是一个普通 <textarea>，键盘行为跟系统原生输入框完全一致；
-     · 修饰时把 segments 渲染成只读 HTML，页面上没有任何可编辑元素，
-       所以长按选字、点加粗都不会弹键盘。
-   两边共用同一份数据，切换时不会丢内容，也不会丢格式。
+   这么做的好处：正文就是一段普通文字，编辑时用原生 <textarea>，
+   键盘行为跟系统输入框一致；加粗只是往选区两端插符号，
+   不需要 contenteditable、不需要切模式、撤销也能走系统原生 undo。
+
+   两端各留一个字符的边界（\\S 起、\\S 收），避免把空格包进格式里。
    ========================================================================== */
 
-export const FORMAT_KEYS = Object.freeze(['bold', 'italic', 'underline']);
-
-export const FORMAT_TAGS = Object.freeze({
-  bold: 'b',
-  italic: 'i',
-  underline: 'u'
+export const MARKDOWN_MARKS = Object.freeze({
+  bold: '**',
+  italic: '*',
+  underline: '__'
 });
 
-const TAG_TO_KEY = Object.freeze({
-  b: 'bold',
-  strong: 'bold',
-  i: 'italic',
-  em: 'italic',
-  u: 'underline'
+export const MARKDOWN_KEYS = Object.freeze(['bold', 'italic', 'underline']);
+
+const MARK_TO_KEY = Object.freeze({
+  '**': 'bold',
+  '__': 'underline',
+  '*': 'italic'
 });
 
-function bareSegment(text) {
-  return { text: String(text || ''), bold: false, italic: false, underline: false };
-}
-
-function sameFormat(a, b) {
-  return FORMAT_KEYS.every((key) => Boolean(a[key]) === Boolean(b[key]));
-}
-
-/** 去掉空段、合并相邻同格式段 */
-export function mergeSegments(list) {
-  const out = [];
-  for (const item of list || []) {
-    if (!item) continue;
-    const text = String(item.text ?? '');
-    if (!text) continue;
-    const segment = {
-      text,
-      bold: Boolean(item.bold),
-      italic: Boolean(item.italic),
-      underline: Boolean(item.underline)
-    };
-    const last = out[out.length - 1];
-    if (last && sameFormat(last, segment)) last.text += segment.text;
-    else out.push(segment);
-  }
-  return out;
-}
-
-/** 纯文本 → 单段 */
-export function textToSegments(text) {
-  return mergeSegments([bareSegment(text)]);
-}
-
-export function segmentsToText(segments) {
-  return (segments || []).map((item) => item.text).join('');
-}
-
-export function segmentsToHtml(segments) {
-  let html = '';
-  for (const segment of segments || []) {
-    const text = String(segment.text || '');
-    if (!text) continue;
-    const open = FORMAT_KEYS
-      .filter((key) => segment[key])
-      .map((key) => `<${FORMAT_TAGS[key]}>`)
-      .join('');
-    const close = FORMAT_KEYS
-      .filter((key) => segment[key])
-      .reverse()
-      .map((key) => `</${FORMAT_TAGS[key]}>`)
-      .join('');
-    const body = text.split('\n').map((line) => escapeHtml(line)).join('<br>');
-    html += open + body + close;
-  }
-  return html;
+function blankMarks() {
+  return { bold: false, italic: false, underline: false };
 }
 
 /**
- * HTML → segments。
- * 只认 b/strong/i/em/u/br，以及 p/div 当换行；其它标签丢掉、保留文字。
- * 浏览器和 Node 测试环境走同一套正则逻辑，行为一致。
+ * 扫描一遍 Markdown，切成 { text, bold, italic, underline } 段。
+ *
+ * 只认 ** __ * 三种符号，先匹配长的再匹配短的（** 不会被当成两个 *）。
+ * 找不到配对符号时，符号原样当普通字符输出，不会把文字吞掉。
+ * 渲染和「按钮高亮」都基于这一份结果，规则只有一套。
  */
-export function htmlToSegments(input) {
+export function parseMarkdown(input) {
   const source = String(input || '');
   if (!source) return [];
 
   const segments = [];
   const stack = [];
-  let cursor = 0;
+  let buffer = '';
 
-  const formatOf = () => ({
-    bold: stack.includes('bold'),
-    italic: stack.includes('italic'),
-    underline: stack.includes('underline')
-  });
-
-  const pushText = (text) => {
-    if (!text) return;
-    const { bold, italic, underline } = formatOf();
-    const last = segments[segments.length - 1];
-    if (last && last.bold === bold && last.italic === italic && last.underline === underline) {
-      last.text += text;
-      return;
-    }
-    segments.push({ text, bold, italic, underline });
+  const marksState = () => {
+    const state = blankMarks();
+    for (const key of stack) state[key] = true;
+    return state;
   };
 
-  const tagRe = /<(\/?)([a-zA-Z][\w-]*)[^>]*>|([\s\S]+?)(?=<|$)/g;
-  let match;
-  while ((match = tagRe.exec(source)) !== null) {
-    if (match[3] !== undefined) {
-      pushText(decodeEntities(match[3]));
-      cursor += match[3].length;
-      continue;
-    }
-    const closing = match[1] === '/';
-    const tag = match[2].toLowerCase();
-    cursor += match[0].length;
-
-    if (tag === 'br') {
-      pushText('\n');
-      continue;
-    }
-    if (tag === 'p' || tag === 'div') {
-      if (closing) pushText('\n');
-      continue;
-    }
-    const key = TAG_TO_KEY[tag];
-    if (!key) continue;
-    if (closing) {
-      const index = stack.lastIndexOf(key);
-      if (index >= 0) stack.splice(index, 1);
+  const flush = () => {
+    if (!buffer) return;
+    const state = marksState();
+    const last = segments[segments.length - 1];
+    if (last && last.bold === state.bold && last.italic === state.italic && last.underline === state.underline) {
+      last.text += buffer;
     } else {
+      segments.push({ text: buffer, ...state });
+    }
+    buffer = '';
+  };
+
+  let i = 0;
+  while (i < source.length) {
+    // 先试两个字符的符号，再试一个字符的
+    const two = source.slice(i, i + 2);
+    const one = source[i];
+    const mark = MARK_TO_KEY[two] ? two : (MARK_TO_KEY[one] ? one : '');
+    if (!mark) {
+      buffer += one;
+      i += 1;
+      continue;
+    }
+    const key = MARK_TO_KEY[mark];
+
+    if (stack.includes(key)) {
+      flush();
+      stack.splice(stack.lastIndexOf(key), 1);
+      i += mark.length;
+      continue;
+    }
+
+    // 只有当后面还存在同种符号时才当成开标记，否则原样输出
+    const hasPair = source.indexOf(mark, i + mark.length) !== -1;
+    if (hasPair) {
+      flush();
       stack.push(key);
+      i += mark.length;
+    } else {
+      buffer += mark;
+      i += mark.length;
     }
   }
 
-  const merged = mergeSegments(segments);
-  // 段落收尾会留下一个换行，去掉末尾那一个，避免多出一整行空白
-  const last = merged[merged.length - 1];
-  if (last && last.text.endsWith('\n')) {
-    last.text = last.text.replace(/\n$/, '');
-    if (!last.text) merged.pop();
-  }
-  return merged;
+  flush();
+  return segments;
 }
 
-/** 取 segments 里 [start, end) 这一段的副本，格式原样保留 */
-export function sliceSegments(segments, start, end) {
-  const total = segmentsToText(segments).length;
-  const from = Math.max(0, Math.min(start, total));
-  const to = Math.max(from, Math.min(end, total));
-  const out = [];
+/** 把加粗/斜体/下划线的 Markdown 渲染成白名单 HTML */
+export function markdownToHtml(input) {
+  const segments = parseMarkdown(input);
+  let html = '';
   let cursor = 0;
-  for (const segment of segments || []) {
-    const segStart = cursor;
-    const segEnd = cursor + segment.text.length;
-    cursor = segEnd;
-    if (segEnd <= from || segStart >= to) continue;
-    const localFrom = Math.max(0, from - segStart);
-    const localTo = Math.min(segment.text.length, to - segStart);
-    out.push({
-      text: segment.text.slice(localFrom, localTo),
-      bold: Boolean(segment.bold),
-      italic: Boolean(segment.italic),
-      underline: Boolean(segment.underline)
-    });
+
+  // 同一外层的相邻段先合并成一段再包标签，避免出现
+  // <b>a</b><b><i>b</i></b><b>c</b> 这种拆碎的结果
+  while (cursor < segments.length) {
+    const head = segments[cursor];
+    let end = cursor + 1;
+    while (
+      end < segments.length &&
+      segments[end].bold === head.bold &&
+      segments[end].underline === head.underline
+    ) {
+      end += 1;
+    }
+
+    let inner = '';
+    for (let i = cursor; i < end; i += 1) {
+      const segment = segments[i];
+      const text = escapeHtml(segment.text).replace(/\n/g, '<br>');
+      if (!text) continue;
+      inner += segment.italic ? `<i>${text}</i>` : text;
+    }
+
+    if (inner) {
+      if (head.underline) inner = `<u>${inner}</u>`;
+      if (head.bold) inner = `<b>${inner}</b>`;
+      html += inner;
+    }
+    cursor = end;
   }
-  return mergeSegments(out);
+
+  return html;
 }
 
 /**
- * 给 [start, end) 打上或去掉某个格式。
- * mode: 'on' | 'off' | 'toggle'
+ * 在 [start, end) 两端包上或去掉某个格式符号。
+ * 返回 { text, start, end }：text 是新的正文，start/end 是调整后的选区，
+ * 这样加粗之后还能接着操作同一段文字。
  */
-export function applyFormat(segments, start, end, key, mode = 'toggle') {
-  if (!FORMAT_KEYS.includes(key)) return segments;
-  const total = segmentsToText(segments).length;
-  const from = Math.max(0, Math.min(start, total));
-  const to = Math.max(from, Math.min(end, total));
-  if (from === to) return segments;
+export function toggleMark(text, start, end, key) {
+  const mark = MARKDOWN_MARKS[key];
+  if (!mark) return { text, start, end };
 
-  const allOn = formatRangeState(segments, from, to)[key];
-  const next = mode === 'toggle' ? !allOn : mode === 'on';
+  const source = String(text || '');
+  const from = Math.max(0, Math.min(start, end));
+  const to = Math.min(source.length, Math.max(start, end));
 
-  const before = sliceSegments(segments, 0, from);
-  const middle = sliceSegments(segments, from, to).map((segment) => ({ ...segment, [key]: next }));
-  const after = sliceSegments(segments, to, total);
-  return mergeSegments([...before, ...middle, ...after]);
+  // 情况一：选区外侧就紧贴着符号，直接摘掉
+  const outsideFrom = from - mark.length;
+  const outsideTo = to + mark.length;
+  if (
+    outsideFrom >= 0 &&
+    source.slice(outsideFrom, from) === mark &&
+    source.slice(to, outsideTo) === mark
+  ) {
+    const next = source.slice(0, outsideFrom) + source.slice(from, to) + source.slice(outsideTo);
+    return { text: next, start: from - mark.length, end: to - mark.length };
+  }
+
+  // 情况二：选中的文字自己带着符号（用户把符号也选进去了）
+  const selected = source.slice(from, to);
+  if (selected.length > mark.length * 2 && selected.startsWith(mark) && selected.endsWith(mark)) {
+    const inner = selected.slice(mark.length, selected.length - mark.length);
+    const next = source.slice(0, from) + inner + source.slice(to);
+    return { text: next, start: from, end: from + inner.length };
+  }
+
+  // 情况三：正常加符号
+  const next = source.slice(0, from) + mark + selected + mark + source.slice(to);
+  return { text: next, start: from + mark.length, end: to + mark.length };
 }
 
-/** 判断 [start, end) 里三个格式是否「全部」带上（用于按钮高亮与 toggle 方向） */
-export function formatRangeState(segments, start, end) {
-  const part = sliceSegments(segments, start, end);
-  const state = { bold: false, italic: false, underline: false };
-  if (!part.length) return state;
-  for (const key of FORMAT_KEYS) {
-    state[key] = part.every((segment) => Boolean(segment[key]));
+/**
+ * 光标/选区当前处在哪些格式里，用于按钮高亮。
+ * 折叠光标取它所在位置的状态；有选区时要求整段都带同一格式。
+ */
+/**
+ * 光标/选区当前处在哪些格式里，用于按钮高亮。
+ *
+ * 注意 offset 是 **原始正文**（含 ** __ * 符号）里的偏移，
+ * 和 textarea.selectionStart/End 一致；不要拿渲染后的文字去算。
+ * 折叠光标看它前一个字符处于什么格式；有选区则要求整段格式一致。
+ */
+export function activeMarksAt(text, start, end = start) {
+  const source = String(text || '');
+  const from = Math.max(0, Math.min(start, source.length));
+  const to = Math.max(from, Math.min(end === start ? from : end, source.length));
+
+  const stack = [];
+  const states = [];
+  let i = 0;
+  while (i < source.length) {
+    const two = source.slice(i, i + 2);
+    const one = source[i];
+    const mark = MARK_TO_KEY[two] ? two : (MARK_TO_KEY[one] ? one : '');
+    if (!mark) {
+      states.push({ index: i, stack: [...stack] });
+      i += 1;
+      continue;
+    }
+    const key = MARK_TO_KEY[mark];
+    if (stack.includes(key)) {
+      stack.splice(stack.lastIndexOf(key), 1);
+      i += mark.length;
+      continue;
+    }
+    if (source.indexOf(mark, i + mark.length) !== -1) {
+      stack.push(key);
+      i += mark.length;
+      continue;
+    }
+    // 没有配对的符号按普通字符算
+    states.push({ index: i, stack: [...stack] });
+    i += 1;
+  }
+
+  const picked = states.filter((item) => {
+    if (from === to) return item.index === Math.max(0, from - 1);
+    return item.index >= from && item.index < to;
+  });
+  if (!picked.length) return blankMarks();
+
+  const state = { bold: true, italic: true, underline: true };
+  for (const item of picked) {
+    for (const key of MARKDOWN_KEYS) {
+      if (!item.stack.includes(key)) state[key] = false;
+    }
   }
   return state;
 }
 
-/**
- * 用户在 textarea 里改字之后，把新文本并回 segments。
- *
- * 只替换真正变化的那一段，前后未动的文字格式保留；
- * 新打进去的字符沿用光标前一个字的格式（在加粗文字后面接着写还是粗的）。
- */
-export function reconcileSegments(segments, nextText) {
-  const text = String(nextText ?? '');
-  const previous = segmentsToText(segments);
-  if (previous === text) return segments;
+/** 旧的 HTML 正文 → Markdown（迁移用，只认 b/strong/i/em/u/br） */
+export function htmlToMarkdown(input) {
+  const source = String(input || '');
+  if (!source) return '';
+  let text = source
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div)>/gi, '\n')
+    .replace(/<(p|div)[^>]*>/gi, '');
+  // 由内到外逐种替换，避免嵌套顺序乱掉
+  text = replaceTagPair(text, 'b|strong', '**');
+  text = replaceTagPair(text, 'u', '__');
+  text = replaceTagPair(text, 'i|em', '*');
+  // 去掉其余标签，保留文字
+  text = text.replace(/<[^>]*>/g, '');
+  return text
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n+$/, '');
+}
 
-  const max = Math.min(previous.length, text.length);
-  let prefix = 0;
-  while (prefix < max && previous[prefix] === text[prefix]) prefix += 1;
-
-  let suffix = 0;
-  while (
-    suffix < max - prefix &&
-    previous[previous.length - 1 - suffix] === text[text.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
-
-  const before = sliceSegments(segments, 0, prefix);
-  const after = sliceSegments(segments, previous.length - suffix, previous.length);
-  const inserted = text.slice(prefix, text.length - suffix);
-
-  let middle = [];
-  if (inserted) {
-    const inherit = prefix > 0 ? sliceSegments(segments, prefix - 1, prefix)[0] : null;
-    const last = before[before.length - 1];
-    middle = [{
-      text: inserted,
-      bold: Boolean(last?.bold ?? inherit?.bold),
-      italic: Boolean(last?.italic ?? inherit?.italic),
-      underline: Boolean(last?.underline ?? inherit?.underline)
-    }];
-  }
-
-  return mergeSegments([...before, ...middle, ...after]);
+function replaceTagPair(text, tagPattern, mark) {
+  const re = new RegExp(`<(${tagPattern})\\b[^>]*>([\\s\\S]*?)<\\/\\1>`, 'gi');
+  let previous;
+  let result = text;
+  do {
+    previous = result;
+    result = result.replace(re, `${mark}$2${mark}`);
+  } while (result !== previous);
+  return result;
 }
