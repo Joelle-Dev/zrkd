@@ -518,8 +518,10 @@ function syncTopbarHeight() {
  * 会被顶出屏幕——这就是「有键盘时顶部不固定」。把 offsetTop 写进
  * --vv-top，让固定顶栏反向平移同样的距离，屏幕上就钉住了。
  *
- * 只平移、不改 top，fixed 也不参与文档流，所以不会像 sticky 那样
- * 在「吸住 / 回文档流」之间反复切换；值没变就跳过写入。
+ * 关键是要「同步」写：以前用 requestAnimationFrame 推迟一帧，
+ * iOS 先把它顶走、下一帧才被拉回来，看起来就是上下抖。
+ * visualViewport 的 scroll 事件在绘制前触发，直接写样式能跟同一帧合成。
+ * 只平移、不改 top，fixed 也不参与文档流，不会和滚动互相较劲。
  * Android 弹键盘是缩小布局视口（interactive-widget=resizes-content），
  * offsetTop 恒为 0，这段逻辑自然什么都不做。
  */
@@ -529,33 +531,27 @@ function bindViewport() {
   const vv = window.visualViewport;
   const el = topbar.value;
   if (!vv || !el) return () => {};
-  let frame = 0;
   let last = 0;
 
   const apply = () => {
-    frame = 0;
-    const offset = Math.max(0, Math.round(vv.offsetTop));
-    if (offset === last) return;
+    // 用亚像素值而不是取整：iOS 滚动时 offsetTop 是小数，
+    // 取整会让顶栏在相邻整数之间来回跳 1px，看起来就是抖。
+    const offset = Math.max(0, vv.offsetTop);
+    if (Math.abs(offset - last) < 0.05) return;
     last = offset;
-    if (offset) el.style.setProperty('--vv-top', `${offset}px`);
+    if (offset > 0.05) el.style.setProperty('--vv-top', `${offset.toFixed(3)}px`);
     else el.style.removeProperty('--vv-top');
   };
 
-  const update = () => {
-    if (frame) return;
-    frame = requestAnimationFrame(apply);
-  };
-
-  vv.addEventListener('resize', update);
-  vv.addEventListener('scroll', update);
-  window.addEventListener('orientationchange', update);
+  vv.addEventListener('resize', apply);
+  vv.addEventListener('scroll', apply);
+  window.addEventListener('orientationchange', apply);
   apply();
 
   return () => {
-    cancelAnimationFrame(frame);
-    vv.removeEventListener('resize', update);
-    vv.removeEventListener('scroll', update);
-    window.removeEventListener('orientationchange', update);
+    vv.removeEventListener('resize', apply);
+    vv.removeEventListener('scroll', apply);
+    window.removeEventListener('orientationchange', apply);
     el.style.removeProperty('--vv-top');
   };
 }

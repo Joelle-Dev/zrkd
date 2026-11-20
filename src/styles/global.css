@@ -327,8 +327,10 @@ h1, h2, h3, h4, p {
   padding: calc(var(--safe-top) + 8px) var(--shell-pad) 0;
   background: var(--surface);
   /* iOS 弹键盘时视觉视口会往下滚，fixed 元素会被顶出屏幕；
-     用 --vv-top 做一层平移补偿，fixed 不参与文档流，不会和滚动互相较劲。 */
-  transform: translateY(var(--vv-top, 0px));
+     用 --vv-top 做一层平移补偿（3D 平移单独提层，避免每帧重绘整条栏），
+     fixed 不参与文档流，不会和滚动互相较劲。 */
+  transform: translate3d(0, var(--vv-top, 0px), 0);
+  will-change: transform;
 }
 
 /* 浏览器把光标滚进视野时，给固定顶栏留出空间，别被压住 */
@@ -3721,12 +3723,14 @@ button.settings-row:active {
 }
 
 .settings-segmented {
-  width: 150px;
+  width: auto;
 }
 
 .settings-segmented button {
   min-height: 32px;
+  padding: 0 10px;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 /* 7 个色点始终一行：窄屏自动收紧间距，不换行 */
