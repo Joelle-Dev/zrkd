@@ -312,22 +312,25 @@ h1, h2, h3, h4, p {
   padding-bottom: 10px;
 }
 
-/* 写作页铺的是纸白底，顶部整条设置栏一起吸顶。
-   负 margin 把吸顶条撑满整页宽，免得正文从两侧的留白缝里穿过去。 */
+/* 写作页顶栏固定成原生导航栏：文档怎么滚它都不动。
+   宽度跟正文列对齐，手机上就是整屏宽；高度由 JS 量出来写进 --write-topbar-h，
+   给正文留出同样的上边距。 */
 .write-page > .write-topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 12;
-  flex: 0 0 auto;
-  margin: 0 calc(-1 * var(--shell-pad));
+  width: 100%;
+  max-width: var(--shell-max);
   padding: calc(var(--safe-top) + 8px) var(--shell-pad) 0;
   background: var(--surface);
 }
 
-/* 浏览器把光标滚进视野时，给吸顶栏留出空间，别被压住 */
+/* 浏览器把光标滚进视野时，给固定顶栏留出空间，别被压住 */
 .write-title,
 .write-editor {
-  scroll-margin-top: calc(var(--safe-top) + 104px);
+  scroll-margin-top: calc(var(--write-topbar-h, calc(var(--safe-top) + 96px)) + 8px);
 }
 
 /* 首页头部 = 导航条：左「我的」、中标题、右操作 */
@@ -1777,14 +1780,9 @@ h1, h2, h3, h4, p {
   font-weight: 600;
 }
 
-/* 写作页：整页正常文档流，顶栏 sticky。
-   之前用 position: fixed + 内部滚动，会带来三个 iOS 老毛病：
-     1. fixed 容器里的滚动区在惯性滚动后吞点按（底部文字点不动）；
-     2. 同一个滚动区吞长按选择（选不中）；
-     3. 每次 visualViewport 一变就重排整页，光标进文字时和浏览器
-        的「滚到可见位置」互相较劲，整页会抖。
-   现在页面随内容自然增长、由文档滚动，问题都不存在；
-   顶栏只做纯 sticky，不跟 visualViewport 做逐帧补偿。 */
+/* 写作页：正文走正常文档滚动，顶栏单独固定在上方。
+   之前整页 fixed + 内部滚动，iOS 会吞点按/长按选择、光标滚动时整页抖；
+   现在正文仍是文档滚动，只是把顶栏从滚动流里拿出来，原生式布局。 */
 .write-page {
   display: flex;
   flex-direction: column;
@@ -1792,7 +1790,10 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 0 var(--shell-pad) calc(28px + var(--safe-bottom));
+  padding:
+    var(--write-topbar-h, calc(var(--safe-top) + 96px))
+    var(--shell-pad)
+    calc(28px + var(--safe-bottom));
   background: var(--surface);
 }
 

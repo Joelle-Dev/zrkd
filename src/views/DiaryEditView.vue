@@ -1,7 +1,7 @@
 <template>
-  <div class="write-page" :class="{ 'is-locked': locked }">
-    <!-- 顶部设置栏整体吸顶：格式、日期、心情、关联，写到哪儿都够得着 -->
-    <div class="write-topbar">
+  <div ref="page" class="write-page" :class="{ 'is-locked': locked }">
+    <!-- 顶部设置栏固定成原生导航栏：格式、日期、心情、关联，写到哪儿都够得着 -->
+    <div ref="topbar" class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -193,6 +193,8 @@ const { sorted } = useEvents();
 
 const moods = MOODS;
 
+const page = ref(null);
+const topbar = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
 const libraryInput = ref(null);
@@ -499,9 +501,14 @@ function onSelectionChange() {
   if (el.contains(selection.anchorNode)) syncActive();
 }
 
-// 顶栏只做纯 sticky，不再跟 visualViewport 逐帧补偿。
-// iOS 弹键盘滚动时视觉视口会变，之前每帧改偏移会让整条顶栏上下跳；
-// 先交给浏览器自己的 sticky，看看是否还需要下一步的固定式布局。
+// 顶栏固定后不在文档流里，量出它的实际高度（含安全区），
+// 给正文留出同样的上边距。只在尺寸变化时更新，滚动时不碰 DOM。
+let topbarObserver = null;
+
+function syncTopbarHeight() {
+  const height = topbar.value?.offsetHeight;
+  if (height) page.value?.style.setProperty('--write-topbar-h', `${height}px`);
+}
 
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
@@ -513,6 +520,11 @@ function onPageHide() {
 
 onMounted(async () => {
   form.date = dateKeyOf();
+  syncTopbarHeight();
+  if (typeof ResizeObserver !== 'undefined' && topbar.value) {
+    topbarObserver = new ResizeObserver(syncTopbarHeight);
+    topbarObserver.observe(topbar.value);
+  }
   window.addEventListener('pagehide', onPageHide);
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
@@ -535,6 +547,8 @@ onUnmounted(() => {
   document.removeEventListener('selectionchange', onSelectionChange);
   window.removeEventListener('keydown', onGlobalKeydown);
   window.removeEventListener('pagehide', onPageHide);
+  topbarObserver?.disconnect();
+  topbarObserver = null;
   showAccessoryBar();
 });
 </script>
