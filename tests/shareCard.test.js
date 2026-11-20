@@ -1,44 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  SHARE_CARD,
-  computeCardLayout,
-  alpha,
-  shareCardFilename
-} from '../src/lib/shareCard.js';
+import { SHARE_CARD, shareCardFilename } from '../src/lib/shareCard.js';
 
-test('画布默认是 4:5 竖版', () => {
-  assert.equal(SHARE_CARD.width, 1080);
-  assert.equal(SHARE_CARD.height, 1350);
-  assert.ok(SHARE_CARD.height > SHARE_CARD.width);
-});
-
-test('computeCardLayout 票根元素自上而下排布且不重叠', () => {
-  const layout = computeCardLayout();
-  assert.ok(layout.card.y < layout.sealY);
-  assert.ok(layout.sealY < layout.tearY);
-  assert.ok(layout.tearY < layout.titleY);
-  assert.ok(layout.titleY < layout.figureY);
-  assert.ok(layout.figureY < layout.metaY);
-  assert.ok(layout.metaY < layout.card.y + layout.card.height);
-  assert.ok(layout.maxTextWidth > 0 && layout.maxTextWidth < layout.width);
-});
-
-test('computeCardLayout 随尺寸等比缩放', () => {
-  const small = computeCardLayout(540, 675);
-  const big = computeCardLayout();
-  assert.ok(big.titleSize > small.titleSize);
-  assert.ok(big.numberSize > small.numberSize);
-  assert.equal(big.centerX, big.width / 2);
-  assert.equal(small.centerX, small.width / 2);
-});
-
-test('alpha 把十六进制转成 rgba，坏值退回默认朱砂', () => {
-  assert.equal(alpha('#000000', 0.5), 'rgba(0, 0, 0, 0.5)');
-  assert.equal(alpha('#ffffff', 0.2), 'rgba(255, 255, 255, 0.2)');
-  assert.equal(alpha('c2564a', 1), 'rgba(194, 86, 74, 1)');
-  assert.equal(alpha('#f00', 1), 'rgba(255, 0, 0, 1)');
-  assert.equal(alpha('nope', 0.3), 'rgba(194, 86, 74, 0.3)');
+test('分享图按屏幕倍率渲染，宽度有上限', () => {
+  assert.ok(SHARE_CARD.maxWidth === 1080);
+  assert.ok(SHARE_CARD.maxPixelRatio >= SHARE_CARD.minPixelRatio);
 });
 
 test('shareCardFilename 去掉文件名里的非法字符', () => {

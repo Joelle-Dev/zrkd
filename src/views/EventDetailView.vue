@@ -19,7 +19,7 @@
     <LoadingState v-if="loading" text="正在把这一天找出来…" />
 
     <template v-else-if="record">
-      <article class="detail-card" :style="accentStyleOf(record.accent)">
+      <article ref="cardEl" class="detail-card" :style="accentStyleOf(record.accent)">
         <header class="detail-card-head">
           <div class="detail-card-id">
             <span class="detail-seal" aria-hidden="true">日</span>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import LoadingState from '../components/LoadingState.vue';
@@ -125,6 +125,7 @@ const { diaries } = useDiaries();
 
 const loading = ref(true);
 const record = ref(null);
+const cardEl = ref(null);
 const renderedBlob = ref(null);
 const renderState = ref('idle'); // idle | generating | ready | error
 const shareSupported = ref(false);
@@ -147,16 +148,6 @@ const dateChip = computed(() => {
     md: parts ? `${String(parts.month).padStart(2, '0')}.${String(parts.day).padStart(2, '0')}` : '',
     weekday: weekdayCN(record.value.targetDate)
   };
-});
-
-// 分享卡用跟详情卡完全相同的颜色：这一天的专属色（已按主题夹过明度），
-// 没设专属色时回落到当前主题色。
-const cardAccent = computed(() => {
-  const styled = record.value ? accentStyleOf(record.value.accent) : null;
-  if (styled) return styled['--accent'];
-  if (typeof window === 'undefined') return undefined;
-  const value = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-  return value || undefined;
 });
 
 const dateLine = computed(() => (record.value
@@ -183,25 +174,20 @@ const saveLabel = computed(() => {
 
 let renderToken = 0;
 
+function pageBackground() {
+  if (typeof window === 'undefined') return undefined;
+  const value = getComputedStyle(document.body).backgroundColor;
+  return value && value !== 'rgba(0, 0, 0, 0)' ? value : undefined;
+}
+
 async function generate() {
   if (!record.value) return;
   const token = ++renderToken;
   renderState.value = 'generating';
   renderedBlob.value = null;
   try {
-    const { blob } = await renderShareCard({
-      title: record.value.title,
-      note: record.value.note,
-      label: desc.value.kind === 'today' ? '' : desc.value.label,
-      number: desc.value.kind === 'today' ? '就是今天' : String(desc.value.days),
-      unit: desc.value.kind === 'today' ? '' : '天',
-      kind: desc.value.kind,
-      dateText: formatDateCN(record.value.targetDate),
-      weekday: weekdayCN(record.value.targetDate),
-      monthDay: dateChip.value.md,
-      lunarText: lunarLine.value,
-      accent: cardAccent.value
-    });
+    await nextTick();
+    const { blob } = await renderShareCard(cardEl.value, { background: pageBackground() });
     if (token !== renderToken) return;
     renderedBlob.value = blob;
     shareSupported.value = canShareFile(toFile(blob, shareCardFilename(record.value.title), 'image/png'));
