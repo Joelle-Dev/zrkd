@@ -192,6 +192,7 @@ import { useEvents } from '../composables/useEvents';
 import { useDiaries } from '../composables/useDiaries';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { makeGoBack } from '../utils/back';
+import { BUILD_VERSION } from '../lib/build';
 
 defineProps({
   drawer: { type: Boolean, default: false }
@@ -238,10 +239,11 @@ const storageLabel = computed(() => (storageUsage.value ? formatBytes(storageUsa
 const buildLabel = computed(() => {
   try {
     const date = new Date(__APP_BUILD_TIME__);
-    if (Number.isNaN(date.getTime())) return '本地版本';
-    return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    if (Number.isNaN(date.getTime())) return BUILD_VERSION;
+    const day = date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    return `${BUILD_VERSION} · ${day}`;
   } catch (err) {
-    return '本地版本';
+    return BUILD_VERSION;
   }
 });
 

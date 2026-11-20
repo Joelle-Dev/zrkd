@@ -318,13 +318,17 @@ h1, h2, h3, h4, p {
 .write-page > .write-topbar {
   position: fixed;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   z-index: 12;
   width: 100%;
   max-width: var(--shell-max);
   padding: calc(var(--safe-top) + 8px) var(--shell-pad) 0;
   background: var(--surface);
+  /* iOS 弹键盘时视觉视口会往下滚，fixed 元素会被顶出屏幕；
+     用 --vv-top 做一层平移补偿，fixed 不参与文档流，不会和滚动互相较劲。 */
+  transform: translateY(var(--vv-top, 0px));
 }
 
 /* 浏览器把光标滚进视野时，给固定顶栏留出空间，别被压住 */
@@ -2054,6 +2058,17 @@ h1, h2, h3, h4, p {
   color: var(--muted-soft);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* 构建版本号：手机上用来确认当前跑的是哪一包 */
+.write-build {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--placeholder);
+  font-variant-numeric: tabular-nums;
 }
 
 .write-save-state {

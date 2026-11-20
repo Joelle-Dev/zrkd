@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
@@ -7,6 +8,19 @@ import { VantResolver } from '@vant/auto-import-resolver';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const truthy = (value) => /^(1|true|yes)$/i.test(String(value || ''));
+
+// 构建版本号：用提交数递增，方便在手机上确认当前跑的是哪一版。
+// 打包发生在提交之前，所以 +1 让显示的数字正好等于这次提交的序号。
+function readBuildVersion() {
+  try {
+    const count = Number(execSync('git rev-list --count HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).toString().trim());
+    return `v${Number.isFinite(count) ? count + 1 : 0}`;
+  } catch (err) {
+    return 'v0';
+  }
+}
 
 function readCertificates() {
   const cert = resolve(process.cwd(), 'certs/dev-cert.pem');
@@ -33,7 +47,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     define: {
-      __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString())
+      __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+      __BUILD_VERSION__: JSON.stringify(readBuildVersion())
     },
     plugins: [
       {

@@ -96,6 +96,7 @@
           @click="toggleMood(mood.key)"
         >{{ mood.emoji }}</button>
         <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
+        <span class="write-build">{{ buildVersion }}</span>
       </div>
 
       <!-- 关联日子：贴着吸顶栏往下展开，不和底部键盘抢位置 -->
@@ -182,6 +183,7 @@ import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import { countWords, sanitizeHtml, textToHtml } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
 import { hideAccessoryBar, showAccessoryBar } from '../utils/keyboard';
+import { BUILD_VERSION } from '../lib/build';
 import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
 
@@ -192,6 +194,7 @@ const diaries = useDiaries();
 const { sorted } = useEvents();
 
 const moods = MOODS;
+const buildVersion = BUILD_VERSION;
 
 const page = ref(null);
 const topbar = ref(null);
@@ -510,6 +513,53 @@ function syncTopbarHeight() {
   if (height) page.value?.style.setProperty('--write-topbar-h', `${height}px`);
 }
 
+/**
+ * iOS 弹键盘时滚的是视觉视口（visualViewport），fixed 元素不会跟着走，
+ * 会被顶出屏幕——这就是「有键盘时顶部不固定」。把 offsetTop 写进
+ * --vv-top，让固定顶栏反向平移同样的距离，屏幕上就钉住了。
+ *
+ * 只平移、不改 top，fixed 也不参与文档流，所以不会像 sticky 那样
+ * 在「吸住 / 回文档流」之间反复切换；值没变就跳过写入。
+ * Android 弹键盘是缩小布局视口（interactive-widget=resizes-content），
+ * offsetTop 恒为 0，这段逻辑自然什么都不做。
+ */
+let cleanupViewport = null;
+
+function bindViewport() {
+  const vv = window.visualViewport;
+  const el = topbar.value;
+  if (!vv || !el) return () => {};
+  let frame = 0;
+  let last = 0;
+
+  const apply = () => {
+    frame = 0;
+    const offset = Math.max(0, Math.round(vv.offsetTop));
+    if (offset === last) return;
+    last = offset;
+    if (offset) el.style.setProperty('--vv-top', `${offset}px`);
+    else el.style.removeProperty('--vv-top');
+  };
+
+  const update = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(apply);
+  };
+
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  window.addEventListener('orientationchange', update);
+  apply();
+
+  return () => {
+    cancelAnimationFrame(frame);
+    vv.removeEventListener('resize', update);
+    vv.removeEventListener('scroll', update);
+    window.removeEventListener('orientationchange', update);
+    el.style.removeProperty('--vv-top');
+  };
+}
+
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
 function onPageHide() {
   if (locked.value) return;
@@ -529,6 +579,7 @@ onMounted(async () => {
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
+  cleanupViewport = bindViewport();
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子
@@ -549,6 +600,8 @@ onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
   topbarObserver?.disconnect();
   topbarObserver = null;
+  cleanupViewport?.();
+  cleanupViewport = null;
   showAccessoryBar();
 });
 </script>
