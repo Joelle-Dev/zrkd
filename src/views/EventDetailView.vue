@@ -49,6 +49,7 @@
 
         <div class="detail-meta">
           <span>{{ dateLine }}</span>
+          <span v-if="yearlyLine" class="detail-yearly">{{ yearlyLine }}</span>
           <span v-if="lunarLine" class="detail-lunar">{{ lunarLine }}</span>
         </div>
       </article>
@@ -143,18 +144,31 @@ const relatedDiaries = computed(() => (record.value
 
 const dateChip = computed(() => {
   if (!record.value) return { md: '', weekday: '' };
-  const parts = parseDateKey(record.value.targetDate);
+  const parts = parseDateKey(desc.value.occurrenceKey || record.value.targetDate);
   return {
     md: parts ? `${String(parts.month).padStart(2, '0')}.${String(parts.day).padStart(2, '0')}` : '',
-    weekday: weekdayCN(record.value.targetDate)
+    weekday: parts ? weekdayCN(desc.value.occurrenceKey || record.value.targetDate) : ''
   };
 });
 
-const dateLine = computed(() => (record.value
-  ? `${formatDateCN(record.value.targetDate)} · ${weekdayCN(record.value.targetDate)}`
-  : ''));
+const dateLine = computed(() => {
+  const key = desc.value.occurrenceKey || record.value?.targetDate;
+  if (!key) return '';
+  return `${formatDateCN(key)} · ${weekdayCN(key)}`;
+});
 
-const targetInfo = computed(() => (record.value ? dayInfo(record.value.targetDate) : null));
+/** 每年重复的日子：下一次落在哪天、这是第几周年、一共走过多远 */
+const yearlyLine = computed(() => {
+  if (record.value?.repeat !== 'yearly' || desc.value.signed === null) return '';
+  const parts = [`每年`, `第 ${desc.value.yearsPassed + 1} 次`];
+  if (desc.value.totalDays > 0) parts.push(`从那天起 ${desc.value.totalDays} 天`);
+  return parts.join(' · ');
+});
+
+const targetInfo = computed(() => {
+  const key = desc.value.occurrenceKey || record.value?.targetDate;
+  return key ? dayInfo(key) : null;
+});
 
 const lunarLine = computed(() => {
   const info = targetInfo.value;

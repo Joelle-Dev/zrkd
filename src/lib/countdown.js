@@ -7,6 +7,20 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_KEY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** 日子的重复方式 */
+export const REPEAT_OPTIONS = Object.freeze([
+  { key: 'none', label: '只这一次' },
+  { key: 'yearly', label: '每年' }
+]);
+
+export function isRepeatKey(value) {
+  return REPEAT_OPTIONS.some((item) => item.key === value);
+}
+
+function isLeapYear(year) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
 export function pad2(value) {
   return String(value).padStart(2, '0');
 }
@@ -58,30 +72,82 @@ export function diffDays(fromKey, toKey) {
 }
 
 /**
+ * 每年重复的日子：找到今天之后（含今天）最近的一次。
+ * 原始日期本身还没到时就是它自己；2 月 29 日落在平年按 2 月 28 日算。
+ * 返回 YYYY-MM-DD；日期非法返回 null。
+ */
+export function nextYearlyOccurrence(targetKey, todayKey = dateKeyOf()) {
+  const parts = parseDateKey(targetKey);
+  const today = parseDateKey(todayKey);
+  if (!parts || !today) return null;
+
+  const month = parts.month;
+  // 2 月 29 日的生日：落在平年就按 2 月 28 日过
+  const dayOf = (year) => (parts.day === 29 && month === 2 && !isLeapYear(year) ? 28 : parts.day);
+
+  // 起点取「原始年份」和「今年」里更晚的那个，多给一年兜住跨年的情况
+  const startYear = Math.max(parts.year, today.year);
+  for (let year = startYear; year <= startYear + 1; year += 1) {
+    const key = dateKeyFromParts(year, month, dayOf(year));
+    if (key >= todayKey) return key;
+  }
+  return null;
+}
+
+/**
  * 把一个日子解释成可展示的状态。
  * 目标日在未来就倒数，在过去就正着数已经过了多少天。
- * 返回 { signed, days, kind, label, targetKey }：
+ * 每年重复的日子始终指向「下一次」，所以永远在倒数，不会停在「已经 N 天」。
+ *
+ * 返回 { signed, days, kind, label, targetKey, occurrenceKey, yearsPassed, totalDays }：
  *   signed > 0  未来（还有 N 天）
  *   signed = 0  就是今天
  *   signed < 0  过去（已经 N 天）
  * days 永远是绝对值。
+ * occurrenceKey 是这次真正在数的那一天（非重复时等于 targetKey）。
+ * yearsPassed 是重复日子里这是第几周年（从原始年份算起）。
+ * totalDays 是重复日子里从原始日期到今天一共走过多少天（当天为 0）。
  */
 export function describeEvent(event, todayKey = dateKeyOf()) {
   const targetKey = event?.targetDate;
-  const signed = diffDays(todayKey, targetKey);
+  const yearly = event?.repeat === 'yearly';
+  const occurrenceKey = yearly ? nextYearlyOccurrence(targetKey, todayKey) : targetKey;
+
+  if (!occurrenceKey) {
+    return {
+      signed: null, days: 0, kind: 'invalid', label: '日期无效',
+      targetKey, occurrenceKey: null, yearsPassed: 0, totalDays: null
+    };
+  }
+
+  const signed = diffDays(todayKey, occurrenceKey);
+  const extras = {
+    targetKey,
+    occurrenceKey,
+    yearsPassed: 0,
+    totalDays: null
+  };
+
   if (signed === null) {
-    return { signed: null, days: 0, kind: 'invalid', label: '日期无效', targetKey };
+    return { signed: null, days: 0, kind: 'invalid', label: '日期无效', ...extras };
+  }
+
+  if (yearly) {
+    const original = parseDateKey(targetKey);
+    const occurrence = parseDateKey(occurrenceKey);
+    if (original && occurrence) extras.yearsPassed = occurrence.year - original.year;
+    extras.totalDays = diffDays(targetKey, todayKey);
   }
 
   if (signed === 0) {
-    return { signed, days: 0, kind: 'today', label: '就是今天', targetKey };
+    return { signed, days: 0, kind: 'today', label: '就是今天', ...extras };
   }
 
   if (signed > 0) {
-    return { signed, days: signed, kind: 'countdown', label: '还有', targetKey };
+    return { signed, days: signed, kind: 'countdown', label: '还有', ...extras };
   }
 
-  return { signed, days: -signed, kind: 'past', label: '已经', targetKey };
+  return { signed, days: -signed, kind: 'past', label: '已经', ...extras };
 }
 
 export function formatDateCN(key) {

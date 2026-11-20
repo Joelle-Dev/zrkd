@@ -102,7 +102,8 @@
           <div class="event-card-body">
             <span class="event-title">{{ event.title }}</span>
             <div class="event-meta">
-              <span class="event-date">{{ formatDateShort(event.targetDate) }}</span>
+              <span class="event-date">{{ formatDateShort(describeCache[event.id].occurrenceKey || event.targetDate) }}</span>
+              <span v-if="event.repeat === 'yearly'" class="event-repeat-badge">每年</span>
               <span v-if="diaryCounts[event.id]" class="event-diary-badge">{{ diaryCounts[event.id] }} 篇</span>
               <span v-if="event.note" class="event-note">{{ event.note }}</span>
             </div>

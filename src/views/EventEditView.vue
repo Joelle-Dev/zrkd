@@ -60,9 +60,31 @@
           </button>
         </div>
 
-        <div class="date-extras">
+        <div v-if="directionHint" class="date-extras">
           <p class="field-note" :class="`hint-${desc.kind}`">{{ directionHint }}</p>
         </div>
+
+        <div class="field-line">
+          <span class="field-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.2 9.4a6 6 0 0 1 11.2-1.9M17.8 14.6A6 6 0 0 1 6.6 16.5"></path>
+              <path d="M17.4 3.6v3.9h-3.9M6.6 20.4v-3.9h3.9"></path>
+            </svg>
+          </span>
+          <div class="repeat-row" role="radiogroup" aria-label="重复方式">
+            <button
+              v-for="option in repeatOptions"
+              :key="option.key"
+              class="chip"
+              type="button"
+              role="radio"
+              :class="{ 'is-active': form.repeat === option.key }"
+              :aria-checked="form.repeat === option.key"
+              @click="pickRepeat(option.key)"
+            >{{ option.label }}</button>
+          </div>
+        </div>
+        <p v-if="form.repeat === 'yearly'" class="field-hint">{{ repeatHint }}</p>
 
         <DatePicker v-model="form.targetDate" v-model:show="dateOpen" />
 
@@ -141,6 +163,7 @@ import { ACCENTS } from '../lib/constants';
 import { getEvent, removeEvent, saveEvent } from '../lib/events';
 import { useEvents } from '../composables/useEvents';
 import {
+  REPEAT_OPTIONS,
   dateKeyFromParts,
   formatDateCN,
   weekdayCN,
@@ -166,12 +189,14 @@ const form = reactive({
   title: '',
   targetDate: dateKeyFromParts(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate()),
   accent: ACCENTS[0].value,
-  note: ''
+  note: '',
+  repeat: 'none'
 });
 
 const isEditing = computed(() => Boolean(route.params.id));
 
 const accents = ACCENTS;
+const repeatOptions = REPEAT_OPTIONS;
 
 const accentName = computed(() => (
   ACCENTS.find((color) => color.value === form.accent)?.label || ''
@@ -179,6 +204,11 @@ const accentName = computed(() => (
 
 function pickAccent(color) {
   form.accent = color.value;
+  haptic('light');
+}
+
+function pickRepeat(key) {
+  form.repeat = key;
   haptic('light');
 }
 
@@ -199,8 +229,9 @@ const previewPrefix = computed(() => (
 const previewKindClass = computed(() => `is-${desc.value.kind}`);
 
 const previewDate = computed(() => {
-  if (!form.targetDate) return '';
-  return `${formatDateCN(form.targetDate)}\n${weekdayCN(form.targetDate)}`;
+  const key = form.repeat === 'yearly' ? desc.value.occurrenceKey : form.targetDate;
+  if (!key) return '';
+  return `${formatDateCN(key)}\n${weekdayCN(key)}`;
 });
 
 const previewSubtitle = computed(() => (isEditing.value ? '改完记得按保存，别白改' : '未来的日子往前数，过去的日子往后数'));
@@ -208,9 +239,18 @@ const previewSubtitle = computed(() => (isEditing.value ? '改完记得按保存
 const directionHint = computed(() => {
   const value = desc.value;
   if (value.signed === null) return '';
+  if (form.repeat === 'yearly') return ''; // 走 repeatHint
   if (value.kind === 'today') return '就是今天';
   if (value.kind === 'countdown') return `还有 ${value.days} 天`;
   return `已经过去 ${value.days} 天`;
+});
+
+const repeatHint = computed(() => {
+  const value = desc.value;
+  if (value.kind === 'invalid') return '日期无效，先挑一天';
+  const when = formatDateCN(value.occurrenceKey);
+  if (value.kind === 'today') return `就是今天 · 第 ${value.yearsPassed + 1} 次`;
+  return `下一次是 ${when}，还有 ${value.days} 天 · 第 ${value.yearsPassed + 1} 次`;
 });
 
 // 改动过就别让人误触返回：离开前问一句。
@@ -257,6 +297,7 @@ async function load() {
     form.targetDate = record.targetDate;
     form.accent = record.accent;
     form.note = record.note || '';
+    form.repeat = record.repeat === 'yearly' ? 'yearly' : 'none';
   } catch (err) {
     errorText.value = '打不开，退一步再试试';
   } finally {
@@ -317,6 +358,7 @@ watch(() => route.params.id, async () => {
     form.title = '';
     form.note = '';
     form.accent = ACCENTS[0].value;
+    form.repeat = 'none';
     form.targetDate = dateKeyFromParts(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
     dirty.value = false;
     return;

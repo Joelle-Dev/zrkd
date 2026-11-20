@@ -1,6 +1,6 @@
 import { deleteRecord, getAll, getRecord, putRecord } from './db.js';
 import { ACCENTS, DEFAULT_EVENT } from './constants.js';
-import { isValidDateKey, parseDateKey } from './countdown.js';
+import { isRepeatKey, isValidDateKey, parseDateKey } from './countdown.js';
 import { uid } from './id.js';
 
 function normalizeEventInput(input = {}) {
@@ -12,7 +12,8 @@ function normalizeEventInput(input = {}) {
     title: String(input.title || '').trim().slice(0, 40),
     targetDate,
     accent,
-    note: String(input.note || '').trim().slice(0, 120)
+    note: String(input.note || '').trim().slice(0, 120),
+    repeat: isRepeatKey(input.repeat) ? input.repeat : 'none'
   };
 }
 

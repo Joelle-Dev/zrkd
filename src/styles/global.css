@@ -1052,6 +1052,17 @@ h1, h2, h3, h4, p {
   font-variant-numeric: tabular-nums;
 }
 
+.event-repeat-badge {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
 .event-note {
   flex: 0 1 auto;
   min-width: 0;
@@ -2518,6 +2529,12 @@ h1, h2, h3, h4, p {
   color: var(--muted-soft);
 }
 
+.detail-yearly {
+  font-size: 10px;
+  color: var(--accent-strong);
+  letter-spacing: 0.04em;
+}
+
 .detail-actions {
   display: flex;
   align-items: stretch;
@@ -3528,6 +3545,11 @@ h1, h2, h3, h4, p {
 
 .field-line .swatch-row {
   gap: 10px;
+}
+
+.repeat-row {
+  display: flex;
+  gap: 8px;
 }
 
 .field-hint {

@@ -209,16 +209,18 @@ const cameraUnit = computed(() => {
   return value && value.kind !== 'today' ? '天' : '';
 });
 
-const cameraDate = computed(() => (activeEvent.value
-  ? formatDateDot(activeEvent.value.targetDate)
-  : ''));
+const cameraDate = computed(() => {
+  const key = desc.value?.occurrenceKey || activeEvent.value?.targetDate;
+  return key ? formatDateDot(key) : '';
+});
 
 const headSub = computed(() => {
   if (!activeEvent.value) return '先记一个日子';
   const value = desc.value;
-  if (!value || value.signed === null) return formatDateDot(activeEvent.value.targetDate);
+  const dateKey = value?.occurrenceKey || activeEvent.value.targetDate;
+  if (!value || value.signed === null) return formatDateDot(dateKey);
   const label = value.kind === 'today' ? '就是今天' : `${value.label} ${value.days} 天`;
-  return `${label} · ${formatDateDot(activeEvent.value.targetDate)}`;
+  return `${label} · ${formatDateDot(dateKey)}`;
 });
 
 const renderLabel = computed(() => {

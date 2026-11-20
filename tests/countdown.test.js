@@ -7,6 +7,7 @@ import {
   dateKeyFromParts,
   diffDays,
   describeEvent,
+  nextYearlyOccurrence,
   formatDateCN,
   formatDateDot,
   formatDateShort,
@@ -79,6 +80,52 @@ test('describeEvent 不再看 mode，只看日期方向', () => {
   const past = describeEvent({ targetDate: '2026-11-01', mode: 'countdown' }, '2026-11-18');
   assert.equal(past.kind, 'past');
   assert.equal(past.label, '已经');
+});
+
+test('nextYearlyOccurrence：今年还没到就是今年，到了就看明年', () => {
+  assert.equal(nextYearlyOccurrence('2015-12-01', '2026-11-18'), '2026-12-01');
+  assert.equal(nextYearlyOccurrence('2015-11-01', '2026-11-18'), '2027-11-01');
+  assert.equal(nextYearlyOccurrence('2015-11-18', '2026-11-18'), '2026-11-18');
+  assert.equal(nextYearlyOccurrence('bad', '2026-11-18'), null);
+});
+
+test('nextYearlyOccurrence：2 月 29 日在平年落到 2 月 28 日', () => {
+  assert.equal(nextYearlyOccurrence('2024-02-29', '2025-01-01'), '2025-02-28');
+  assert.equal(nextYearlyOccurrence('2024-02-29', '2028-01-01'), '2028-02-29');
+});
+
+test('nextYearlyOccurrence：起始日还没到时就是它自己', () => {
+  assert.equal(nextYearlyOccurrence('2030-03-05', '2026-11-18'), '2030-03-05');
+});
+
+test('describeEvent repeat=yearly 始终指向下一次', () => {
+  const today = '2026-11-18';
+  const birthday = describeEvent({ targetDate: '2015-12-01', repeat: 'yearly' }, today);
+  assert.equal(birthday.kind, 'countdown');
+  assert.equal(birthday.days, 13);
+  assert.equal(birthday.label, '还有');
+  assert.equal(birthday.occurrenceKey, '2026-12-01');
+  assert.equal(birthday.yearsPassed, 11);
+  assert.equal(birthday.totalDays, diffDays('2015-12-01', today));
+
+  // 今年已经过了，就数到明年，而不是「已经 N 天」
+  const passed = describeEvent({ targetDate: '2015-11-01', repeat: 'yearly' }, today);
+  assert.equal(passed.kind, 'countdown');
+  assert.equal(passed.occurrenceKey, '2027-11-01');
+  assert.equal(passed.yearsPassed, 12);
+
+  // 正日子当天
+  const onDay = describeEvent({ targetDate: '2015-11-18', repeat: 'yearly' }, today);
+  assert.equal(onDay.kind, 'today');
+  assert.equal(onDay.occurrenceKey, today);
+  assert.equal(onDay.yearsPassed, 11);
+});
+
+test('describeEvent repeat=none 时不计算 occurrenceKey 之外的新字段', () => {
+  const desc = describeEvent({ targetDate: '2026-12-01' }, '2026-11-18');
+  assert.equal(desc.occurrenceKey, '2026-12-01');
+  assert.equal(desc.yearsPassed, 0);
+  assert.equal(desc.totalDays, null);
 });
 
 test('格式化', () => {
