@@ -1,7 +1,7 @@
 <template>
   <div class="write-page" :class="{ 'is-locked': locked }">
     <!-- 顶部设置栏整体吸顶：格式、日期、心情、关联，写到哪儿都够得着 -->
-    <div class="write-topbar">
+    <div ref="topbar" class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -195,6 +195,7 @@ const moods = MOODS;
 
 const editor = ref(null);
 const titleEl = ref(null);
+const topbar = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
 const pickerOpen = ref(false);
@@ -263,10 +264,6 @@ function unlock() {
   locked.value = false;
   saveState.value = 'idle';
   haptic('light');
-  nextTick(() => {
-    const hasTitle = Boolean((titleEl.value?.innerText || '').trim());
-    (hasTitle ? editor.value : titleEl.value)?.focus();
-  });
 }
 
 function openDate() {
@@ -508,22 +505,30 @@ function onSelectionChange() {
  *
  * iOS 弹键盘时缩的是 visualViewport，布局视口（100dvh）不动，
  * sticky 顶栏会被视觉视口的滚动顶出可见区。把 offsetTop 写进
- * --vv-top，让顶栏的 sticky top 跟着补回来即可。
+ * --vv-top，让顶栏跟着补回来即可。
  *
- * 注意只动顶栏、不动整页：整页随 visualViewport 重排，会和浏览器
- * 「把光标滚进视野」的自动滚动互相较劲，页面就会抖。
+ * 两个细节专治「有键盘时上下滚动，顶部频闪」：
+ *   1. 变量写在顶栏自己身上，不写 :root。自定义属性会继承，
+ *      写在根节点等于每帧让整棵文档重算样式。
+ *   2. CSS 里用 transform 平移，而不是改 sticky 的 top。top 一变，
+ *      顶栏会在「吸住 / 回到文档流」之间反复切，看起来就像闪。
+ * 值没变时直接跳过写入，普通文档滚动不会触发任何样式变更。
  */
 let cleanupViewport = null;
 
-function bindViewport() {
+function bindViewport(el) {
   const vv = window.visualViewport;
-  if (!vv) return () => {};
-  const root = document.documentElement;
+  if (!vv || !el) return () => {};
   let frame = 0;
+  let last = 0;
 
   const apply = () => {
     frame = 0;
-    root.style.setProperty('--vv-top', `${Math.round(vv.offsetTop)}px`);
+    const offset = Math.round(vv.offsetTop);
+    if (offset === last) return;
+    last = offset;
+    if (offset) el.style.setProperty('--vv-top', `${offset}px`);
+    else el.style.removeProperty('--vv-top');
   };
 
   const update = () => {
@@ -541,7 +546,7 @@ function bindViewport() {
     vv.removeEventListener('resize', update);
     vv.removeEventListener('scroll', update);
     window.removeEventListener('orientationchange', update);
-    root.style.removeProperty('--vv-top');
+    el.style.removeProperty('--vv-top');
   };
 }
 
@@ -559,7 +564,7 @@ onMounted(async () => {
   await load();
   document.addEventListener('selectionchange', onSelectionChange);
   window.addEventListener('keydown', onGlobalKeydown);
-  cleanupViewport = bindViewport();
+  cleanupViewport = bindViewport(topbar.value);
   hideAccessoryBar();
   if (!isEditing.value) {
     // 从日子详情点「写一篇」进来时，自动带上那条日子

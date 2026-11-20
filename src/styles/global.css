@@ -316,7 +316,10 @@ h1, h2, h3, h4, p {
    负 margin 把吸顶条撑满整页宽，免得正文从两侧的留白缝里穿过去。 */
 .write-page > .write-topbar {
   position: sticky;
-  top: var(--vv-top, 0px);
+  top: 0;
+  /* 键盘/缩放带来的视觉视口偏移只做平移，不改 sticky 的 top：
+     top 一变，吸顶栏会在「吸住 / 回到文档流」之间反复跳，滚动时就频闪。 */
+  transform: translateY(var(--vv-top, 0px));
   z-index: 12;
   flex: 0 0 auto;
   margin: 0 calc(-1 * var(--shell-pad));
