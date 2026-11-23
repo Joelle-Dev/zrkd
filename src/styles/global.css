@@ -1971,58 +1971,58 @@ h1, h2, h3, h4, p {
   user-select: text;
 }
 
-/* 正文：Vditor（IR 即时渲染）。外观收进我们的纸面里，去掉它自带的边框/底色 */
+/* 正文：TipTap（ProseMirror）。外观收进纸面，去掉编辑器自带的一切边框与底色 */
 .rich-editor {
   position: relative;
   width: 100%;
   min-height: 40dvh;
 }
 
-.rich-editor .vditor {
+.rich-editor-content {
+  min-height: 40dvh;
+}
+
+.rich-editor .ProseMirror {
+  min-height: 40dvh;
+  /* 底部留白跑道：光标打到最后一行时也不会贴着键盘/工具条 */
+  padding: 6px 0 clamp(8rem, 30dvh, 18rem);
   border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.rich-editor .vditor-toolbar {
-  padding: 4px 0 10px;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-}
-
-.rich-editor .vditor-toolbar__item {
-  color: var(--muted);
-}
-
-.rich-editor .vditor-toolbar__item--current {
-  color: var(--accent-strong);
-}
-
-.rich-editor .vditor-reset {
-  padding: 6px 0 0;
+  outline: none;
   color: var(--ink-soft);
   font-family: inherit;
   font-size: 15.5px;
   line-height: 1.85;
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
-.rich-editor .vditor-ir pre.vditor-reset:focus {
+.rich-editor .ProseMirror:focus {
   outline: none;
-  background: transparent;
 }
 
-.rich-editor .vditor-ir .vditor-reset > p {
+.rich-editor .ProseMirror > p {
   margin: 0 0 0.35em;
 }
 
-.rich-editor .vditor-panel {
+.rich-editor .ProseMirror b,
+.rich-editor .ProseMirror strong {
+  font-weight: 700;
   color: var(--ink);
 }
 
-.rich-editor-loading {
-  padding: 18px 2px;
-  color: var(--muted-soft);
-  font-size: 12.5px;
+.rich-editor .ProseMirror s {
+  text-decoration: line-through;
+}
+
+/* TipTap 的 Placeholder 扩展只在空段落上加这个类 */
+.rich-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--placeholder);
+  pointer-events: none;
 }
 
 .rich-editor-fallback {
@@ -2043,10 +2043,6 @@ h1, h2, h3, h4, p {
 
 .rich-editor-fallback:focus {
   outline: none;
-}
-
-[data-theme='dark'] .rich-editor .vditor {
-  background: transparent;
 }
 
 /* 修饰态 / 锁定态：只读渲染，可长按选中，但没有任何可编辑元素 */

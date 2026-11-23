@@ -64,7 +64,7 @@
         @keydown.enter.prevent="focusBody"
       >
 
-      <!-- 正文交给 Vditor（MIT 开源，IR 即时渲染），键盘/选区/撤销都用它自己的实现 -->
+      <!-- 正文交给 TipTap（ProseMirror），Markdown 存储，区块能力关到最小 -->
       <RichEditor
         v-if="!locked"
         ref="editor"
@@ -248,7 +248,7 @@ const events = computed(() => sorted.value.filter((event) => event.targetDate));
 
 const previewHtml = computed(() => markdownToHtml(bodyText.value));
 
-const wordCount = computed(() => countWords(bodyText.value.replace(/\*\*|__|\*/g, '')));
+const wordCount = computed(() => countWords(bodyText.value.replace(/\*\*|~~|__|\*/g, '')));
 
 const dateLabel = computed(() => {
   const parts = parseDateKey(form.date);
@@ -331,8 +331,8 @@ function onBodyChange() {
 }
 
 /**
- * 格式完全交给 Vditor：它自己处理选区、撤销栈、Markdown 语法，
- * 我们只是把底部按钮的点击转发过去。
+ * 格式交给 TipTap 的命令：它自己处理选区、撤销栈、Markdown 序列化，
+ * 底部按钮只负责转发。
  */
 function applyMark(type) {
   if (locked.value) return;
@@ -349,7 +349,7 @@ watch(form, () => {
 // 只点心情不产生记录，避免出现空白日记。
 function hasContent() {
   const title = String(form.title || '').trim();
-  const text = bodyText.value.replace(/\*\*|__|\*/g, '').trim();
+  const text = bodyText.value.replace(/\*\*|~~|__|\*/g, '').trim();
   return Boolean(title || text || form.photo);
 }
 
@@ -499,22 +499,21 @@ function hideKeyboard() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }
 
+/**
+ * 只监听视觉视口的 resize（键盘开合、转屏），不监听 scroll。
+ *
+ * scroll 在 iOS 上会在视觉视口被平移时高频触发，跟着它改 CSS 变量
+ * 会和合成线程的平移抢帧，看起来就是抖。键盘高度只在开合时变一次，
+ * resize 足够了；中间的滚动过程我们不做任何补偿。
+ */
 function bindViewport() {
   const vv = window.visualViewport;
-  if (vv) {
-    vv.addEventListener('resize', syncKeyboardOffset);
-    vv.addEventListener('scroll', syncKeyboardOffset);
-  }
-  window.addEventListener('resize', syncKeyboardOffset);
+  if (vv) vv.addEventListener('resize', syncKeyboardOffset);
   window.addEventListener('orientationchange', syncKeyboardOffset);
   syncKeyboardOffset();
 
   return () => {
-    if (vv) {
-      vv.removeEventListener('resize', syncKeyboardOffset);
-      vv.removeEventListener('scroll', syncKeyboardOffset);
-    }
-    window.removeEventListener('resize', syncKeyboardOffset);
+    if (vv) vv.removeEventListener('resize', syncKeyboardOffset);
     window.removeEventListener('orientationchange', syncKeyboardOffset);
     document.documentElement.style.removeProperty('--write-kb-offset');
     document.documentElement.style.removeProperty('--write-toolbar-h');
