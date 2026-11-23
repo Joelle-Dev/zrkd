@@ -64,18 +64,16 @@
         @keydown.enter.prevent="focusBody"
       >
 
-      <textarea
+      <!-- 正文交给 Vditor（MIT 开源，IR 即时渲染），键盘/选区/撤销都用它自己的实现 -->
+      <RichEditor
         v-if="!locked"
         ref="editor"
         v-model="bodyText"
-        class="write-textarea"
-        placeholder="随便写点什么…（选中文字点下方 B / I / U 就能加格式）"
-        wrap="soft"
-        @input="onBodyInput"
-        @keyup="syncActiveMarks"
-        @mouseup="syncActiveMarks"
-        @select="syncActiveMarks"
-      ></textarea>
+        :theme="appliedTheme"
+        placeholder="随便写点什么…"
+        @ready="onEditorReady"
+        @change="onBodyChange"
+      />
 
       <div v-else class="write-readonly">
         <div class="write-readonly-inner" v-html="previewHtml"></div>
@@ -93,7 +91,7 @@
         <button
           class="write-tool"
           type="button"
-          :class="{ 'is-active': activeFormat.bold }"
+          :class="{ 'is-active': editorState.bold }"
           aria-label="加粗"
           @mousedown.prevent
           @click="applyMark('bold')"
@@ -101,7 +99,7 @@
         <button
           class="write-tool"
           type="button"
-          :class="{ 'is-active': activeFormat.italic }"
+          :class="{ 'is-active': editorState.italic }"
           aria-label="斜体"
           @mousedown.prevent
           @click="applyMark('italic')"
@@ -109,11 +107,11 @@
         <button
           class="write-tool"
           type="button"
-          :class="{ 'is-active': activeFormat.underline }"
-          aria-label="下划线"
+          :class="{ 'is-active': editorState.strike }"
+          aria-label="删除线"
           @mousedown.prevent
-          @click="applyMark('underline')"
-        ><u>U</u></button>
+          @click="applyMark('strike')"
+        ><s>S</s></button>
         <button
           class="write-tool"
           type="button"
@@ -136,7 +134,6 @@
             <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
           </svg>
         </button>
-        <span class="write-tools-hint">{{ markHint }}</span>
         <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m6 9.5 6 6 6-6"></path>
@@ -181,16 +178,18 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog, showToast } from 'vant';
 import DatePicker from '../components/DatePicker.vue';
+import RichEditor from '../components/RichEditor.vue';
 import { MOODS, getDiary, removeDiary, saveDiary } from '../lib/diary';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
-import { activeMarksAt, countWords, markdownToHtml, toggleMark } from '../lib/richtext';
+import { countWords, markdownToHtml } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
 import { hideAccessoryBar, showAccessoryBar } from '../utils/keyboard';
 import { BUILD_VERSION } from '../lib/build';
 import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
+import { appliedTheme } from '../utils/theme';
 
 const route = useRoute();
 const router = useRouter();
@@ -219,14 +218,13 @@ const locked = ref(Boolean(route.params.id));
 // 正文就是这段 Markdown 原文；textarea 里直接编它
 const bodyText = ref('');
 
-// 当前光标/选区所处的格式，只用来点亮按钮
-const activeFormat = reactive({ bold: false, italic: false, underline: false });
-const hasSelection = ref(false);
+// 编辑器内部状态（由 RichEditor 暴露的 ref 驱动）
+// expose 出来的 ref 会被 Vue 自动解包，这里拿到的就是对象本身
+const editorState = computed(() => editor.value?.state || { bold: false, italic: false, strike: false });
 
 const SAVE_DELAY = 700;
 let saveTimer = null;
 let leaving = false;
-let markTimer = null;
 
 const saveLabel = computed(() => {
   if (saveState.value === 'saving') return '正往本子里塞';
@@ -251,8 +249,6 @@ const events = computed(() => sorted.value.filter((event) => event.targetDate));
 const previewHtml = computed(() => markdownToHtml(bodyText.value));
 
 const wordCount = computed(() => countWords(bodyText.value.replace(/\*\*|__|\*/g, '')));
-
-const markHint = computed(() => (hasSelection.value ? '点 B / I / U 加格式' : '选中文字再加格式'));
 
 const dateLabel = computed(() => {
   const parts = parseDateKey(form.date);
@@ -318,75 +314,30 @@ async function onPick(event) {
   }
 }
 
+/* ---------- 编辑器回调 ---------- */
+
 function focusBody() {
   editor.value?.focus();
 }
 
-/* ---------- textarea 自动增高 ---------- */
-
-function resizeEditor() {
-  const el = editor.value;
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
+// 底部工具条跟着键盘走，需要知道它的高度
+function onEditorReady() {
+  nextTick(() => measureToolbar());
 }
 
-function onBodyInput() {
-  resizeEditor();
-  syncActiveMarks();
+function onBodyChange() {
+  measureToolbar();
   scheduleSave();
 }
 
-/* ---------- 格式按钮：只改字符串，不碰焦点 ---------- */
-
 /**
- * 按钮高亮：看 textarea 的选区落在哪些符号之间。
- * 选区变化走 keyup / mouseup / select，不监听全局 selectionchange，
- * 避免和别的页面（如日期面板）抢事件。
+ * 格式完全交给 Vditor：它自己处理选区、撤销栈、Markdown 语法，
+ * 我们只是把底部按钮的点击转发过去。
  */
-function syncActiveMarks() {
-  const el = editor.value;
-  if (!el || locked.value) return;
-  const start = el.selectionStart ?? 0;
-  const end = el.selectionEnd ?? 0;
-  hasSelection.value = end > start;
-  const state = activeMarksAt(bodyText.value, start, end);
-  activeFormat.bold = state.bold;
-  activeFormat.italic = state.italic;
-  activeFormat.underline = state.underline;
-}
-
-/**
- * 给选中文字加 / 去 Markdown 符号。
- *
- * 这是纯字符串操作：算出新文本、写回 textarea、再把选区调整到正确位置。
- * textarea 的焦点一直没离开，所以键盘不会收、不会闪、不会重开；
- * 内容变化也进浏览器原生 undo 栈，加粗可以自己撤掉。
- */
-function applyMark(key) {
-  const el = editor.value;
-  if (!el || locked.value) return;
-
-  const start = el.selectionStart ?? 0;
-  const end = el.selectionEnd ?? 0;
-  if (end <= start) {
-    showToast('先选中要修饰的文字');
-    haptic('warning');
-    return;
-  }
-
-  const result = toggleMark(bodyText.value, start, end, key);
-  if (result.text === bodyText.value) return;
-
-  bodyText.value = result.text;
-  nextTick(() => {
-    resizeEditor();
-    el.focus();
-    el.setSelectionRange(result.start, result.end);
-    syncActiveMarks();
-  });
+function applyMark(type) {
+  if (locked.value) return;
+  editor.value?.toggle?.(type);
   haptic('light');
-  scheduleSave();
 }
 
 // 结构性的改动（日期、心情、配图、关联）直接触发保存
@@ -482,7 +433,6 @@ async function load() {
     form.eventId = record.eventId || '';
     bodyText.value = record.body || '';
     await nextTick();
-    resizeEditor();
   } catch (err) {
     showToast('没打开，再敲一次门');
   }
@@ -600,15 +550,12 @@ onMounted(async () => {
   }
   await nextTick();
   measureToolbar();
-  resizeEditor();
-  syncActiveMarks();
 });
 
 onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
   cleanupViewport?.();
   cleanupViewport = null;
-  clearTimeout(markTimer);
   showAccessoryBar();
 });
 </script>

@@ -125,6 +125,9 @@ export default defineConfig(({ mode }) => {
           // iOS 主屏幕启动图只在「添加到主屏幕」开屏时由系统读，
           // 运行时用不到，不进 SW 缓存，省 344KB 安装体积。
           globIgnores: ['**/splash/**'],
+          // Vditor 的 Markdown 解析器（lute）约 3.7MB，超过 Workbox 默认 2MB 上限，
+          // 不提高上限它会被静默跳过，离线时编辑器就打不开。
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
           cleanupOutdatedCaches: true,
           navigateFallbackDenylist: [/^\/api\//]
         }

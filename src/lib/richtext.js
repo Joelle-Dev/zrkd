@@ -6,9 +6,16 @@
 // 安全边界：存进 IndexedDB 的 HTML 一律先过 sanitizeHtml，
 // 只保留白名单标签、丢掉所有属性，粘贴进来的外部样式与脚本都进不去。
 
-const ALLOWED = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'DIV', 'P']);
+const ALLOWED = new Set([
+  'B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL',
+  'BR', 'DIV', 'P',
+  // Vditor 的 IR 模式允许手敲 / 粘贴标题、列表、引用、代码，
+  // 存下来也要能原样渲染，所以一并放行。
+  'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+  'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'CODE', 'HR'
+]);
 
-const TAG_MAP = { STRONG: 'b', EM: 'i' };
+const TAG_MAP = { STRONG: 'b', EM: 'i', DEL: 's', H1: 'h1', H2: 'h2', H3: 'h3', H4: 'h4', H5: 'h5', H6: 'h6' };
 
 export function escapeHtml(text) {
   return String(text || '')
@@ -143,19 +150,21 @@ export function countWords(text) {
 export const MARKDOWN_MARKS = Object.freeze({
   bold: '**',
   italic: '*',
-  underline: '__'
+  underline: '__',
+  strike: '~~'
 });
 
-export const MARKDOWN_KEYS = Object.freeze(['bold', 'italic', 'underline']);
+export const MARKDOWN_KEYS = Object.freeze(['bold', 'italic', 'underline', 'strike']);
 
 const MARK_TO_KEY = Object.freeze({
   '**': 'bold',
   '__': 'underline',
+  '~~': 'strike',
   '*': 'italic'
 });
 
 function blankMarks() {
-  return { bold: false, italic: false, underline: false };
+  return { bold: false, italic: false, underline: false, strike: false };
 }
 
 /**
@@ -183,7 +192,13 @@ export function parseMarkdown(input) {
     if (!buffer) return;
     const state = marksState();
     const last = segments[segments.length - 1];
-    if (last && last.bold === state.bold && last.italic === state.italic && last.underline === state.underline) {
+    if (
+      last &&
+      last.bold === state.bold &&
+      last.italic === state.italic &&
+      last.underline === state.underline &&
+      last.strike === state.strike
+    ) {
       last.text += buffer;
     } else {
       segments.push({ text: buffer, ...state });
@@ -241,7 +256,8 @@ export function markdownToHtml(input) {
     while (
       end < segments.length &&
       segments[end].bold === head.bold &&
-      segments[end].underline === head.underline
+      segments[end].underline === head.underline &&
+      segments[end].strike === head.strike
     ) {
       end += 1;
     }
@@ -255,6 +271,7 @@ export function markdownToHtml(input) {
     }
 
     if (inner) {
+      if (head.strike) inner = `<s>${inner}</s>`;
       if (head.underline) inner = `<u>${inner}</u>`;
       if (head.bold) inner = `<b>${inner}</b>`;
       html += inner;
@@ -353,7 +370,7 @@ export function activeMarksAt(text, start, end = start) {
   });
   if (!picked.length) return blankMarks();
 
-  const state = { bold: true, italic: true, underline: true };
+  const state = { bold: true, italic: true, underline: true, strike: true };
   for (const item of picked) {
     for (const key of MARKDOWN_KEYS) {
       if (!item.stack.includes(key)) state[key] = false;
@@ -373,6 +390,7 @@ export function htmlToMarkdown(input) {
     .replace(/<(p|div)[^>]*>/gi, '');
   // 由内到外逐种替换，避免嵌套顺序乱掉
   text = replaceTagPair(text, 'b|strong', '**');
+  text = replaceTagPair(text, 's|del', '~~');
   text = replaceTagPair(text, 'u', '__');
   text = replaceTagPair(text, 'i|em', '*');
   // 去掉其余标签，保留文字

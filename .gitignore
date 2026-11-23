@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Vditor 静态资源由 scripts/copy-vditor.mjs 从 node_modules 复制
+public/vditor/
 # docs/ 允许提交（GitHub Pages 分支部署的发布产物）
 .DS_Store
 *.log

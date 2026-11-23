@@ -6,7 +6,9 @@
   "description": "指日可待 · 一天一天，等到那天",
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/copy-vditor.mjs",
     "build": "vite build && touch dist/.nojekyll",
+    "prebuild": "node scripts/copy-vditor.mjs",
     "build:docs": "npm run build && rm -rf docs && cp -R dist docs && touch docs/.nojekyll",
     "preview": "vite preview",
     "icons": "node scripts/make-icons.mjs",
@@ -27,6 +29,7 @@
     "html-to-image": "^1.11.13",
     "lunar-javascript": "^1.7.8",
     "vant": "^4.10.2",
+    "vditor": "^4.0.1",
     "vue": "^3.5.27",
     "vue-router": "^4.6.4"
   },
