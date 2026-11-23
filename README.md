@@ -44,7 +44,7 @@
 
 > 日期选择器是自绘的（`components/DatePicker.vue` + `lib/calendar.js`）。原生 `input[type=date]` 在 iOS 上只能弹系统滚轮，样式不可控、也没有「昨天/一周后」这类快捷；网格计算抽成了纯函数，有 12 项单元测试覆盖闰年 2 月、跨年补位等情况。
 
-> 富文本用 TipTap（ProseMirror）+ 官方 `@tiptap/markdown`，正文以 Markdown 存储，列表和锁定态用自带的 `markdownToHtml`（零依赖、可单测）渲染。只启用行内格式（加粗 / 斜体 / 删除线），区块能力全部关闭，编辑页按需懒加载约 150KB（gzip）。之前试过 Vditor，它的 Markdown 解析器是 Go 编译的，单文件就 3.7MB，为了几十行日记不值当。
+> 富文本照 JotSelf 的做法用 Vditor（MIT，IR 即时渲染），资源从 `public/vditor` 自托管、离线可用。顶栏和页脚都用 `position: sticky` 而不是 `fixed`，正文底部留一条跑道（`--editor-bottom`），再用 caret-follow 在光标落到可视区下方 70% 时把整页滚一下——全程不读键盘高度、不做逐帧补偿，所以 iOS 上不抖。正文以 Markdown 存储，列表和锁定态用自带的 `markdownToHtml`（零依赖、可单测）渲染；Vditor 加载失败自动退化成 textarea。
 
 **今天是什么日子**
 

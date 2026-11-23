@@ -1853,11 +1853,6 @@ h1, h2, h3, h4, p {
   background: var(--surface);
 }
 
-/* 底部有工具条时，给正文留出工具条 + 键盘的高度 */
-.write-page:not(.is-locked) {
-  padding-bottom: calc(var(--write-toolbar-h, 56px) + var(--write-kb-offset, 0px) + 20px);
-}
-
 .write-head {
   display: flex;
   align-items: center;
@@ -1971,58 +1966,78 @@ h1, h2, h3, h4, p {
   user-select: text;
 }
 
-/* 正文：TipTap（ProseMirror）。外观收进纸面，去掉编辑器自带的一切边框与底色 */
+/* 正文：Vditor（IR 即时渲染），外观完全收进我们的纸面 */
 .rich-editor {
   position: relative;
   width: 100%;
   min-height: 40dvh;
 }
 
-.rich-editor-content {
-  min-height: 40dvh;
+.rich-editor-mount {
+  width: 100%;
 }
 
-.rich-editor .ProseMirror {
-  min-height: 40dvh;
-  /* 底部留白跑道：光标打到最后一行时也不会贴着键盘/工具条 */
-  padding: 6px 0 clamp(8rem, 30dvh, 18rem);
+.rich-editor .vditor {
   border: 0;
-  outline: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* 编辑器自带的工具栏：跟我们顶栏同一套视觉，放正文上方 */
+.rich-editor .vditor-toolbar {
+  margin: 0 0 2px;
+  padding: 2px 0 8px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.rich-editor .vditor-toolbar__item {
+  color: var(--muted);
+}
+
+.rich-editor .vditor-toolbar__item--current,
+.rich-editor .vditor-menu--current {
+  color: var(--accent-strong);
+}
+
+/* 正文区：底部留一条跑道，光标打到最后一行也不会贴着页脚/键盘 */
+.rich-editor .vditor-reset {
+  padding: 6px 0 0;
   color: var(--ink-soft);
   font-family: inherit;
   font-size: 15.5px;
   line-height: 1.85;
-  white-space: pre-wrap;
-  word-break: break-word;
-  -webkit-user-select: text;
-  user-select: text;
 }
 
-.rich-editor .ProseMirror:focus {
+/* 底部留白跑道：Vditor 用伪元素撑高，永远不会写进 Markdown。
+   光标打到最后一行时，离页脚/键盘还有一大段距离。 */
+.rich-editor .vditor-ir pre.vditor-reset,
+.rich-editor .vditor-wysiwyg pre.vditor-reset,
+.rich-editor .vditor-sv {
+  --editor-bottom: clamp(9rem, 30dvh, 18rem);
+  scroll-padding-bottom: clamp(9rem, 30dvh, 18rem);
+}
+
+.rich-editor .vditor-ir pre.vditor-reset:focus {
   outline: none;
+  background: transparent;
 }
 
-.rich-editor .ProseMirror > p {
+.rich-editor .vditor-ir .vditor-reset > p {
   margin: 0 0 0.35em;
 }
 
-.rich-editor .ProseMirror b,
-.rich-editor .ProseMirror strong {
-  font-weight: 700;
+.rich-editor .vditor-panel {
+  z-index: 30;
   color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
 }
 
-.rich-editor .ProseMirror s {
-  text-decoration: line-through;
-}
-
-/* TipTap 的 Placeholder 扩展只在空段落上加这个类 */
-.rich-editor .ProseMirror p.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  float: left;
-  height: 0;
-  color: var(--placeholder);
-  pointer-events: none;
+.rich-editor-loading {
+  padding: 18px 2px;
+  color: var(--muted-soft);
+  font-size: 12.5px;
 }
 
 .rich-editor-fallback {
@@ -2103,27 +2118,31 @@ h1, h2, h3, h4, p {
   line-height: 1;
 }
 
-/* 底部工具条：没有键盘时贴底，系统键盘弹起时浮到键盘上方 */
-.write-toolbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--write-kb-offset, 0px);
-  z-index: 50;
-  padding: 6px 0 calc(var(--safe-bottom) + 6px);
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-  box-shadow: 0 -8px 22px rgba(74, 55, 30, 0.08);
-}
-
-.write-toolbar-inner {
+/* 页脚：跟整页一起流，滚到底时粘在底部。
+   用 sticky 而不是 fixed：键盘弹起时 iOS 平移视觉视口，
+   sticky 跟着文档走，不需要读键盘高度、也不需要逐帧补偿。 */
+.write-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 8;
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
-  max-width: var(--shell-max);
-  margin: 0 auto;
-  padding: 0 var(--shell-pad);
+  margin: 0 calc(-1 * var(--shell-pad));
+  padding: 8px var(--shell-pad) calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.write-footer-state {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted-soft);
+  white-space: nowrap;
+}
+
+.write-footer-state.is-error {
+  color: var(--danger);
 }
 
 .write-tool {
@@ -2250,12 +2269,12 @@ h1, h2, h3, h4, p {
   color: var(--danger);
 }
 
-/* 关联日子：浮在底部工具条上方，键盘弹起时一起上移 */
+/* 关联日子：贴在页脚上方；用 fixed 相对屏幕底部，和页脚同一条基线 */
 .write-picker-wrap {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--write-kb-offset, 0px) + var(--write-toolbar-h, 56px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
   z-index: 40;
   padding: 0 var(--shell-pad);
   pointer-events: none;

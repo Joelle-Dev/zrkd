@@ -71,6 +71,7 @@
         v-model="bodyText"
         :theme="appliedTheme"
         placeholder="随便写点什么…"
+        obstruction=".write-footer"
         @ready="onEditorReady"
         @change="onBodyChange"
       />
@@ -85,61 +86,37 @@
       </div>
     </div>
 
-    <!-- 底部工具条：没有键盘时贴底，系统键盘弹起时跟着浮到键盘上方 -->
-    <div v-if="!locked" ref="toolbar" class="write-toolbar">
-      <div class="write-toolbar-inner">
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': editorState.bold }"
-          aria-label="加粗"
-          @mousedown.prevent
-          @click="applyMark('bold')"
-        ><b>B</b></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': editorState.italic }"
-          aria-label="斜体"
-          @mousedown.prevent
-          @click="applyMark('italic')"
-        ><i>I</i></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': editorState.strike }"
-          aria-label="删除线"
-          @mousedown.prevent
-          @click="applyMark('strike')"
-        ><s>S</s></button>
-        <button
-          class="write-tool"
-          type="button"
-          :class="{ 'is-active': form.eventId }"
-          aria-label="关联一个日子"
-          aria-controls="write-picker"
-          :aria-expanded="pickerOpen"
-          @mousedown.prevent
-          @click="pickerOpen = !pickerOpen"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
-            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
-          </svg>
-        </button>
-        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
-            <circle cx="8.6" cy="10.2" r="1.4"></circle>
-            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
-          </svg>
-        </button>
-        <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m6 9.5 6 6 6-6"></path>
-          </svg>
-        </button>
-      </div>
+    <!-- 页脚：跟正文一起滚，滚到底时贴在底部。
+         用 sticky 而不是 fixed，iOS 键盘弹起时它跟着文档走，不需要任何键盘高度计算。 -->
+    <div v-if="!locked" class="write-footer">
+      <button
+        class="write-tool"
+        type="button"
+        :class="{ 'is-active': form.eventId }"
+        aria-label="关联一个日子"
+        aria-controls="write-picker"
+        :aria-expanded="pickerOpen"
+        @mousedown.prevent
+        @click="pickerOpen = !pickerOpen"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
+          <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+        </svg>
+      </button>
+      <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
+          <circle cx="8.6" cy="10.2" r="1.4"></circle>
+          <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
+        </svg>
+      </button>
+      <span class="write-footer-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
+      <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m6 9.5 6 6 6-6"></path>
+        </svg>
+      </button>
     </div>
 
     <Transition name="picker-drop">
@@ -201,7 +178,6 @@ const moods = MOODS;
 const buildVersion = BUILD_VERSION;
 
 const page = ref(null);
-const toolbar = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
 const libraryInput = ref(null);
@@ -217,10 +193,6 @@ const locked = ref(Boolean(route.params.id));
 
 // 正文就是这段 Markdown 原文；textarea 里直接编它
 const bodyText = ref('');
-
-// 编辑器内部状态（由 RichEditor 暴露的 ref 驱动）
-// expose 出来的 ref 会被 Vue 自动解包，这里拿到的就是对象本身
-const editorState = computed(() => editor.value?.state || { bold: false, italic: false, strike: false });
 
 const SAVE_DELAY = 700;
 let saveTimer = null;
@@ -281,9 +253,7 @@ function unlock() {
   saveState.value = 'idle';
   haptic('light');
   nextTick(() => {
-    measureToolbar();
     editor.value?.focus();
-    syncKeyboardOffset();
   });
 }
 
@@ -318,26 +288,6 @@ async function onPick(event) {
 
 function focusBody() {
   editor.value?.focus();
-}
-
-// 底部工具条跟着键盘走，需要知道它的高度
-function onEditorReady() {
-  nextTick(() => measureToolbar());
-}
-
-function onBodyChange() {
-  measureToolbar();
-  scheduleSave();
-}
-
-/**
- * 格式交给 TipTap 的命令：它自己处理选区、撤销栈、Markdown 序列化，
- * 底部按钮只负责转发。
- */
-function applyMark(type) {
-  if (locked.value) return;
-  editor.value?.toggle?.(type);
-  haptic('light');
 }
 
 // 结构性的改动（日期、心情、配图、关联）直接触发保存
@@ -463,61 +413,21 @@ async function confirmDelete() {
   }
 }
 
-/* ---------- 底部工具条：跟随系统键盘 ---------- */
+/* ---------- 编辑器与页脚 ---------- */
 
-let cleanupViewport = null;
-
-function measureToolbar() {
-  const el = toolbar.value;
-  if (!el) return;
-  const height = Math.ceil(el.getBoundingClientRect().height);
-  if (height > 0) {
-    document.documentElement.style.setProperty('--write-toolbar-h', `${height}px`);
-  }
+// 格式交给 Vditor 自带工具栏，这里只负责保存与收键盘
+function onEditorReady() {
+  // 编辑器就绪后无需额外处理，占位由 Vditor 自己画
 }
 
-/**
- * 系统键盘弹起时，视觉视口会缩小。
- * iOS 不改布局视口，offset = innerHeight - 视觉视口高度 - 视觉视口偏移；
- * Android 开了 interactive-widget=resizes-content 时布局视口也会缩，offset 自然接近 0。
- */
-function syncKeyboardOffset() {
-  const vv = window.visualViewport;
-  const root = document.documentElement;
-  if (!vv) {
-    root.style.setProperty('--write-kb-offset', '0px');
-    return;
-  }
-  const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  root.style.setProperty('--write-kb-offset', `${Math.round(offset)}px`);
-  measureToolbar();
+function onBodyChange() {
+  scheduleSave();
 }
 
 function hideKeyboard() {
   if (editor.value) editor.value.blur();
   if (titleEl.value) titleEl.value.blur();
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-}
-
-/**
- * 只监听视觉视口的 resize（键盘开合、转屏），不监听 scroll。
- *
- * scroll 在 iOS 上会在视觉视口被平移时高频触发，跟着它改 CSS 变量
- * 会和合成线程的平移抢帧，看起来就是抖。键盘高度只在开合时变一次，
- * resize 足够了；中间的滚动过程我们不做任何补偿。
- */
-function bindViewport() {
-  const vv = window.visualViewport;
-  if (vv) vv.addEventListener('resize', syncKeyboardOffset);
-  window.addEventListener('orientationchange', syncKeyboardOffset);
-  syncKeyboardOffset();
-
-  return () => {
-    if (vv) vv.removeEventListener('resize', syncKeyboardOffset);
-    window.removeEventListener('orientationchange', syncKeyboardOffset);
-    document.documentElement.style.removeProperty('--write-kb-offset');
-    document.documentElement.style.removeProperty('--write-toolbar-h');
-  };
 }
 
 // 离开时不再等保存完成；切后台/关页面时再兜一次，避免丢最后几个字
@@ -531,7 +441,6 @@ function onPageHide() {
 onMounted(async () => {
   form.date = dateKeyOf();
   window.addEventListener('pagehide', onPageHide);
-  cleanupViewport = bindViewport();
   hideAccessoryBar();
   await load();
   await nextTick();
@@ -544,17 +453,12 @@ onMounted(async () => {
     // 新日记直接进入可写状态
     locked.value = false;
     await nextTick();
-    measureToolbar();
     editor.value?.focus();
   }
-  await nextTick();
-  measureToolbar();
 });
 
 onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
-  cleanupViewport?.();
-  cleanupViewport = null;
   showAccessoryBar();
 });
 </script>
