@@ -2006,6 +2006,25 @@ h1, h2, h3, h4, p {
   background: var(--surface);
 }
 
+/* 全屏时顶栏不再吸顶，页脚也收掉：
+   全屏是 fixed 覆盖层，页面被它盖住，背后那条 sticky 只会在滚动时
+   透出来 / 抢合成，导致抖动。 */
+.write-page.is-editor-fullscreen .write-topbar {
+  position: static;
+}
+
+.write-page.is-editor-fullscreen .write-footer {
+  display: none;
+}
+
+/* 覆盖层内部必须完全不透明，否则背后的页面会透出来 */
+.rich-editor .vditor--fullscreen .vditor-toolbar,
+.rich-editor .vditor--fullscreen .vditor-content,
+.rich-editor .vditor--fullscreen .vditor-ir,
+.rich-editor .vditor--fullscreen .vditor-ir pre.vditor-reset {
+  background: var(--surface);
+}
+
 .rich-editor .vditor--fullscreen .vditor-toolbar,
 .rich-editor .vditor--fullscreen .vditor-content {
   width: 100%;
@@ -2040,9 +2059,15 @@ h1, h2, h3, h4, p {
   scroll-padding-bottom: clamp(9rem, 30dvh, 18rem);
 }
 
+/* 聚焦时也要保持纸面底色：设成 transparent 会让背后页面透出来，
+   全屏覆盖层滚动时就表现为「顶栏在抖」。 */
+.rich-editor .vditor-ir pre.vditor-reset {
+  background: var(--surface);
+}
+
 .rich-editor .vditor-ir pre.vditor-reset:focus {
   outline: none;
-  background: transparent;
+  background: var(--surface);
 }
 
 .rich-editor .vditor-ir .vditor-reset > p {

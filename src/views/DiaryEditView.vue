@@ -1,5 +1,9 @@
 <template>
-  <div ref="page" class="write-page" :class="{ 'is-locked': locked }">
+  <div
+    ref="page"
+    class="write-page"
+    :class="{ 'is-locked': locked, 'is-editor-fullscreen': editorFullscreen }"
+  >
     <!-- 顶部：返回、字数、编辑/删除、保存状态；日期和心情也收在这里 -->
     <div class="write-topbar">
       <header class="write-head">
@@ -74,6 +78,7 @@
         obstruction=".write-footer"
         @ready="onEditorReady"
         @change="onBodyChange"
+        @fullscreen="onFullscreen"
       />
 
       <div v-else class="write-readonly">
@@ -193,6 +198,9 @@ const locked = ref(Boolean(route.params.id));
 
 // 正文就是这段 Markdown 原文；textarea 里直接编它
 const bodyText = ref('');
+
+// 编辑器全屏：顶栏不再吸顶，避免滚动时透出/抖动
+const editorFullscreen = ref(false);
 
 const SAVE_DELAY = 700;
 let saveTimer = null;
@@ -415,6 +423,13 @@ async function confirmDelete() {
 
 /* ---------- 编辑器与页脚 ---------- */
 
+// 全屏时把顶栏从「吸顶」变回普通流，滚动时不再跟着抖
+function onFullscreen(active) {
+  editorFullscreen.value = Boolean(active);
+  // 全屏用的是 fixed 覆盖层，页面本身不该再滚
+  document.documentElement.style.overflow = active ? 'hidden' : '';
+}
+
 // 格式交给 Vditor 自带工具栏，这里只负责保存与收键盘
 function onEditorReady() {
   // 编辑器就绪后无需额外处理，占位由 Vditor 自己画
@@ -459,6 +474,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
+  document.documentElement.style.overflow = '';
   showAccessoryBar();
 });
 </script>

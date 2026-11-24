@@ -31,7 +31,7 @@ const props = defineProps({
   obstruction: { type: String, default: '.write-footer' }
 });
 
-const emit = defineEmits(['update:modelValue', 'ready', 'change']);
+const emit = defineEmits(['update:modelValue', 'ready', 'change', 'fullscreen']);
 
 const host = ref(null);
 const fallbackEl = ref(null);
@@ -113,7 +113,7 @@ function scrollerFor(surface) {
 }
 
 function followCaret() {
-  if (destroyed || composing || fallback.value) return;
+  if (destroyed || composing || fallback.value || isFullscreen) return;
   const surface = activeSurface();
   if (!surface) return;
 
@@ -181,6 +181,23 @@ function onFallbackInput(event) {
 
 // Vditor 的 input 回调覆盖打字；点它自己的工具栏按钮不一定会触发，
 // 所以再挂一个 MutationObserver 兜底，保证格式改动也能落库。
+// 全屏按钮是 Vditor 自己加的 class，这里盯住它，把状态告诉页面
+let fullscreenObserver = null;
+let isFullscreen = false;
+
+function observeFullscreen() {
+  // Vditor 把 .vditor 这个 class 加在挂载节点自己身上，不是子节点
+  const root = host.value;
+  if (!root || fullscreenObserver) return;
+  fullscreenObserver = new MutationObserver(() => {
+    const next = root.classList.contains('vditor--fullscreen');
+    if (next === isFullscreen) return;
+    isFullscreen = next;
+    emit('fullscreen', next);
+  });
+  fullscreenObserver.observe(root, { attributes: true, attributeFilter: ['class'] });
+}
+
 function observeContent() {
   const target = host.value?.querySelector('.vditor-ir pre.vditor-reset, .vditor-wysiwyg pre.vditor-reset, .vditor-sv');
   if (!target || contentObserver) return;
@@ -253,6 +270,7 @@ function mountVditor() {
         clearTimeout(bootTimer);
         ready.value = true;
         observeContent();
+        observeFullscreen();
         bindCaretGuards();
         emit('ready', { fallback: false });
         editor?.focus();
@@ -319,6 +337,8 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(followFrame);
   contentObserver?.disconnect();
   contentObserver = null;
+  fullscreenObserver?.disconnect();
+  fullscreenObserver = null;
   cleanupGuards?.();
   cleanupGuards = null;
   try {
