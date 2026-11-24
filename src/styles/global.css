@@ -1849,23 +1849,33 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  padding: 0 var(--shell-pad) calc(var(--safe-bottom) + 30px);
+  /* 有页脚时底部不留白：页脚自己带安全区内边距，露白会让它浮起来。
+     锁定态没有页脚，才需要自己留底部安全区。 */
+  padding: 0 var(--shell-pad);
   background: var(--surface);
 }
 
+.write-page.is-locked {
+  padding-bottom: calc(var(--safe-bottom) + 30px);
+}
+
+/* 顶栏就一行：返回 / 日期 / 心情 / 留白 / 字数 / 编辑·删除 */
 .write-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 8px;
+  gap: 4px;
+  padding: 2px 0 8px;
+  min-height: 42px;
 }
 
-.write-subhead {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-wrap: wrap;
-  padding: 2px 0 8px;
+.write-head-gap {
+  flex: 1 1 auto;
+  min-width: 4px;
+}
+
+/* 关联的日子：单独一行小字，没有就不占位 */
+.write-linked {
+  padding: 0 0 6px 2px;
 }
 
 .write-icon {
@@ -1887,28 +1897,32 @@ h1, h2, h3, h4, p {
 
 .write-date {
   flex: 0 0 auto;
-  padding: 5px 9px;
+  padding: 4px 8px;
   border: 0;
   border-radius: 999px;
   background: var(--surface-soft);
-  color: var(--muted);
-  font-size: 12px;
+  color: var(--ink-soft);
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
+.write-date:active {
+  background: var(--surface-tint);
+}
+
 .write-mood {
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
-  opacity: 0.42;
+  opacity: 0.34;
   transition: opacity 0.16s ease, background 0.16s ease;
 }
 
@@ -1920,24 +1934,24 @@ h1, h2, h3, h4, p {
 .write-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   flex: 1 1 auto;
-  padding: 6px 2px 16px;
+  padding: 2px 2px 12px;
 }
 
 /* 标题：编辑态是原生 input，锁定时是纯文字 */
 .write-title-input {
   width: 100%;
-  min-height: 40px;
-  padding: 6px 0;
+  min-height: 38px;
+  padding: 2px 0 4px;
   border: 0;
   background: transparent;
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.01em;
-  line-height: 1.35;
+  line-height: 1.4;
   -webkit-user-select: text;
   user-select: text;
 }
@@ -1984,11 +1998,25 @@ h1, h2, h3, h4, p {
 }
 
 /* 编辑器自带的工具栏：跟我们顶栏同一套视觉，放正文上方 */
+/* 编辑器自带工具栏：贴近正文，间距收紧，视觉上不跟顶栏抢 */
 .rich-editor .vditor-toolbar {
   margin: 0 0 2px;
-  padding: 2px 0 8px;
-  border-bottom: 1px solid var(--line);
+  padding: 0 0 4px;
+  border-bottom: 0;
   background: transparent;
+}
+
+.rich-editor .vditor-toolbar__item {
+  min-width: 28px;
+}
+
+.rich-editor .vditor-toolbar svg {
+  width: 15px;
+  height: 15px;
+}
+
+.rich-editor .vditor-toolbar__divider {
+  margin: 0 2px;
 }
 
 .rich-editor .vditor-toolbar__item {
@@ -2188,6 +2216,11 @@ h1, h2, h3, h4, p {
   white-space: nowrap;
 }
 
+.write-footer .write-build {
+  margin-left: 0;
+  padding-left: 4px;
+}
+
 .write-footer-state.is-error {
   color: var(--danger);
 }
@@ -2216,7 +2249,6 @@ h1, h2, h3, h4, p {
 .write-tool:active {
   background: var(--surface-tint);
 }
-
 
 .write-kb-hide {
   margin-left: 2px;
@@ -2281,47 +2313,19 @@ h1, h2, h3, h4, p {
   white-space: nowrap;
 }
 
-/* 构建版本号：手机上用来确认当前跑的是哪一包 */
-.write-build {
-  flex: 0 0 auto;
-  margin-left: auto;
-  padding-left: 8px;
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-  color: var(--placeholder);
-  font-variant-numeric: tabular-nums;
+.write-count::after {
+  content: ' 字';
+  opacity: 0.7;
 }
 
-.write-save-state {
-  flex: 0 0 auto;
-  font-size: 10.5px;
-  letter-spacing: 0.04em;
-  color: var(--muted-soft);
-  white-space: nowrap;
-}
-
-.write-save-state.is-pending {
-  color: var(--gold);
-}
-
-.write-save-state.is-saving {
-  color: var(--muted);
-}
-
-.write-save-state.is-saved {
-  color: var(--success);
-}
-
-.write-save-state.is-error {
-  color: var(--danger);
-}
-
-/* 关联日子：贴在页脚上方；用 fixed 相对屏幕底部，和页脚同一条基线 */
+/* 关联日子：贴在页脚正上方。
+   --write-footer-h 是「页脚顶边到视口底的距离」由 JS 实测写入，
+   所以页脚 sticky 停在哪、安全区多少，面板都刚好卡在它上沿。 */
 .write-picker-wrap {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  bottom: calc(var(--write-footer-h, 81px) + 8px);
   z-index: 40;
   padding: 0 var(--shell-pad);
   pointer-events: none;
@@ -2411,10 +2415,12 @@ h1, h2, h3, h4, p {
   transform-origin: bottom center;
 }
 
+/* 面板贴在页脚上沿向上长，所以入场动画只能「往上收」，
+   不能再往下平移 10px，否则会和页脚叠在一起。 */
 .picker-drop-enter-from,
 .picker-drop-leave-to {
   opacity: 0;
-  transform: translateY(10px) scale(0.98);
+  transform: translateY(6px);
 }
 
 /* 内置倒数：新年、周末。一条虚线框里并排两格，底部进度尺走到哪儿一目了然 */

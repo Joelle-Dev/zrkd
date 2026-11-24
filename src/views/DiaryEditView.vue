@@ -4,7 +4,8 @@
     class="write-page"
     :class="{ 'is-locked': locked, 'is-editor-fullscreen': editorFullscreen }"
   >
-    <!-- 顶部：返回、字数、编辑/删除、保存状态；日期和心情也收在这里 -->
+    <!-- 顶栏收成一行：返回 / 日期 / 心情 / 字数 / 编辑·删除。
+         保存状态和版本号都挪到页脚，顶栏只留「此刻在写什么」。 -->
     <div class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
@@ -13,8 +14,23 @@
           </svg>
         </button>
 
-        <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }} 字</span>
-        <span v-if="locked" class="write-head-spacer"></span>
+        <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
+
+        <button
+          v-for="mood in moods"
+          :key="mood.key"
+          class="write-mood"
+          type="button"
+          :disabled="locked"
+          :class="{ 'is-active': form.mood === mood.key }"
+          :aria-label="mood.label"
+          :aria-pressed="form.mood === mood.key"
+          @click="toggleMood(mood.key)"
+        >{{ mood.emoji }}</button>
+
+        <span class="write-head-gap"></span>
+
+        <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }}</span>
 
         <button v-if="locked && isEditing" class="write-edit" type="button" @click="unlock">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -30,25 +46,10 @@
             <path d="M6.6 7l.8 11.6a1.4 1.4 0 0 0 1.4 1.3h6.4a1.4 1.4 0 0 0 1.4-1.3L18 7"></path>
           </svg>
         </button>
-
-        <span v-if="!locked" class="write-save-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
       </header>
 
-      <div class="write-subhead">
-        <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
-        <button
-          v-for="mood in moods"
-          :key="mood.key"
-          class="write-mood"
-          type="button"
-          :disabled="locked"
-          :class="{ 'is-active': form.mood === mood.key }"
-          :aria-label="mood.label"
-          :aria-pressed="form.mood === mood.key"
-          @click="toggleMood(mood.key)"
-        >{{ mood.emoji }}</button>
-        <span v-if="linkedTitle" class="write-link">{{ linkedTitle }}</span>
-        <span class="write-build">{{ buildVersion }}</span>
+      <div v-if="linkedTitle" class="write-linked">
+        <span class="write-link">{{ linkedTitle }}</span>
       </div>
     </div>
 
@@ -68,7 +69,7 @@
         @keydown.enter.prevent="focusBody"
       >
 
-      <!-- 正文交给 TipTap（ProseMirror），Markdown 存储，区块能力关到最小 -->
+      <!-- 正文交给 Vditor（IR 即时渲染），Markdown 存储 -->
       <RichEditor
         v-if="!locked"
         ref="editor"
@@ -93,7 +94,7 @@
 
     <!-- 页脚：跟正文一起滚，滚到底时贴在底部。
          用 sticky 而不是 fixed，iOS 键盘弹起时它跟着文档走，不需要任何键盘高度计算。 -->
-    <div v-if="!locked" class="write-footer">
+    <div v-if="!locked" ref="footerEl" class="write-footer">
       <button
         class="write-tool"
         type="button"
@@ -117,6 +118,7 @@
         </svg>
       </button>
       <span class="write-footer-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
+      <span class="write-build">{{ buildVersion }}</span>
       <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m6 9.5 6 6 6-6"></path>
@@ -183,6 +185,7 @@ const moods = MOODS;
 const buildVersion = BUILD_VERSION;
 
 const page = ref(null);
+const footerEl = ref(null);
 const editor = ref(null);
 const titleEl = ref(null);
 const libraryInput = ref(null);
@@ -423,6 +426,21 @@ async function confirmDelete() {
 
 /* ---------- 编辑器与页脚 ---------- */
 
+// 页脚位置写进 CSS 变量，关联面板贴着它上方展开。
+//
+// 注意不能只算「页脚高度」：页脚是 sticky，page 自身有 padding-bottom，
+// 它并不贴着视口底。直接量「页脚顶边到视口底的距离」最准。
+let footerObserver = null;
+
+function syncFooterHeight() {
+  const el = footerEl.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  if (rect.height <= 0) return;
+  const gap = Math.max(0, Math.round(window.innerHeight - rect.top));
+  document.documentElement.style.setProperty('--write-footer-h', `${gap}px`);
+}
+
 // 全屏时把顶栏从「吸顶」变回普通流，滚动时不再跟着抖
 function onFullscreen(active) {
   editorFullscreen.value = Boolean(active);
@@ -457,6 +475,12 @@ onMounted(async () => {
   form.date = dateKeyOf();
   window.addEventListener('pagehide', onPageHide);
   hideAccessoryBar();
+  if (typeof ResizeObserver !== 'undefined' && footerEl.value) {
+    footerObserver = new ResizeObserver(syncFooterHeight);
+    footerObserver.observe(footerEl.value);
+  }
+  syncFooterHeight();
+  window.addEventListener('resize', syncFooterHeight);
   await load();
   await nextTick();
   if (!isEditing.value) {
@@ -474,6 +498,10 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
+  footerObserver?.disconnect();
+  footerObserver = null;
+  window.removeEventListener('resize', syncFooterHeight);
+  document.documentElement.style.removeProperty('--write-footer-h');
   document.documentElement.style.overflow = '';
   showAccessoryBar();
 });
