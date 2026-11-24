@@ -227,7 +227,7 @@ function mountVditor() {
       undoDelay: 300,
       outline: { enable: false },
       // 只放行「我们自己能渲染」的行内格式，避免编辑器与只读态不一致
-      toolbar: ['bold', 'italic', 'strike', '|', 'undo', 'redo'],
+      toolbar: ['bold', 'italic', 'strike', '|', 'undo', 'redo', '|', 'fullscreen'],
       preview: {
         delay: 120,
         actions: [],

@@ -2000,6 +2000,28 @@ h1, h2, h3, h4, p {
   color: var(--accent-strong);
 }
 
+/* 全屏（Vditor 自带按钮）：铺满视口，纸面底色，内容居中限宽，和普通模式同一套字号 */
+.rich-editor .vditor--fullscreen {
+  height: 100dvh !important;
+  background: var(--surface);
+}
+
+.rich-editor .vditor--fullscreen .vditor-toolbar,
+.rich-editor .vditor--fullscreen .vditor-content {
+  width: 100%;
+  max-width: var(--shell-max);
+  margin: 0 auto;
+}
+
+.rich-editor .vditor--fullscreen .vditor-toolbar {
+  padding: calc(var(--safe-top) + 8px) var(--shell-pad) 8px;
+}
+
+.rich-editor .vditor--fullscreen .vditor-reset {
+  padding-left: var(--shell-pad);
+  padding-right: var(--shell-pad);
+}
+
 /* 正文区：底部留一条跑道，光标打到最后一行也不会贴着页脚/键盘 */
 .rich-editor .vditor-reset {
   padding: 6px 0 0;
