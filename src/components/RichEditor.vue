@@ -27,8 +27,8 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   theme: { type: String, default: 'light' },
   placeholder: { type: String, default: '随便写点什么…' },
-  // 光标跟随时要避让的遮挡物（底部工具条）
-  obstruction: { type: String, default: '.write-footer' }
+  // 光标跟随时要避让的吸顶/吸底工具条（写页传 .write-topbar）
+  obstruction: { type: String, default: '' }
 });
 
 const emit = defineEmits(['update:modelValue', 'ready', 'change', 'fullscreen']);
@@ -136,11 +136,17 @@ function followCaret() {
     visibleBottom = Math.min(visibleBottom, rect.bottom);
   }
 
-  // 页脚会挡住一截，把它算进可见区的下边界
+  // 吸顶/吸底的工具条会挡住一截：靠上半屏的当上边界，靠下半屏的当下边界
   const obstruction = props.obstruction ? document.querySelector(props.obstruction) : null;
   if (obstruction) {
     const rect = obstruction.getBoundingClientRect();
-    if (rect.height > 0 && rect.top > visibleTop && rect.top < visibleBottom) visibleBottom = rect.top;
+    if (rect.height > 0) {
+      if (rect.top <= visibleTop + rect.height / 2) {
+        visibleTop = Math.max(visibleTop, rect.bottom);
+      } else {
+        visibleBottom = Math.min(visibleBottom, rect.top);
+      }
+    }
   }
 
   const visibleHeight = visibleBottom - visibleTop;

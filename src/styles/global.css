@@ -1849,9 +1849,8 @@ h1, h2, h3, h4, p {
   width: 100%;
   max-width: var(--shell-max);
   margin: 0 auto;
-  /* 有页脚时底部不留白：页脚自己带安全区内边距，露白会让它浮起来。
-     锁定态没有页脚，才需要自己留底部安全区。 */
-  padding: 0 var(--shell-pad);
+  /* 工具条搬到顶栏后没有页脚了，底部自己留安全区，别让正文贴着屏幕边 */
+  padding: 0 var(--shell-pad) calc(var(--safe-bottom) + 20px);
   background: var(--surface);
 }
 
@@ -1991,9 +1990,6 @@ h1, h2, h3, h4, p {
   position: static;
 }
 
-.write-page.is-editor-fullscreen .write-footer {
-  display: none;
-}
 
 /* 覆盖层内部必须完全不透明，否则背后的页面会透出来 */
 .rich-editor .vditor--fullscreen .vditor-toolbar,
@@ -2144,47 +2140,29 @@ h1, h2, h3, h4, p {
   line-height: 1;
 }
 
-/* 页脚：跟整页一起流，滚到底时粘在底部。
-   用 sticky 而不是 fixed：键盘弹起时 iOS 平移视觉视口，
-   sticky 跟着文档走，不需要读键盘高度、也不需要逐帧补偿。
-   两行：上排是全部写作工具，下排是保存状态 + 收起键盘。 */
-.write-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 8;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0 calc(-1 * var(--shell-pad));
-  padding: 8px var(--shell-pad) calc(8px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-}
-
+/* 顶栏工具条：所有写作按钮都在这里，吸顶时一直可见。
+   窄屏放不下会自动换行（flex-wrap），高度由 JS 实测写进 --write-topbar-h。 */
 .write-tools {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
+  padding: 0 0 8px;
 }
 
 .write-tool-sep {
   flex: 0 0 auto;
   width: 1px;
   height: 18px;
-  margin: 0 3px;
+  margin: 0 1px;
   background: var(--line-strong);
 }
 
-.write-foot-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.write-footer-state {
+/* 头部里的保存状态：夹在日期和字数之间，窄屏时省略号收尾 */
+.write-head-state {
   flex: 1 1 auto;
   min-width: 0;
+  text-align: right;
   font-size: 11px;
   color: var(--muted-soft);
   white-space: nowrap;
@@ -2242,7 +2220,7 @@ h1, h2, h3, h4, p {
 }
 
 .write-kb-hide {
-  margin-left: 2px;
+  margin-left: auto;
 }
 
 .write-link {
@@ -2299,14 +2277,14 @@ h1, h2, h3, h4, p {
   opacity: 0.7;
 }
 
-/* 关联日子：贴在页脚正上方。
-   --write-footer-h 是「页脚顶边到视口底的距离」由 JS 实测写入，
-   所以页脚 sticky 停在哪、安全区多少，面板都刚好卡在它上沿。 */
+/* 关联日子：贴在顶栏正下方。
+   --write-topbar-h 是顶栏实测高度（导航行 + 工具条），
+   窄屏工具条换行变高时，面板也跟着往下让。 */
 .write-picker-wrap {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--write-footer-h, 92px) + 8px);
+  top: calc(var(--write-topbar-h, 96px) + 8px);
   z-index: 40;
   padding: 0 var(--shell-pad);
   pointer-events: none;
@@ -2389,19 +2367,18 @@ h1, h2, h3, h4, p {
   background: rgba(0, 0, 0, 0.3);
 }
 
-/* 从工具条上方浮出来 */
+/* 从顶栏下方垂下来 */
 .picker-drop-enter-active,
 .picker-drop-leave-active {
   transition: opacity 0.18s ease, transform 0.22s var(--ease-out);
-  transform-origin: bottom center;
+  transform-origin: top center;
 }
 
-/* 面板贴在页脚上沿向上长，所以入场动画只能「往上收」，
-   不能再往下平移 10px，否则会和页脚叠在一起。 */
+/* 面板挂在顶栏下沿向下长，入场从上方一点点滑下来 */
 .picker-drop-enter-from,
 .picker-drop-leave-to {
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(-6px);
 }
 
 /* 内置倒数：新年、周末。一条虚线框里并排两格，底部进度尺走到哪儿一目了然 */

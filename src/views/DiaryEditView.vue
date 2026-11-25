@@ -4,9 +4,9 @@
     class="write-page"
     :class="{ 'is-locked': locked, 'is-editor-fullscreen': editorFullscreen }"
   >
-    <!-- 顶栏只留必要信息：返回 / 日期 / 字数 / 编辑·删除。
-         心情和版本号都拿掉了，写作页越安静越好。 -->
-    <div class="write-topbar">
+    <!-- 顶栏吸在页面顶部：上排导航与记录信息，下排全部写作工具。
+         格式 / 撤销 / 全屏不直接调编辑器，而是转发给 Vditor 隐藏的自带按钮。 -->
+    <div ref="topbarEl" class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -16,7 +16,8 @@
 
         <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
 
-        <span class="write-head-gap"></span>
+        <span v-if="!locked" class="write-head-state" :class="`is-${saveState}`" aria-live="polite">{{ saveLabel }}</span>
+        <span v-else class="write-head-gap"></span>
 
         <span v-if="!locked" class="write-count" aria-live="polite">{{ wordCount }}</span>
 
@@ -39,37 +40,9 @@
       <div v-if="linkedTitle" class="write-linked">
         <span class="write-link">{{ linkedTitle }}</span>
       </div>
-    </div>
 
-    <div class="write-body">
-      <!-- 正文交给 Vditor（IR 即时渲染），Markdown 存储 -->
-      <RichEditor
-        v-if="!locked"
-        ref="editor"
-        v-model="bodyText"
-        :theme="appliedTheme"
-        placeholder="随便写点什么…"
-        obstruction=".write-footer"
-        @ready="onEditorReady"
-        @change="onBodyChange"
-        @fullscreen="onFullscreen"
-      />
-
-      <div v-else class="write-readonly">
-        <div class="write-readonly-inner" v-html="previewHtml"></div>
-      </div>
-
-      <div v-if="form.photo" class="write-photo">
-        <img :src="form.photo" alt="配图">
-        <button v-if="!locked" class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
-      </div>
-    </div>
-
-    <!-- 页脚：全页唯一的功能按钮区，跟正文一起滚，滚到底时贴在底部。
-         用 sticky 而不是 fixed，iOS 键盘弹起时它跟着文档走，不需要任何键盘高度计算。
-         格式/撤销/全屏不直接调编辑器，而是转发给 Vditor 隐藏的自带按钮。 -->
-    <div v-if="!locked" ref="footerEl" class="write-footer">
-      <div class="write-tools" role="toolbar" aria-label="写作工具">
+      <!-- 写作工具条：可写时才出现，全部集中在顶栏，吸顶时一直都在 -->
+      <div v-if="!locked" class="write-tools" role="toolbar" aria-label="写作工具">
         <button
           class="write-tool write-letter is-bold"
           type="button"
@@ -167,15 +140,35 @@
             <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
           </svg>
         </button>
-      </div>
 
-      <div class="write-foot-meta">
-        <span class="write-footer-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
         <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m6 9.5 6 6 6-6"></path>
           </svg>
         </button>
+      </div>    </div>
+
+    <div class="write-body">
+      <!-- 正文交给 Vditor（IR 即时渲染），Markdown 存储 -->
+      <RichEditor
+        v-if="!locked"
+        ref="editor"
+        v-model="bodyText"
+        :theme="appliedTheme"
+        placeholder="随便写点什么…"
+        obstruction=".write-topbar"
+        @ready="onEditorReady"
+        @change="onBodyChange"
+        @fullscreen="onFullscreen"
+      />
+
+      <div v-else class="write-readonly">
+        <div class="write-readonly-inner" v-html="previewHtml"></div>
+      </div>
+
+      <div v-if="form.photo" class="write-photo">
+        <img :src="form.photo" alt="配图">
+        <button v-if="!locked" class="write-photo-remove" type="button" aria-label="移除配图" @click="form.photo = ''">×</button>
       </div>
     </div>
 
@@ -234,7 +227,7 @@ const diaries = useDiaries();
 const { sorted } = useEvents();
 
 const page = ref(null);
-const footerEl = ref(null);
+const topbarEl = ref(null);
 const editor = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
@@ -242,7 +235,7 @@ const pickerOpen = ref(false);
 const dateOpen = ref(false);
 const original = ref(null);
 const saveState = ref('idle'); // idle | pending | saving | saved | error
-// 最后一次成功保存的时间，页脚显示「最后保存于 …」
+// 最后一次成功保存的时间，顶栏显示「最后保存于 …」
 const savedAt = ref(0);
 const recordId = ref('');
 
@@ -499,21 +492,19 @@ async function confirmDelete() {
   }
 }
 
-/* ---------- 编辑器与页脚 ---------- */
+/* ---------- 编辑器与顶栏 ---------- */
 
-// 页脚位置写进 CSS 变量，关联面板贴着它上方展开。
-//
-// 注意不能只算「页脚高度」：页脚是 sticky，page 自身有 padding-bottom，
-// 它并不贴着视口底。直接量「页脚顶边到视口底的距离」最准。
-let footerObserver = null;
+// 顶栏高度写进 CSS 变量，关联面板贴着它下沿展开。
+// 顶栏是 sticky 两行（导航 + 工具条），窄屏工具条换行时高度会变，
+// 所以用 ResizeObserver 实测，面板永远刚好卡在它下面。
+let topbarObserver = null;
 
-function syncFooterHeight() {
-  const el = footerEl.value;
+function syncTopbarHeight() {
+  const el = topbarEl.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
   if (rect.height <= 0) return;
-  const gap = Math.max(0, Math.round(window.innerHeight - rect.top));
-  document.documentElement.style.setProperty('--write-footer-h', `${gap}px`);
+  document.documentElement.style.setProperty('--write-topbar-h', `${Math.round(rect.height)}px`);
 }
 
 // 全屏时把顶栏从「吸顶」变回普通流，滚动时不再跟着抖
@@ -549,12 +540,12 @@ onMounted(async () => {
   form.date = dateKeyOf();
   window.addEventListener('pagehide', onPageHide);
   hideAccessoryBar();
-  if (typeof ResizeObserver !== 'undefined' && footerEl.value) {
-    footerObserver = new ResizeObserver(syncFooterHeight);
-    footerObserver.observe(footerEl.value);
+  if (typeof ResizeObserver !== 'undefined' && topbarEl.value) {
+    topbarObserver = new ResizeObserver(syncTopbarHeight);
+    topbarObserver.observe(topbarEl.value);
   }
-  syncFooterHeight();
-  window.addEventListener('resize', syncFooterHeight);
+  syncTopbarHeight();
+  window.addEventListener('resize', syncTopbarHeight);
   await load();
   await nextTick();
   if (!isEditing.value) {
@@ -572,10 +563,10 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('pagehide', onPageHide);
-  footerObserver?.disconnect();
-  footerObserver = null;
-  window.removeEventListener('resize', syncFooterHeight);
-  document.documentElement.style.removeProperty('--write-footer-h');
+  topbarObserver?.disconnect();
+  topbarObserver = null;
+  window.removeEventListener('resize', syncTopbarHeight);
+  document.documentElement.style.removeProperty('--write-topbar-h');
   document.documentElement.style.overflow = '';
   showAccessoryBar();
 });
