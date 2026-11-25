@@ -8,7 +8,9 @@ import {
   moodOf,
   normalizeDiaryInput,
   sortDiaries,
-  validateDiary
+  validateDiary,
+  deriveTitle,
+  titleInBody
 } from '../src/lib/diary.js';
 
 test('MOODS 覆盖五种心情且 key 唯一', () => {
@@ -126,4 +128,29 @@ test('countDiariesByEvent 只统计有效关联', () => {
   ];
   assert.deepEqual(countDiariesByEvent(list), { ev_1: 2, ev_2: 1 });
   assert.deepEqual(countDiariesByEvent([]), {});
+});
+
+test('deriveTitle 取正文第一行并去掉 Markdown 符号', () => {
+  assert.equal(deriveTitle('**秋天的第一杯**\n正文'), '秋天的第一杯');
+  assert.equal(deriveTitle('\n\n# 标题\n正文'), '标题');
+  assert.equal(deriveTitle('~~删掉~~ 剩下的'), '删掉 剩下的');
+  assert.equal(deriveTitle(''), '');
+  assert.equal(deriveTitle('   '), '');
+});
+
+test('deriveTitle 超过 60 字截断', () => {
+  assert.equal(deriveTitle('字'.repeat(100)).length, 60);
+});
+
+test('titleInBody 判断旧标题是否已在正文首行', () => {
+  assert.equal(titleInBody('秋天', '**秋天**\n正文'), true);
+  assert.equal(titleInBody('秋天', '别的标题\n正文'), false);
+  assert.equal(titleInBody('', '正文'), true);
+  assert.equal(titleInBody('秋天', ''), false);
+});
+
+test('normalizeDiaryInput 没有显式标题时从正文派生', () => {
+  const value = normalizeDiaryInput({ date: '2026-11-19', body: '**第一行标题**\n内容' });
+  assert.equal(value.title, '第一行标题');
+  assert.equal(value.body, '**第一行标题**\n内容');
 });

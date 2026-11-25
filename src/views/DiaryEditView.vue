@@ -4,8 +4,8 @@
     class="write-page"
     :class="{ 'is-locked': locked, 'is-editor-fullscreen': editorFullscreen }"
   >
-    <!-- 顶栏收成一行：返回 / 日期 / 心情 / 字数 / 编辑·删除。
-         保存状态和版本号都挪到页脚，顶栏只留「此刻在写什么」。 -->
+    <!-- 顶栏只留必要信息：返回 / 日期 / 字数 / 编辑·删除。
+         心情和版本号都拿掉了，写作页越安静越好。 -->
     <div class="write-topbar">
       <header class="write-head">
         <button class="write-icon" type="button" aria-label="返回" @click="goBack">
@@ -15,18 +15,6 @@
         </button>
 
         <button class="write-date" type="button" :disabled="locked" @click="openDate">{{ dateLabel }}</button>
-
-        <button
-          v-for="mood in moods"
-          :key="mood.key"
-          class="write-mood"
-          type="button"
-          :disabled="locked"
-          :class="{ 'is-active': form.mood === mood.key }"
-          :aria-label="mood.label"
-          :aria-pressed="form.mood === mood.key"
-          @click="toggleMood(mood.key)"
-        >{{ mood.emoji }}</button>
 
         <span class="write-head-gap"></span>
 
@@ -54,21 +42,6 @@
     </div>
 
     <div class="write-body">
-      <h1 v-if="locked" class="write-title-readonly">{{ form.title }}</h1>
-      <input
-        v-else
-        ref="titleEl"
-        v-model="form.title"
-        class="write-title-input"
-        type="text"
-        maxlength="60"
-        placeholder="标题"
-        autocomplete="off"
-        autocapitalize="off"
-        @input="scheduleSave"
-        @keydown.enter.prevent="focusBody"
-      >
-
       <!-- 正文交给 Vditor（IR 即时渲染），Markdown 存储 -->
       <RichEditor
         v-if="!locked"
@@ -118,7 +91,6 @@
         </svg>
       </button>
       <span class="write-footer-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
-      <span class="write-build">{{ buildVersion }}</span>
       <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m6 9.5 6 6 6-6"></path>
@@ -163,14 +135,13 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog, showToast } from 'vant';
 import DatePicker from '../components/DatePicker.vue';
 import RichEditor from '../components/RichEditor.vue';
-import { MOODS, getDiary, removeDiary, saveDiary } from '../lib/diary';
+import { deriveTitle, getDiary, removeDiary, saveDiary, titleInBody } from '../lib/diary';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
 import { dateKeyOf, parseDateKey, weekdayCN } from '../lib/countdown';
 import { countWords, markdownToHtml } from '../lib/richtext';
 import { compressImageToDataUrl } from '../utils/image';
 import { hideAccessoryBar, showAccessoryBar } from '../utils/keyboard';
-import { BUILD_VERSION } from '../lib/build';
 import { makeGoBack } from '../utils/back';
 import { haptic } from '../utils/haptics';
 import { appliedTheme } from '../utils/theme';
@@ -181,19 +152,17 @@ const goBack = makeGoBack(router, '/diary');
 const diaries = useDiaries();
 const { sorted } = useEvents();
 
-const moods = MOODS;
-const buildVersion = BUILD_VERSION;
-
 const page = ref(null);
 const footerEl = ref(null);
 const editor = ref(null);
-const titleEl = ref(null);
 const libraryInput = ref(null);
 const saving = ref(false);
 const pickerOpen = ref(false);
 const dateOpen = ref(false);
 const original = ref(null);
 const saveState = ref('idle'); // idle | pending | saving | saved | error
+// 最后一次成功保存的时间，页脚显示「最后保存于 …」
+const savedAt = ref(0);
 const recordId = ref('');
 
 // 打开旧日记默认锁定，只能看；点右上角「编辑」才解锁输入
@@ -209,20 +178,34 @@ const SAVE_DELAY = 700;
 let saveTimer = null;
 let leaving = false;
 
+// 页脚文案：过程状态优先，稳定后显示「最后保存于 11/24 10:32」
 const saveLabel = computed(() => {
-  if (saveState.value === 'saving') return '正往本子里塞';
-  if (saveState.value === 'pending') return '等会儿再塞';
-  if (saveState.value === 'saved') return '塞好了';
-  if (saveState.value === 'error') return '没塞进去';
+  if (saveState.value === 'saving') return '正在保存…';
+  if (saveState.value === 'error') return '没保存上';
+  if (savedAt.value) return `最后保存于 ${formatSavedAt(savedAt.value)}`;
+  if (saveState.value === 'pending') return '待保存…';
   return '';
 });
 
+function formatSavedAt(timestamp) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const sameDay = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+  if (sameDay) return `今天 ${time}`;
+  return `${date.getMonth() + 1} 月 ${date.getDate()} 日 ${time}`;
+}
+
 const form = reactive({
   date: '',
-  title: '',
-  mood: '',
   photo: '',
-  eventId: ''
+  eventId: '',
+  // 心情不再有入口，但老数据要原样带回去，不能因为编辑一次就抹掉
+  mood: ''
 });
 
 const isEditing = computed(() => Boolean(route.params.id));
@@ -243,12 +226,6 @@ const linkedTitle = computed(() => {
   const event = events.value.find((item) => item.id === form.eventId);
   return event ? event.title : '';
 });
-
-function toggleMood(key) {
-  if (locked.value) return;
-  form.mood = form.mood === key ? '' : key;
-  haptic('light');
-}
 
 // 点一下就选中并收起，少点一次「就这样」
 function chooseEvent(id) {
@@ -309,9 +286,8 @@ watch(form, () => {
 // 与 saveDiary 的校验保持一致：标题、正文、配图三者有其一才落库。
 // 只点心情不产生记录，避免出现空白日记。
 function hasContent() {
-  const title = String(form.title || '').trim();
   const text = bodyText.value.replace(/\*\*|~~|__|\*/g, '').trim();
-  return Boolean(title || text || form.photo);
+  return Boolean(text || form.photo);
 }
 
 /**
@@ -347,13 +323,15 @@ async function flushSave() {
   try {
     const saved = await saveDiary({
       ...form,
-      title: String(form.title || '').replace(/\n+/g, ' ').trim(),
+      // 标题就是正文第一行
+      title: deriveTitle(bodyText.value),
       body: bodyText.value,
       id: recordId.value || undefined
     }, original.value || (recordId.value ? { id: recordId.value } : null));
 
     recordId.value = saved.id;
     original.value = saved;
+    savedAt.value = saved.updatedAt || Date.now();
     saveState.value = 'saved';
     await diaries.reload();
   } catch (err) {
@@ -387,12 +365,16 @@ async function load() {
     }
     original.value = record;
     recordId.value = record.id;
+    savedAt.value = record.updatedAt || 0;
     form.date = record.date;
-    form.title = record.title || '';
     form.mood = record.mood || '';
     form.photo = record.photo || '';
     form.eventId = record.eventId || '';
-    bodyText.value = record.body || '';
+    // 老记录的标题是独立字段，这里并回正文第一行；之后标题只由正文派生
+    const body = record.body || '';
+    bodyText.value = record.title && !titleInBody(record.title, body)
+      ? `${record.title}\n\n${body}`
+      : body;
     await nextTick();
   } catch (err) {
     showToast('没打开，再敲一次门');
@@ -459,7 +441,6 @@ function onBodyChange() {
 
 function hideKeyboard() {
   if (editor.value) editor.value.blur();
-  if (titleEl.value) titleEl.value.blur();
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }
 

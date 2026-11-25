@@ -22,6 +22,26 @@ const TITLE_MAX = 60;
 const TEXT_MAX = 4000;
 const PHOTO_MAX_CHARS = 900_000; // 约 660KB 二进制，压缩后够用
 
+/**
+ * 从正文派生标题：取第一条非空行，去掉 Markdown 修饰符号。
+ * 标题现在就是正文第一行，不再单独存一个字段。
+ */
+export function deriveTitle(body) {
+  const firstLine = String(body || '')
+    .split('\n')
+    .map((line) => line.replace(/\*\*|~~|__|\*|#+\s?/g, '').trim())
+    .find((line) => line.length > 0);
+  return (firstLine || '').slice(0, TITLE_MAX);
+}
+
+/** 旧数据的标题是否已经写进正文第一行了 */
+export function titleInBody(title, body) {
+  const value = String(title || '').trim();
+  if (!value) return true;
+  const firstLine = String(body || '').split('\n').map((line) => line.trim()).find(Boolean) || '';
+  return firstLine.replace(/\*\*|~~|__|\*|#+\s?/g, '').trim() === value;
+}
+
 export function moodOf(key) {
   return MOODS.find((mood) => mood.key === key) || null;
 }
@@ -49,9 +69,12 @@ export function normalizeDiaryInput(input = {}) {
   // 纯文字（去掉修饰符号）用于搜索和列表摘要
   const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').slice(0, TEXT_MAX).trim();
 
+  const explicitTitle = String(input.title || '').trim().slice(0, TITLE_MAX);
+
   return {
     date,
-    title: String(input.title || '').trim().slice(0, TITLE_MAX),
+    // 没有单独标题时，标题就是正文第一行
+    title: explicitTitle || deriveTitle(body),
     body,
     text,
     html,

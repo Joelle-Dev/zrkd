@@ -1859,6 +1859,17 @@ h1, h2, h3, h4, p {
   padding-bottom: calc(var(--safe-bottom) + 30px);
 }
 
+/* 锁定查看态：日期不可点，正文是只读渲染 */
+.write-page.is-locked .write-date:disabled {
+  opacity: 1;
+}
+
+.write-page.is-locked .write-readonly {
+  cursor: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* 顶栏就一行：返回 / 日期 / 心情 / 留白 / 字数 / 编辑·删除 */
 .write-head {
   display: flex;
@@ -1912,25 +1923,6 @@ h1, h2, h3, h4, p {
   background: var(--surface-tint);
 }
 
-.write-mood {
-  flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  font-size: 15px;
-  line-height: 1;
-  opacity: 0.34;
-  transition: opacity 0.16s ease, background 0.16s ease;
-}
-
-.write-mood.is-active {
-  opacity: 1;
-  background: var(--surface-soft);
-}
-
 .write-body {
   display: flex;
   flex-direction: column;
@@ -1940,45 +1932,6 @@ h1, h2, h3, h4, p {
 }
 
 /* 标题：编辑态是原生 input，锁定时是纯文字 */
-.write-title-input {
-  width: 100%;
-  min-height: 38px;
-  padding: 2px 0 4px;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.4;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-.write-title-input:focus {
-  outline: none;
-}
-
-.write-title-input::placeholder {
-  color: var(--placeholder);
-  font-weight: 500;
-}
-
-.write-title-readonly {
-  margin: 0;
-  padding: 6px 0;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  line-height: 1.35;
-  white-space: pre-wrap;
-  word-break: break-word;
-  -webkit-user-select: text;
-  user-select: text;
-}
 
 /* 正文：Vditor（IR 即时渲染），外观完全收进我们的纸面 */
 .rich-editor {
@@ -2216,15 +2169,6 @@ h1, h2, h3, h4, p {
   white-space: nowrap;
 }
 
-.write-footer .write-build {
-  margin-left: 0;
-  padding-left: 4px;
-}
-
-.write-footer-state.is-error {
-  color: var(--danger);
-}
-
 .write-tool {
   display: inline-flex;
   align-items: center;
@@ -2294,16 +2238,6 @@ h1, h2, h3, h4, p {
 }
 
 /* 锁定态：不可编辑的内容给一点「只是阅读」的暗示 */
-.write-page.is-locked .write-date:disabled,
-.write-page.is-locked .write-mood:disabled {
-  opacity: 1;
-}
-
-.write-page.is-locked .write-readonly {
-  cursor: default;
-  -webkit-user-select: text;
-  user-select: text;
-}
 
 .write-count {
   flex: 0 0 auto;

@@ -64,7 +64,7 @@
                 <span v-if="eventTitle(item.eventId)" class="tl-tag">{{ eventTitle(item.eventId) }}</span>
               </div>
 
-              <h2 v-if="item.title" class="tl-title">{{ item.title }}</h2>
+              <h2 v-if="showTitle(item)" class="tl-title">{{ item.title }}</h2>
 
               <div v-if="item.body || item.html || item.text" class="tl-body" v-html="previewHtml(item)"></div>
 
@@ -112,7 +112,7 @@ import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
-import { groupDiariesByDate, moodOf } from '../lib/diary';
+import { groupDiariesByDate, moodOf, titleInBody } from '../lib/diary';
 import { markdownToHtml } from '../lib/richtext';
 import { accentStyleOf } from '../utils/theme';
 import { dateKeyOf, formatDateCN, formatDateDot, parseDateKey, weekdayCN } from '../lib/countdown';
@@ -160,6 +160,11 @@ function groupLabel(date) {
   const parts = parseDateKey(date);
   if (!parts) return date;
   return `${formatDateCN(date)} ${weekdayCN(date)}`;
+}
+
+// 标题现在就是正文第一行，正文预览里已经包含它，不再重复显示
+function showTitle(item) {
+  return Boolean(item.title) && !titleInBody(item.title, item.body || '');
 }
 
 // 列表摘要按 Markdown 渲染（markdownToHtml 内部已做 HTML 转义）
