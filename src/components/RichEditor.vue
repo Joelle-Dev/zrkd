@@ -185,6 +185,42 @@ function onFallbackInput(event) {
 let fullscreenObserver = null;
 let isFullscreen = false;
 
+// 外部工具条要用的高亮状态：跟着 Vditor 工具栏上的 --current 类走。
+// 工具栏本身是隐藏的（display:none），但按钮 DOM 和状态仍在。
+const state = ref({ bold: false, italic: false, strike: false, canUndo: false, canRedo: false });
+let toolbarObserver = null;
+
+function readToolbarState() {
+  const bar = host.value?.querySelector('.vditor-toolbar');
+  if (!bar) return;
+  const current = new Set();
+  const disabled = new Set();
+  for (const button of bar.querySelectorAll('button[data-type]')) {
+    const type = button.dataset.type;
+    if (button.classList.contains('vditor-menu--current')) current.add(type);
+    if (button.classList.contains('vditor-menu--disabled')) disabled.add(type);
+  }
+  const next = {
+    bold: current.has('bold'),
+    italic: current.has('italic'),
+    strike: current.has('strike'),
+    canUndo: !disabled.has('undo'),
+    canRedo: !disabled.has('redo')
+  };
+  const cur = state.value;
+  if (cur.bold === next.bold && cur.italic === next.italic && cur.strike === next.strike
+    && cur.canUndo === next.canUndo && cur.canRedo === next.canRedo) return;
+  state.value = next;
+}
+
+function observeToolbarState() {
+  const bar = host.value?.querySelector('.vditor-toolbar');
+  if (!bar || toolbarObserver) return;
+  toolbarObserver = new MutationObserver(readToolbarState);
+  toolbarObserver.observe(bar, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  readToolbarState();
+}
+
 function observeFullscreen() {
   // Vditor 把 .vditor 这个 class 加在挂载节点自己身上，不是子节点
   const root = host.value;
@@ -270,6 +306,7 @@ function mountVditor() {
         clearTimeout(bootTimer);
         ready.value = true;
         observeContent();
+        observeToolbarState();
         observeFullscreen();
         bindCaretGuards();
         emit('ready', { fallback: false });
@@ -337,6 +374,8 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(followFrame);
   contentObserver?.disconnect();
   contentObserver = null;
+  toolbarObserver?.disconnect();
+  toolbarObserver = null;
   fullscreenObserver?.disconnect();
   fullscreenObserver = null;
   cleanupGuards?.();
@@ -368,6 +407,9 @@ watch(() => props.modelValue, (value) => {
 watch(() => props.theme, syncTheme);
 
 defineExpose({
+  state,
+  ready,
+  fallback,
   focus: () => {
     if (fallback.value) fallbackEl.value?.focus();
     else editor?.focus?.();
@@ -377,11 +419,15 @@ defineExpose({
     else editor?.blur?.();
   },
   getValue: () => (fallback.value ? (fallbackEl.value?.value || '') : (editor?.getValue?.() || '')),
-  /** 转发给 Vditor 自己的工具栏按钮（如果外部还想加按钮） */
+  /** 转发给 Vditor 自己的工具栏按钮（外部工具条靠它驱动编辑器） */
   toggle(type) {
     if (fallback.value) return;
     const button = host.value?.querySelector(`.vditor-toolbar [data-type="${type}"]`);
-    if (button instanceof HTMLElement) button.click();
+    if (!(button instanceof HTMLElement)) return;
+    // Vditor 用 getEventName() 绑事件：iPhone 是 touchstart，其余才是 click。
+    // 直接 button.click() 在 iPhone 上不会触发它自己的处理器。
+    const eventName = navigator.userAgent.includes('iPhone') ? 'touchstart' : 'click';
+    button.dispatchEvent(new Event(eventName, { bubbles: true, cancelable: true }));
   }
 });
 </script>

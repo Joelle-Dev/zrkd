@@ -65,37 +65,118 @@
       </div>
     </div>
 
-    <!-- 页脚：跟正文一起滚，滚到底时贴在底部。
-         用 sticky 而不是 fixed，iOS 键盘弹起时它跟着文档走，不需要任何键盘高度计算。 -->
+    <!-- 页脚：全页唯一的功能按钮区，跟正文一起滚，滚到底时贴在底部。
+         用 sticky 而不是 fixed，iOS 键盘弹起时它跟着文档走，不需要任何键盘高度计算。
+         格式/撤销/全屏不直接调编辑器，而是转发给 Vditor 隐藏的自带按钮。 -->
     <div v-if="!locked" ref="footerEl" class="write-footer">
-      <button
-        class="write-tool"
-        type="button"
-        :class="{ 'is-active': form.eventId }"
-        aria-label="关联一个日子"
-        aria-controls="write-picker"
-        :aria-expanded="pickerOpen"
-        @mousedown.prevent
-        @click="pickerOpen = !pickerOpen"
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
-          <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
-        </svg>
-      </button>
-      <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
-          <circle cx="8.6" cy="10.2" r="1.4"></circle>
-          <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
-        </svg>
-      </button>
-      <span class="write-footer-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
-      <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m6 9.5 6 6 6-6"></path>
-        </svg>
-      </button>
+      <div class="write-tools" role="toolbar" aria-label="写作工具">
+        <button
+          class="write-tool write-letter is-bold"
+          type="button"
+          aria-label="加粗"
+          :class="{ 'is-active': editorState.bold }"
+          :disabled="!editorUsable"
+          @mousedown.prevent
+          @click="applyTool('bold')"
+        >B</button>
+        <button
+          class="write-tool write-letter is-italic"
+          type="button"
+          aria-label="斜体"
+          :class="{ 'is-active': editorState.italic }"
+          :disabled="!editorUsable"
+          @mousedown.prevent
+          @click="applyTool('italic')"
+        >I</button>
+        <button
+          class="write-tool write-letter is-strike"
+          type="button"
+          aria-label="删除线"
+          :class="{ 'is-active': editorState.strike }"
+          :disabled="!editorUsable"
+          @mousedown.prevent
+          @click="applyTool('strike')"
+        >S</button>
+
+        <span class="write-tool-sep" aria-hidden="true"></span>
+
+        <button
+          class="write-tool"
+          type="button"
+          aria-label="撤销"
+          :disabled="!editorUsable || !editorState.canUndo"
+          @mousedown.prevent
+          @click="applyTool('undo')"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m8.5 15.5-5-5 5-5"></path>
+            <path d="M3.5 10.5h10a5.5 5.5 0 1 1 0 11h-3"></path>
+          </svg>
+        </button>
+        <button
+          class="write-tool"
+          type="button"
+          aria-label="重做"
+          :disabled="!editorUsable || !editorState.canRedo"
+          @mousedown.prevent
+          @click="applyTool('redo')"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15.5 15.5 5-5-5-5"></path>
+            <path d="M20.5 10.5h-10a5.5 5.5 0 1 0 0 11h3"></path>
+          </svg>
+        </button>
+        <button
+          class="write-tool"
+          type="button"
+          aria-label="全屏写作"
+          :class="{ 'is-active': editorFullscreen }"
+          :disabled="!editorUsable"
+          @mousedown.prevent
+          @click="applyTool('fullscreen')"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8.5 3.5h-4a1.5 1.5 0 0 0-1.5 1.5v4"></path>
+            <path d="M15.5 3.5h4a1.5 1.5 0 0 1 1.5 1.5v4"></path>
+            <path d="M20.5 15.5v4a1.5 1.5 0 0 1-1.5 1.5h-4"></path>
+            <path d="M3.5 15.5v4a1.5 1.5 0 0 0 1.5 1.5h4"></path>
+          </svg>
+        </button>
+
+        <span class="write-tool-sep" aria-hidden="true"></span>
+
+        <button
+          class="write-tool"
+          type="button"
+          :class="{ 'is-active': form.eventId }"
+          aria-label="关联一个日子"
+          aria-controls="write-picker"
+          :aria-expanded="pickerOpen"
+          @mousedown.prevent
+          @click="pickerOpen = !pickerOpen"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.4 13.6a3.6 3.6 0 0 0 5.1 0l2.6-2.6a3.6 3.6 0 0 0-5.1-5.1l-1.3 1.3"></path>
+            <path d="M13.6 10.4a3.6 3.6 0 0 0-5.1 0l-2.6 2.6a3.6 3.6 0 0 0 5.1 5.1l1.3-1.3"></path>
+          </svg>
+        </button>
+        <button class="write-tool" type="button" aria-label="插入图片" @mousedown.prevent @click="openLibrary">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2"></rect>
+            <circle cx="8.6" cy="10.2" r="1.4"></circle>
+            <path d="m4.6 16.4 4.2-4 3 2.8 3-3.4 4.2 4.6"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="write-foot-meta">
+        <span class="write-footer-state" :class="`is-${saveState}`">{{ saveLabel }}</span>
+        <button class="write-tool write-kb-hide" type="button" aria-label="收起键盘" @mousedown.prevent @click="hideKeyboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9.5 6 6 6-6"></path>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <Transition name="picker-drop">
@@ -213,6 +294,18 @@ const isEditing = computed(() => Boolean(route.params.id));
 const events = computed(() => sorted.value.filter((event) => event.targetDate));
 
 const previewHtml = computed(() => markdownToHtml(bodyText.value));
+
+// 页脚工具条要跟着编辑器内部的格式态走（加粗/斜体/删除线高亮、撤销重做可用性）。
+// 编辑器没就绪或退化成纯文本域时，格式按钮一并置灰。
+const EMPTY_EDITOR_STATE = Object.freeze({ bold: false, italic: false, strike: false, canUndo: false, canRedo: false });
+const editorState = computed(() => (editor.value && editor.value.state) || EMPTY_EDITOR_STATE);
+const editorUsable = computed(() => Boolean(editor.value && editor.value.ready && !editor.value.fallback));
+
+function applyTool(type) {
+  if (!editorUsable.value) return;
+  editor.value.toggle(type);
+  haptic('light');
+}
 
 const wordCount = computed(() => countWords(bodyText.value.replace(/\*\*|~~|__|\*/g, '')));
 

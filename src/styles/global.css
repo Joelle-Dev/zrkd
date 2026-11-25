@@ -1950,13 +1950,10 @@ h1, h2, h3, h4, p {
   background: transparent;
 }
 
-/* 编辑器自带的工具栏：跟我们顶栏同一套视觉，放正文上方 */
-/* 编辑器自带工具栏：贴近正文，间距收紧，视觉上不跟顶栏抢 */
+/* 编辑器自带的工具栏：普通模式收起来，按钮全部由页脚统一提供。
+   DOM 必须留着 —— 页脚就是靠给这些隐藏按钮派发事件来驱动编辑器的。 */
 .rich-editor .vditor-toolbar {
-  margin: 0 0 2px;
-  padding: 0 0 4px;
-  border-bottom: 0;
-  background: transparent;
+  display: none;
 }
 
 .rich-editor .vditor-toolbar__item {
@@ -2014,6 +2011,7 @@ h1, h2, h3, h4, p {
 }
 
 .rich-editor .vditor--fullscreen .vditor-toolbar {
+  display: block;
   padding: calc(var(--safe-top) + 8px) var(--shell-pad) 8px;
 }
 
@@ -2148,13 +2146,14 @@ h1, h2, h3, h4, p {
 
 /* 页脚：跟整页一起流，滚到底时粘在底部。
    用 sticky 而不是 fixed：键盘弹起时 iOS 平移视觉视口，
-   sticky 跟着文档走，不需要读键盘高度、也不需要逐帧补偿。 */
+   sticky 跟着文档走，不需要读键盘高度、也不需要逐帧补偿。
+   两行：上排是全部写作工具，下排是保存状态 + 收起键盘。 */
 .write-footer {
   position: sticky;
   bottom: 0;
   z-index: 8;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 6px;
   margin: 0 calc(-1 * var(--shell-pad));
   padding: 8px var(--shell-pad) calc(8px + env(safe-area-inset-bottom, 0px));
@@ -2162,11 +2161,35 @@ h1, h2, h3, h4, p {
   background: var(--surface);
 }
 
+.write-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.write-tool-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--line-strong);
+}
+
+.write-foot-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .write-footer-state {
-  margin-left: auto;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 11px;
   color: var(--muted-soft);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .write-tool {
@@ -2174,8 +2197,8 @@ h1, h2, h3, h4, p {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 36px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--surface);
@@ -2185,13 +2208,37 @@ h1, h2, h3, h4, p {
   transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
 }
 
+/* 字母样式：加粗用粗字重、斜体用斜体、删除线直接划掉，一眼分得清 */
+.write-letter {
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.write-letter.is-bold {
+  font-weight: 700;
+}
+
+.write-letter.is-italic {
+  font-style: italic;
+}
+
+.write-letter.is-strike {
+  text-decoration: line-through;
+}
+
 .write-tool.is-active {
   background: var(--accent-tint);
   color: var(--accent-strong);
+  border-color: var(--accent-soft);
 }
 
 .write-tool:active {
   background: var(--surface-tint);
+}
+
+.write-tool:disabled {
+  opacity: 0.38;
 }
 
 .write-kb-hide {
@@ -2259,7 +2306,7 @@ h1, h2, h3, h4, p {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--write-footer-h, 81px) + 8px);
+  bottom: calc(var(--write-footer-h, 92px) + 8px);
   z-index: 40;
   padding: 0 var(--shell-pad);
   pointer-events: none;
