@@ -96,10 +96,26 @@ function caretRectFor(range, surface) {
   if (rects.length) return rects[rects.length - 1];
   const rect = range.getBoundingClientRect();
   if (rect.height || rect.width) return rect;
+  // 折叠光标量不到矩形：把 range 扩一个字符再量，得到的就是光标所在那一行。
+  // 优先往前扩（光标在行尾时也准），前边没有字符就往后扩。
+  const text = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer : null;
+  if (text && range.startOffset > 0) {
+    const probe = range.cloneRange();
+    probe.setStart(text, range.startOffset - 1);
+    const probeRects = probe.getClientRects();
+    if (probeRects.length) return probeRects[probeRects.length - 1];
+  } else if (text && text.length > range.startOffset) {
+    const probe = range.cloneRange();
+    probe.setEnd(text, range.startOffset + 1);
+    const probeRects = probe.getClientRects();
+    if (probeRects.length) return probeRects[0];
+  }
   let node = range.endContainer;
   if (node === surface && range.endOffset > 0) node = surface.childNodes[range.endOffset - 1];
   const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
-  if (!element || !surface.contains(element)) return null;
+  // 空文档时光标挂在容器自己身上，量到的是整个 <pre>（还带底部跑道），
+  // 拿它当光标位置会算出假的「掉出可视区」，于是每次按键都往下猛滚。
+  if (!element || element === surface || !surface.contains(element)) return null;
   const elementRect = element.getBoundingClientRect();
   return elementRect.height || elementRect.width ? elementRect : null;
 }
@@ -152,6 +168,10 @@ function followCaret() {
   const visibleHeight = visibleBottom - visibleTop;
   if (visibleHeight < 160) return;
 
+  // 矩形比整块可视区还高，拿到的肯定不是光标那一行（退化成整块/跑道），
+  // 这种位置不可信，宁可不跟随也不要来回滚。
+  if (caretRect.height > visibleHeight) return;
+
   const mobile = window.matchMedia('(max-width: 760px)').matches;
   const trigger = visibleTop + visibleHeight * (mobile ? 0.70 : 0.78);
   if (caretRect.bottom <= trigger) return;
@@ -160,8 +180,10 @@ function followCaret() {
   const delta = Math.ceil(caretRect.bottom - target);
   if (delta <= 0) return;
 
-  if (scroller === document.scrollingElement) window.scrollBy(0, delta);
-  else scroller.scrollTop += delta;
+  // 一次最多挪半屏：真掉得很深也别一把梭，避免和系统自带的滚动打架
+  const step = Math.min(delta, Math.round(visibleHeight / 2));
+  if (scroller === document.scrollingElement) window.scrollBy(0, step);
+  else scroller.scrollTop += step;
 }
 
 function scheduleFollow() {

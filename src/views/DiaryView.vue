@@ -52,21 +52,17 @@
 
             <div class="tl-stamp">
               <span class="tl-time">{{ timeOf(item.createdAt) }}</span>
-              <span class="tl-day">{{ formatDateDot(item.date) }}</span>
             </div>
             <span class="tl-dot" aria-hidden="true"></span>
 
             <div class="tl-content">
-              <div v-if="moodOf(item.mood) || eventTitle(item.eventId)" class="tl-meta">
-                <span v-if="moodOf(item.mood)" class="tl-mood" :aria-label="moodOf(item.mood).label">
-                  {{ moodOf(item.mood).emoji }}
-                </span>
-                <span v-if="eventTitle(item.eventId)" class="tl-tag">{{ eventTitle(item.eventId) }}</span>
+              <div v-if="eventTitle(item.eventId)" class="tl-meta">
+                <span class="tl-tag">{{ eventTitle(item.eventId) }}</span>
               </div>
 
-              <h2 v-if="showTitle(item)" class="tl-title">{{ item.title }}</h2>
+              <h2 v-if="item.title" class="tl-title">{{ item.title }}</h2>
 
-              <div v-if="item.body || item.html || item.text" class="tl-body" v-html="previewHtml(item)"></div>
+              <div v-if="item.excerptHtml" class="tl-body" v-html="item.excerptHtml"></div>
 
               <img v-if="item.photo" class="tl-thumb" :src="item.photo" alt="配图">
             </div>
@@ -112,10 +108,10 @@ import { useRouter } from 'vue-router';
 import LoadingState from '../components/LoadingState.vue';
 import { useDiaries } from '../composables/useDiaries';
 import { useEvents } from '../composables/useEvents';
-import { groupDiariesByDate, moodOf, titleInBody } from '../lib/diary';
+import { diaryExcerpt, groupDiariesByDate } from '../lib/diary';
 import { markdownToHtml } from '../lib/richtext';
 import { accentStyleOf } from '../utils/theme';
-import { dateKeyOf, formatDateCN, formatDateDot, parseDateKey, weekdayCN } from '../lib/countdown';
+import { dateKeyOf, formatDateCN, parseDateKey, weekdayCN } from '../lib/countdown';
 
 defineOptions({ name: 'DiaryView' });
 
@@ -128,7 +124,7 @@ const query = ref('');
 function matchesQuery(item, raw) {
   const needle = raw.trim().toLowerCase();
   if (!needle) return true;
-  return [item.title, item.text, moodOf(item.mood)?.label]
+  return [item.title, item.text]
     .filter(Boolean)
     .some((field) => String(field).toLowerCase().includes(needle));
 }
@@ -136,7 +132,10 @@ function matchesQuery(item, raw) {
 const groups = computed(() => {
   const raw = query.value;
   const filtered = raw.trim() ? diaries.value.filter((item) => matchesQuery(item, raw)) : diaries.value;
-  return groupDiariesByDate(filtered);
+  return groupDiariesByDate(filtered).map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({ ...item, excerptHtml: excerptHtmlOf(item) }))
+  }));
 });
 
 const subtitle = computed(() => {
@@ -162,14 +161,11 @@ function groupLabel(date) {
   return `${formatDateCN(date)} ${weekdayCN(date)}`;
 }
 
-// 标题现在就是正文第一行，正文预览里已经包含它，不再重复显示
-function showTitle(item) {
-  return Boolean(item.title) && !titleInBody(item.title, item.body || '');
-}
-
-// 列表摘要按 Markdown 渲染（markdownToHtml 内部已做 HTML 转义）
-function previewHtml(item) {
-  if (item.body) return markdownToHtml(item.body);
+// 摘要只渲染「标题之后」的内容，标题本身由 .tl-title 单独显示。
+// 老数据没有 body 时退回存好的 html。markdownToHtml 内部已做 HTML 转义。
+function excerptHtmlOf(item) {
+  const rest = diaryExcerpt(item.body, item.title);
+  if (item.body) return rest ? markdownToHtml(rest) : '';
   return item.html || '';
 }
 

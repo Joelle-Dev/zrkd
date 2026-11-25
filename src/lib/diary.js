@@ -42,6 +42,17 @@ export function titleInBody(title, body) {
   return firstLine.replace(/\*\*|~~|__|\*|#+\s?/g, '').trim() === value;
 }
 
+/** 列表摘要：标题已经是正文第一行时剥掉首行，避免标题出现两遍 */
+export function diaryExcerpt(body, title) {
+  const text = String(body || '');
+  if (!text) return '';
+  const value = String(title || '').trim();
+  if (value && titleInBody(value, text)) {
+    return text.split('\n').slice(1).join('\n').replace(/^\s+/, '').trim();
+  }
+  return text.trim();
+}
+
 export function moodOf(key) {
   return MOODS.find((mood) => mood.key === key) || null;
 }

@@ -1368,7 +1368,7 @@ h1, h2, h3, h4, p {
 .tl-item {
   position: relative;
   display: grid;
-  grid-template-columns: 62px 16px minmax(0, 1fr);
+  grid-template-columns: 44px 16px minmax(0, 1fr);
   column-gap: 8px;
   padding: 2px 0;
   border-radius: var(--radius-sm);
@@ -1380,7 +1380,7 @@ h1, h2, h3, h4, p {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(62px + 8px + 7.5px);
+  left: calc(44px + 8px + 7.5px);
   width: 1px;
   background: var(--line);
 }
@@ -1408,7 +1408,7 @@ h1, h2, h3, h4, p {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
-/* 左侧时间戳：上面时分，下面年月日 */
+/* 左侧时间戳：只留时分，日期由分组标题承担 */
 .tl-stamp {
   grid-column: 1;
   display: flex;
@@ -1424,15 +1424,6 @@ h1, h2, h3, h4, p {
   font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--ink-soft);
-  line-height: 1.2;
-}
-
-.tl-day {
-  font-size: 9.5px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  color: var(--muted-soft);
-  white-space: nowrap;
   line-height: 1.2;
 }
 
@@ -1468,11 +1459,6 @@ h1, h2, h3, h4, p {
   flex-wrap: wrap;
 }
 
-.tl-mood {
-  font-size: 14px;
-  line-height: 1;
-}
-
 .tl-tag {
   padding: 1px 7px;
   border-radius: 999px;
@@ -1501,7 +1487,7 @@ h1, h2, h3, h4, p {
   line-height: 1.7;
   color: var(--ink-soft);
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-wrap;

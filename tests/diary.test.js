@@ -10,7 +10,8 @@ import {
   sortDiaries,
   validateDiary,
   deriveTitle,
-  titleInBody
+  titleInBody,
+  diaryExcerpt
 } from '../src/lib/diary.js';
 
 test('MOODS 覆盖五种心情且 key 唯一', () => {
@@ -153,4 +154,35 @@ test('normalizeDiaryInput 没有显式标题时从正文派生', () => {
   const value = normalizeDiaryInput({ date: '2026-11-19', body: '**第一行标题**\n内容' });
   assert.equal(value.title, '第一行标题');
   assert.equal(value.body, '**第一行标题**\n内容');
+});
+
+test('diaryExcerpt 标题是正文第一行时剥掉首行', () => {
+  const body = '今天下雨了\n\n出门没带伞，挺贵的。';
+  assert.equal(diaryExcerpt(body, '今天下雨了'), '出门没带伞，挺贵的。');
+});
+
+test('diaryExcerpt 标题带 Markdown 修饰也能剥掉首行', () => {
+  assert.equal(diaryExcerpt('**今天下雨了**\n正文', '今天下雨了'), '正文');
+});
+
+test('diaryExcerpt 标题不在正文里时保留全文（老数据）', () => {
+  const body = '第一行\n第二行';
+  assert.equal(diaryExcerpt(body, '老标题'), '第一行\n第二行');
+});
+
+test('diaryExcerpt 只有一行（就是标题）时返回空', () => {
+  assert.equal(diaryExcerpt('今天下雨了', '今天下雨了'), '');
+  assert.equal(diaryExcerpt('今天下雨了\n\n\n', '今天下雨了'), '');
+});
+
+test('diaryExcerpt 空正文/无标题时安全返回', () => {
+  assert.equal(diaryExcerpt('', '标题'), '');
+  assert.equal(diaryExcerpt('', ''), '');
+  assert.equal(diaryExcerpt(undefined, undefined), '');
+  assert.equal(diaryExcerpt('没有标题的正文', ''), '没有标题的正文');
+});
+
+test('diaryExcerpt 剥掉首行后保留剩余段落', () => {
+  const body = '标题\n\n第一段\n\n第二段';
+  assert.equal(diaryExcerpt(body, '标题'), '第一段\n\n第二段');
 });
